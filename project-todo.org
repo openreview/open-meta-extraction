@@ -19,6 +19,9 @@
 - [ ] Delete downloaded htmls/artifacts when done
 - [ ] Delete /tmp files created by chrome
 - [ ] Reap dead chrome instances
+- [ ] Option to start extractor from last successful URL (to start with most recently added)
+- [ ] Option to have multiple extraction cursors, one for bleeding edge additions, another for reprocessing historical notes
+- [ ] Fix documentation (some sidebar links don't work)
 
 
 

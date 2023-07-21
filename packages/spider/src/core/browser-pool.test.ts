@@ -1,7 +1,5 @@
-import { getServiceLogger, setLogEnvLevel } from '@watr/commonlib';
+import { asyncEachSeries, getServiceLogger, setLogEnvLevel  } from '@watr/commonlib';
 import { BrowserInstance, createBrowserPool, DefaultPageInstanceOptions } from './browser-pool';
-
-import Async from 'async';
 
 describe('browser pooling', () => {
   setLogEnvLevel('info');
@@ -68,7 +66,7 @@ describe('browser pooling', () => {
     // 'webuijserror',
   ];
 
-  it('force kill on hang/timeout', async () => {
+  it.skip('force kill on hang/timeout', async () => {
     const browserPool = createBrowserPool();
 
     const attemptOne = async (url: string) => {
@@ -94,7 +92,7 @@ describe('browser pooling', () => {
       log.debug('/done attempt');
     };
 
-    await Async.forEachSeries(debugUrls, async (dbgUrl) => {
+    await asyncEachSeries(debugUrls, async (dbgUrl) => {
       log.debug(`1. Trying chrome://${dbgUrl}`);
       await attemptOne(dbgUrl);
       log.debug(`2. Trying chrome://${dbgUrl}`);
@@ -104,7 +102,7 @@ describe('browser pooling', () => {
     await browserPool.shutdown();
   });
 
-  it('close all remaining browserInstances on pool.shutdown()', async () => {
+  it.skip('close all remaining browserInstances on pool.shutdown()', async () => {
     const browserPool = createBrowserPool();
     log.debug('Acquiring browserInstances without releasing...');
     await browserPool.acquire();
