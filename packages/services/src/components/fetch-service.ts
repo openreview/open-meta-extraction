@@ -15,8 +15,10 @@ import { generateFromBatch } from '~/util/generators';
 import { ShadowDB } from './shadow-db';
 
 
-export async function createFetchService(): Promise<FetchService> {
-  const s = new FetchService();
+export async function createFetchService(
+  shadow?: ShadowDB
+): Promise<FetchService> {
+  const s = new FetchService(shadow);
   await s.connect();
   return s;
 }
@@ -26,10 +28,12 @@ export class FetchService {
   gate: OpenReviewGateway;
   shadow: ShadowDB;
 
-  constructor() {
+  constructor(
+    shadow?: ShadowDB
+  ) {
     this.log = getServiceLogger('FetchService');
     this.gate = new OpenReviewGateway();
-    this.shadow = new ShadowDB();
+    this.shadow = shadow || new ShadowDB();
   }
 
   async connect() {
@@ -84,7 +88,6 @@ export class FetchService {
     let cur = await noteGenerator.next();
     for (; !cur.done; cur = await noteGenerator.next()) {
       const note = cur.value;
-      this.log.info(`Saving note ${note.id}, #${note.number}`);
       await this.shadow.saveNote(note, true);
       await this.updateFetchCursor(note.id);
     }

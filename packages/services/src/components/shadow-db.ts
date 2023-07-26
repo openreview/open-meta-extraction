@@ -13,8 +13,8 @@ import {
 import { Note, OpenReviewGateway, UpdatableField } from './openreview-gateway';
 
 
-export async function createShadowDB(): Promise<ShadowDB> {
-  const s = new ShadowDB();
+export async function createShadowDB(mdb?: MongoQueries): Promise<ShadowDB> {
+  const s = new ShadowDB(mdb);
   await s.connect();
   return s;
 }
@@ -24,10 +24,10 @@ export class ShadowDB {
   gate: OpenReviewGateway;
   mdb: MongoQueries;
 
-  constructor() {
+  constructor(mdb?: MongoQueries) {
     this.log = getServiceLogger('ShadowDB');
     this.gate = new OpenReviewGateway();
-    this.mdb = new MongoQueries();
+    this.mdb = mdb || new MongoQueries();
   }
 
   async connect() {
@@ -60,25 +60,8 @@ export class ShadowDB {
     await this.gate.updateFieldStatus(noteId, fieldName, fieldValue);
   }
 
-  async getNextAvailableUrl(): Promise<FetchCursor | undefined> {
-    // TODO this could indefinitely lock a cursor
-    // perhaps use uniq ids for workers to disambiguate
-    let cursor = await this.mdb.getCursor('extract-fields');
-    if (!cursor) {
-      const note1 = await this.mdb.getNextNoteWithValidURL(-1);
-      if (!note1) return;
-      return this.mdb.createCursor('extract-fields', note1._id);
-    }
-    return this.mdb.advanceCursor(cursor._id);
-  }
-
   async getUrlStatusForCursor(cursor: FetchCursor): Promise<UrlStatusDocument | undefined> {
     return this.mdb.findUrlStatusById(cursor.noteId);
-  }
-
-  async releaseSpiderableUrl(cursor: FetchCursor): Promise<void> {
-    // await this.mdb.unlockCursor(cursor._id);
-    // await this.mdb.advanceCursor(cursor._id);
   }
 
   async findNote(noteId: string): Promise<NoteStatus | undefined> {
@@ -94,7 +77,7 @@ export class ShadowDB {
       return;
     }
 
-    this.log.info(`SaveNote: ${noteExists ? 'overwriting existing' : 'inserting new'} note`);
+    this.log.info(`SaveNote: ${noteExists ? 'overwriting' : 'creating new'} Note<id:${note.id}, #${note.number}>`);
 
     const noteStatus = await this.mdb.upsertNoteStatus({ noteId: note.id, number: note.number, urlstr });
     if (!noteStatus.validUrl) {
@@ -112,7 +95,7 @@ export class ShadowDB {
     const hasAbstract = typeof abs === 'string';
     const hasPdfLink = typeof pdfLink === 'string';
     const status: WorkflowStatus = hasAbstract && hasPdfLink ? 'extractor:success' : 'unknown';
-    await this.mdb.upsertUrlStatus(note.id, status, { hasAbstract, hasPdfLink, requestUrl });
+    await this.mdb.upsertUrlStatus(note.id, note.number, status, { hasAbstract, hasPdfLink, requestUrl });
 
     if (hasAbstract) {
       await this.mdb.upsertFieldStatus(note.id, 'abstract', abs);

@@ -102,15 +102,50 @@ function htmlRouter(): Router<Koa.DefaultState, Koa.DefaultContext> {
 }
 
 
+
+
+export type WithServerCallbackArgs = {
+  server: Server;
+};
+
+
+export async function* withServerGen(
+  setup: (router: Router) => void,
+): AsyncGenerator<Server, void, any> {
+  const routes = new Router();
+  const app = new Koa();
+  setup(routes);
+  // TODO config port
+  const port = 9100;
+
+
+  app.use(routes.routes());
+  app.use(routes.allowedMethods());
+
+  const server = await new Promise<Server>((resolve) => {
+    const server = app.listen(port, () => {
+      log.info(`Koa is listening to http://localhost:${port}`);
+      resolve(server);
+    });
+  });
+  try {
+    yield server;
+  } finally {
+    await closeTestServer(server);
+  }
+}
+
+
 export async function withServer(
   setup: (router: Router) => void,
-  run: (s: Server) => Promise<void>
+  userCallback: (s: WithServerCallbackArgs) => Promise<void>,
 ): Promise<void> {
   const routes = new Router();
   const app = new Koa();
   setup(routes);
   // TODO config port
   const port = 9100;
+
 
   app.use(routes.routes());
   app.use(routes.allowedMethods());
@@ -122,9 +157,10 @@ export async function withServer(
     });
   });
 
-  await run(server).catch(error => {
-    // prettyPrint({ error })
-    throw(error);
+  const callbackArgs = { server };
+
+  await userCallback(callbackArgs).catch(error => {
+    throw (error);
   });
 
   await closeTestServer(server);

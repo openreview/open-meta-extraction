@@ -39,7 +39,11 @@ export function makeNowTimeString(): string {
 }
 
 
-export const delay = (t: number) => new Promise(resolve => setTimeout(resolve, t));
+export const oneSecond = 1000;
+export const oneMinute = 60 * oneSecond;
+export const oneHour = 60 * oneMinute;
+
+export const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 
 export function newIdGenerator(start: number) {

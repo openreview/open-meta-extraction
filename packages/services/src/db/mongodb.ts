@@ -2,29 +2,37 @@ import { getServiceLogger, initConfig, isTestingEnv, putStrLn } from '@watr/comm
 import mongoose, { Mongoose } from 'mongoose';
 
 import { createCollections } from '~/db/schemas';
+import { randomBytes } from 'crypto';
+import { Logger } from 'winston';
 
-const log = getServiceLogger('MongoDB');
+let _log: Logger | undefined;
 
-export function mongoConnectionString(): string {
+function log(): Logger {
+  if (_log) return _log;
+  putStrLn('log():create')
+  return _log = getServiceLogger('MongoDB');
+}
+
+export function mongoConnectionString(dbNameMod?: string): string {
   const config = initConfig();
   const ConnectionURL = config.get('mongodb:connectionUrl');
   const MongoDBName = config.get('mongodb:dbName');
-  const connectUrl = `${ConnectionURL}/${MongoDBName}`;
+  const dbName = dbNameMod ? MongoDBName + dbNameMod : MongoDBName;
+  const connectUrl = `${ConnectionURL}/${dbName}`;
   return connectUrl;
 }
 
-export async function connectToMongoDB(): Promise<Mongoose> {
-  const connstr = mongoConnectionString();
-  log.info(`connecting to ${connstr}`);
+export async function connectToMongoDB(dbNameMod?: string): Promise<Mongoose> {
+  const connstr = mongoConnectionString(dbNameMod);
+  log().debug(`connecting to ${connstr}`);
   return mongoose.connect(connstr, { connectTimeoutMS: 5000 });
 }
 
 export async function resetMongoDB(): Promise<void> {
-  const config = initConfig();
-  const MongoDBName = config.get('mongodb:dbName');
-  log.info(`dropping MongoDB ${MongoDBName}`);
+  const dbName = mongoose.connection.name;
+  log().debug(`dropping MongoDB ${dbName}`);
   await mongoose.connection.dropDatabase();
-  log.info('createCollections..');
+  log().debug('createCollections..');
   await createCollections();
 }
 
@@ -40,7 +48,7 @@ export function createCurrentTimeOpt(): CurrentTimeOpt {
     };
     return defaultOpt;
   }
-  log.info('Using MongoDB Mock Timestamps');
+  log().debug('Using MongoDB Mock Timestamps');
   const currentFakeDate = new Date();
   currentFakeDate.setDate(currentFakeDate.getDate() - 14);
   const mockedOpts: CurrentTimeOpt = {
@@ -56,26 +64,60 @@ export function createCurrentTimeOpt(): CurrentTimeOpt {
 }
 
 type RunWithMongo = (m: Mongoose) => Promise<void>;
-export async function withMongo(
-  run: RunWithMongo,
-  emptyDB: boolean
-): Promise<void> {
+type WithMongoArgs = {
+  run: RunWithMongo;
+  emptyDB?: boolean;
+  uniqDB?: boolean;
+  retainDB?: boolean;
+}
+
+export async function withMongo(args: WithMongoArgs): Promise<void> {
+  const { run } = args;
+
+  for await (const mongoose of withMongoGen(args)) {
+    await run(mongoose);
+  }
+}
+
+type WithMongoGenArgs = {
+  emptyDB?: boolean;
+  uniqDB?: boolean;
+  retainDB?: boolean;
+}
+
+export async function* withMongoGen({
+  emptyDB,
+  uniqDB,
+  retainDB
+}: WithMongoGenArgs): AsyncGenerator<Mongoose, void, any> {
   const config = initConfig();
   const MongoDBName = config.get('mongodb:dbName');
-  const mongoose = await connectToMongoDB();
-  log.info('mongo connected...');
+  if (!/.+test.*/.test(MongoDBName)) {
+    throw new Error(`Tried to reset mongodb ${MongoDBName}; can only reset a db w/name matching /test/`);
+  }
+
+  const randomString = randomBytes(3).toString('hex').slice(0, 3);
+  const dbSuffix = uniqDB ? '-' + randomString : undefined;
+  const mongoose = await connectToMongoDB(dbSuffix);
+
+  const dbName = mongoose.connection.name;
+  log().debug(`mongo db ${dbName} connected...`);
+  if (uniqDB) {
+    await createCollections();
+  }
   if (emptyDB) {
-    if (!/.+test.*/.test(MongoDBName)) {
-      throw new Error(`Tried to reset mongodb ${MongoDBName}; can only reset a db w/name matching /test/`);
-    }
-    log.info('mongo resetting...');
+    log().debug(`mongo db ${dbName} resetting...`);
     await resetMongoDB();
   }
   try {
-    log.info('mongo running client...');
-    await run(mongoose);
+    log().debug(`mongo db ${dbName} running client...`);
+    yield mongoose;
   } finally {
-    log.info('mongo closing...');
+    if (!retainDB) {
+      log().debug(`mongo dropping db ${dbName}...`);
+      await mongoose.connection.dropDatabase()
+    }
+    log().debug(`mongo closing db ${dbName}...`);
     await mongoose.connection.close();
   }
 }

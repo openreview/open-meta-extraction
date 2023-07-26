@@ -1,9 +1,8 @@
-import _ from 'lodash';
 import { isUrl, setLogEnvLevel } from '@watr/commonlib';
 import * as fc from 'fast-check';
 import { MongoQueries } from './query-api';
 
-import { genHttpStatus } from './mock-data';
+import { genHttpStatus, numberSeries } from './mock-data';
 
 describe('MongoDB Schemas', () => {
   setLogEnvLevel('debug');
@@ -60,6 +59,7 @@ describe('MongoDB Schemas', () => {
   });
 
   it('should create/find host status', async () => {
+    let noteNum = 0;
     await fc.assert(
       fc.asyncProperty(
         fc.string(), // noteId
@@ -71,7 +71,7 @@ describe('MongoDB Schemas', () => {
         fc.string(), // TODO workflowStatus
         async (noteId, hasAbstract, requestUrl, response, httpStatus, _workflowStatus) => {
           // Insert new document
-          const ret = await mdb.upsertUrlStatus(noteId, 'unknown', { hasAbstract, requestUrl, response, httpStatus });
+          const ret = await mdb.upsertUrlStatus(noteId, noteNum++, 'unknown', { hasAbstract, requestUrl, response, httpStatus });
           const byId = await mdb.findUrlStatusById(noteId);
           expect(byId).toBeDefined();
           if (byId === undefined) {

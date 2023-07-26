@@ -20,18 +20,23 @@
 - [ ] Delete /tmp files created by chrome
 - [ ] Reap dead chrome instances
 - [ ] Option to start extractor from last successful URL (to start with most recently added)
-- [ ] Option to have multiple extraction cursors, one for bleeding edge additions, another for reprocessing historical notes
 - [ ] Fix documentation (some sidebar links don't work)
 
 
 
 ** Next Actions
 
-- [ ] Deploy new code manually
-  - [ ] merge adam -> iesl
-  - [ ] Get PM2 running w/o bree wrapper
+- [ ] Option to have multiple extraction cursors, one for bleeding edge additions, another for reprocessing historical notes
 
 - [ ] refactor monitor/stats module to show basic functionality
+
+- [ ] review extraction loop
+  - [ ] should use 2 cursors, one recent one historical
+  - [ ] should have several modes:
+    - retry everything
+    - retry failure(s)
+    - check http status
+    - check hash values
 
 
 ** Ideas

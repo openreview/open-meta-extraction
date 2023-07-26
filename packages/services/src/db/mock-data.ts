@@ -8,23 +8,25 @@ import { Note, Notes } from '~/components/openreview-gateway';
 export async function populateDBHostNoteStatus(mdb: MongoQueries, n: number) {
   await asyncEachOfSeries(
     _.range(n),
-    async (index: number) => {
-      const validUrl = index % 3 === 0;
-      const urlstr = validUrl ? `http://host-${index % 5}/page/${index}` : 'no-url';
+    async (noteNumber: number) => {
+      const validUrl = noteNumber % 3 === 0;
+      const urlstr = validUrl ? `http://host-${noteNumber % 5}/page/${noteNumber}` : 'no-url';
       await mdb.upsertNoteStatus({
-        noteId: `note#${index}`,
-        number: index, urlstr
+        noteId: `note#${noteNumber}`,
+        number: noteNumber,
+        urlstr
       });
 
-      const wi = index % WorkflowStatuses.length;
+      const wi = noteNumber % WorkflowStatuses.length;
       const workflowStatus = WorkflowStatuses[wi];
       if (validUrl) {
-        const httpStatus = (((index % 4) + 2) * 100) + (index % 3);
+        const httpStatus = (((noteNumber % 4) + 2) * 100) + (noteNumber % 3);
         await mdb.upsertUrlStatus(
-          `note#${index}`,
+          `note#${noteNumber}`,
+          noteNumber,
           workflowStatus,
           {
-            hasAbstract: index % 9 === 0,
+            hasAbstract: noteNumber % 9 === 0,
             requestUrl: urlstr,
             response: urlstr,
             httpStatus
@@ -39,6 +41,10 @@ const aCodes = _.concat(a200s, a404s, [301, 302, 500]);
 export const genHttpStatus = fc.oneof(
   ...(aCodes.map(n => fc.constant(n)))
 );
+
+export const numberSeries = (start: number, end?: number) =>
+  fc.Stream.of<number>(... _.range(start, end));
+  // new fc.Stream<number>(... _.range(start, end));
 
 type CreateFakeNote = {
   noteNumber: number;

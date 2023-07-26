@@ -6,7 +6,8 @@ import { createCurrentTimeOpt } from './mongodb';
 const log = getServiceLogger('MongoSchema');
 
 export interface NoteStatus {
-  _id: string;
+  _id: Types.ObjectId;
+  id: string;
   number: number;
   validUrl: boolean;
   url?: string;
@@ -15,7 +16,7 @@ export interface NoteStatus {
 }
 
 export const NoteStatusSchema = new Schema<NoteStatus>({
-  _id: { type: String },
+  id: { type: String },
   number: { type: Number, required: true, unique: true },
   validUrl: { type: Boolean, required: true },
   url: { type: String, required: false },
@@ -64,7 +65,9 @@ export function isWorkflowStatus(s: unknown): s is WorkflowStatus {
 }
 
 export interface UrlStatus {
-  _id: string;
+  _id: Types.ObjectId;
+  noteId: string;
+  noteNumber: number;
   hasAbstract: boolean;
   hasPdfLink: boolean;
   validResponseUrl: boolean
@@ -93,7 +96,8 @@ function NonNullable(v: unknown): boolean {
 
 
 export const UrlStatusSchema = new Schema<UrlStatus>({
-  _id: { type: String },
+  noteId: { type: String, index: true, unique: true },
+  noteNumber: { type: Number, required: true, unique: true },
   hasAbstract: { type: Boolean, required: true },
   hasPdfLink: { type: Boolean, required: true },
   requestUrl: { type: String, required: true, index: true, validate: isUrl },
@@ -122,10 +126,9 @@ export interface FetchCursor {
   lockStatus: string;
   createdAt: Date;
   updatedAt: Date;
-
 }
+
 export const FetchCursorSchema = new Schema<FetchCursor>({
-  // _id: { type: String },
   noteId: { type: String, required: true },
   noteNumber: { type: Number, required: true },
   role: { type: String, required: true, unique: true },
@@ -137,7 +140,6 @@ export const FetchCursorSchema = new Schema<FetchCursor>({
 
 export const FetchCursor = model<FetchCursor>('FetchCursor', FetchCursorSchema);
 
-
 export interface FieldStatus {
   noteId: string;
   fieldType: string;
@@ -148,7 +150,7 @@ export interface FieldStatus {
 
 
 export const FieldStatusSchema = new Schema<FieldStatus>({
-  noteId: { type: String, required: true },
+  noteId: { type: String, index: true, unique: true },
   fieldType: { type: String, required: true },
   // state: { type: String, required: true, index: true },
   contentHash: { type: String, required: false },

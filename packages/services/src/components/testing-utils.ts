@@ -1,17 +1,24 @@
 import _ from 'lodash';
 
-import { respondWith, withServer } from '@watr/spider';
-import { withMongo } from '~/db/mongodb';
+import { respondWith } from '@watr/spider';
+import { asNoteBatch, createFakeNoteList } from '~/db/mock-data';
+import Router from '@koa/router';
 
-export const withServerAndCleanMongo: typeof withServer = async (setup, run) => {
-  return withMongo(async () => {
-    return withServer(
-      (r) => {
-        r.post('/login', respondWith({ token: 'fake-token', user: { id: '~TestUser;' } }));
-        setup(r);
-      },
-      run
-    );
-  }, true);
-};
+export function openreviewAPIRoutes(router: Router) {
+  router.post('/login', respondWith({ token: 'fake-token', user: { id: '~TestUser;' } }));
+
+  const totalNotes = 100;
+  const batchSize = 10;
+  router.get('/notes', (ctx) => {
+    const { query } = ctx;
+    const { after } = query;
+    let prevIdNum = 0;
+    if (_.isString(after)) {
+      const idnum = after.split('#')[1];
+      prevIdNum = Number.parseInt(idnum, 10);
+    }
+    const noteList = createFakeNoteList(batchSize, prevIdNum + 1);
+    respondWith(asNoteBatch(totalNotes, noteList))(ctx);
+  });
+}
 

@@ -18,8 +18,8 @@ type upsertNoteStatusArgs = {
   number?: number,
 };
 
-export async function createMongoQueries(): Promise<MongoQueries> {
-  const s = new MongoQueries();
+export async function createMongoQueries(mongoose?: Mongoose): Promise<MongoQueries> {
+  const s = new MongoQueries(mongoose);
   await s.connect();
   return s;
 }
@@ -29,12 +29,17 @@ export class MongoQueries {
   config: ReturnType<typeof initConfig>;
   mongoose?: Mongoose;
 
-  constructor() {
+  constructor(mongoose?: Mongoose) {
     this.log = getServiceLogger('MongoQueries');
     this.config = initConfig();
+    this.mongoose = mongoose;
   }
 
   async connect() {
+    if (this.mongoose) {
+      this.log.info('Already connected');
+      return;
+    }
     this.mongoose = await connectToMongoDB();
   }
 
@@ -75,14 +80,14 @@ export class MongoQueries {
 
 
     return NoteStatus.findOneAndUpdate(
-      { _id: noteId },
+      { id: noteId },
       { number, validUrl, url: urlOrErrStr },
       { new: true, upsert: true }
     );
   }
 
   async findNoteStatusById(noteId: string): Promise<NoteStatus | undefined> {
-    const ret = await NoteStatus.findOne({ _id: noteId });
+    const ret = await NoteStatus.findOne({ id: noteId });
     return ret === null ? undefined : ret;
   }
 
@@ -101,6 +106,18 @@ export class MongoQueries {
       { sort: { number: -1 } }
     );
     return s || undefined;
+  }
+
+  async getLastNoteWithSuccessfulExtraction(): Promise<NoteStatus | undefined> {
+    const s = await UrlStatus.findOne(
+      { response: { $exists: true, $ne: null } },
+      null,
+      { sort: { number: -1 } }
+    );
+    if (!s) return;
+
+    const n = await NoteStatus.findById(s._id);
+    return n || undefined;
   }
 
   async updateUrlStatus(
@@ -134,7 +151,7 @@ export class MongoQueries {
     };
 
     const updated = await UrlStatus.findOneAndUpdate(
-      { _id: noteId },
+      { noteId },
       updateQ,
       { new: true, runValidators: true }
     );
@@ -143,14 +160,14 @@ export class MongoQueries {
 
   async upsertUrlStatus(
     noteId: string,
+    noteNumber: number,
     workflowStatus: WorkflowStatus,
     fields: UrlStatusUpdateFields,
   ): Promise<UrlStatusDocument> {
     const setQ: Record<string, any> = {};
     const unsetQ: Record<string, any> = {};
 
-    _.merge(setQ, fields, { workflowStatus });
-    _.merge(setQ, fields);
+    _.merge(setQ, fields, { workflowStatus, noteNumber });
 
     if ('response' in fields) {
       const { response } = fields;
@@ -172,7 +189,7 @@ export class MongoQueries {
     };
 
     const updated = await UrlStatus.findOneAndUpdate(
-      { _id: noteId },
+      { noteId },
       updateQ,
       { new: true, upsert: true, runValidators: true }
     );
@@ -180,7 +197,7 @@ export class MongoQueries {
   }
 
   async findUrlStatusById(noteId: string): Promise<UrlStatusDocument | undefined> {
-    const ret = await UrlStatus.findOne({ _id: noteId });
+    const ret = await UrlStatus.findOne({ noteId });
     return ret === null ? undefined : ret;
   }
 
@@ -278,9 +295,19 @@ export class MongoQueries {
     return cursor;
   }
 
+  async getCursors(): Promise<FetchCursor[]> {
+    return FetchCursor.find();
+  }
+
   async deleteCursor(role: CursorRole): Promise<boolean> {
     const cursor = await FetchCursor.findOneAndRemove({ role });
     return cursor !== null;
+  }
+
+  async deleteCursors(): Promise<void> {
+    const cursors = await FetchCursor.find();
+    this.log.info(`Deleting ${cursors.length} cursors`);
+    await Promise.all(cursors.map(async c => c.deleteOne()))
   }
 
   async updateCursor(role: CursorRole, noteId: string): Promise<FetchCursor> {
@@ -325,12 +352,18 @@ export class MongoQueries {
 
 }
 
-// TODO move these to shadowDB
-export type ExtractedFieldName = UpdatableField; // 'abstract' | 'pdf-link';
-export type ExtractedFieldStatus = 'preexisting' | 'not-found' | 'found' | 'failed' | 'locked';
+export type ExtractedFieldName = UpdatableField;
 
-export type CursorRole = 'fetch-openreview-notes' | 'extract-fields';
-export const CursorRoles: CursorRole[] = ['fetch-openreview-notes', 'extract-fields'];
+export type CursorRole = 'fetch-openreview-notes'
+  | 'extract-fields/newest'
+  | 'extract-fields/all'
+  ;
+
+export const CursorRoles: CursorRole[] = [
+  'fetch-openreview-notes',
+  'extract-fields/newest',
+  'extract-fields/all'
+];
 
 export function isCursorRole(s: unknown): s is CursorRole {
   return typeof s === 'string' && _.includes(CursorRoles, s)

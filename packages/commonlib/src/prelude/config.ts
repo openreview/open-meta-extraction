@@ -67,7 +67,6 @@ export function initConfig(): typeof nconf {
   }
 
   const envFile = `config-${envMode}.json`;
-  putStrLn(`NODE_ENV=${envMode}`);
 
   nconf.argv().env();
 

@@ -1,7 +1,7 @@
 import _ from 'lodash';
 
 
-import { arglib, initConfig, prettyPrint, putStrLn } from '@watr/commonlib';
+import { arglib, initConfig, putStrLn } from '@watr/commonlib';
 import { formatStatusMessages, showStatusSummary } from '~/db/extraction-summary';
 import { connectToMongoDB, mongoConnectionString, resetMongoDB } from '~/db/mongodb';
 import { createFetchService } from '~/components/fetch-service';
@@ -9,6 +9,7 @@ import { createExtractionService } from '~/components/extraction-service';
 import { OpenReviewGateway } from '~/components/openreview-gateway';
 import { runMonitor } from '~/components/monitor-service';
 import { CursorRoles, createMongoQueries, isCursorRole } from '~/db/query-api';
+import { TaskScheduler } from '~/components/task-scheduler';
 
 
 const { opt, config, registerCmd } = arglib;
@@ -42,6 +43,35 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
     await fetchService.runFetchLoop(limit);
     await fetchService.close();
   });
+  registerCmd(
+    yargv,
+    'list-cursors',
+    'Show all current cursors',
+    config(
+      opt.flag('delete: delete all cursors', false),
+    )
+  )(async (args: any) => {
+    const del = args.delete;
+
+    const mdb = await createMongoQueries();
+
+    try {
+      const cursors = await mdb.getCursors()
+      cursors.forEach(c => {
+        putStrLn(`> ${c.role} = id:${c.noteId} number:${c.noteNumber} created:${c.createdAt}`);
+      });
+
+      if (_.isBoolean(del) && del) {
+        await mdb.deleteCursors();
+      }
+
+    } finally {
+      putStrLn('Closing DB');
+      await mdb.close();
+    }
+
+  });
+
 
   registerCmd(
     yargv,
@@ -49,12 +79,14 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
     'Create/update/delete pointers to last fetched/extracted',
     config(
       opt.str('role: the cursor role to operate on'),
+      opt.flag('create: delete the named cursor', false),
       opt.flag('delete: delete the named cursor', false),
       opt.num('move: Move the cursor forward/backward by the specified number', 0),
     )
   )(async (args: any) => {
     const role = args.role;
     const del = args.delete;
+    const create = args.create;
     const move = args.move;
 
     if (!isCursorRole(role)) {
@@ -91,6 +123,13 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
         return;
       }
 
+      if (_.isBoolean(create) && create) {
+        putStrLn(`Creating cursor w/role ${role}`);
+        const taskScheduler = new TaskScheduler(mdb);
+        await taskScheduler.createUrlCursor(role);
+        return;
+      }
+
       putStrLn('No operation specifed...');
 
     } finally {
@@ -122,9 +161,9 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
     const postResultsToOpenReview: boolean = args.postResults;
     const limit: number = args.limit;
 
-    const extractionService = await createExtractionService();
+    const extractionService = await createExtractionService(postResultsToOpenReview);
 
-    await extractionService.runExtractionLoop({ limit, postResultsToOpenReview });
+    await extractionService.runExtractionLoop(limit);
 
     console.log('done! run-extraction-service');
   });
