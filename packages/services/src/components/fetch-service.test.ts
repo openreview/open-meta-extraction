@@ -1,8 +1,5 @@
-
 import _ from 'lodash';
 import { setLogEnvLevel } from '@watr/commonlib';
-
-setLogEnvLevel('info');
 
 import { withServerGen } from '@watr/spider';
 import { createFetchService } from './fetch-service';
@@ -10,12 +7,12 @@ import { createFetchService } from './fetch-service';
 import { FetchCursor, UrlStatus, NoteStatus } from '~/db/schemas';
 import { createFakeNotes } from '~/db/mock-data';
 import { openreviewAPIRoutes } from './testing-utils';
-import { withMongoGen } from '~/db/mongodb';
-import { createShadowDB } from './shadow-db';
-import { createMongoQueries } from '~/db/query-api';
+import { withShadowDB } from './shadow-db';
 
 
 describe('Fetch Service', () => {
+
+  setLogEnvLevel('info');
 
   it('should create valid fake notes', async () => {
     const notes = createFakeNotes(3);
@@ -31,11 +28,11 @@ describe('Fetch Service', () => {
     const eightNoteIds = _.range(8).map(i => `note#${i + 1}`);
 
     for await (const __ of withServerGen(openreviewAPIRoutes)) {
-      for await (const mongoose of withMongoGen({ uniqDB: true })) {
+      for await (const { shadowDB } of withShadowDB({ uniqDB: true })) {
         // instantiate fetch service w/ our own server connection mongoose/mdb
-        const mdb = await createMongoQueries(mongoose);
-        const shadow = await createShadowDB(mdb)
-        const fetchService = await createFetchService(shadow);
+        // const mdb = await createMongoQueries(mongoose);
+        // const shadow = await createShadowDB(mdb)
+        const fetchService = await createFetchService(shadowDB);
         await fetchService.runFetchLoop(4);
 
         // assert MongoDB is populated correctly

@@ -15,9 +15,13 @@ import { BrowserPool, createBrowserPool, createSpiderEnv, UrlFetchData } from '@
 import { Logger } from 'winston';
 import { ShadowDB } from './shadow-db';
 import { UrlStatus, WorkflowStatus } from '~/db/schemas';
-import { TaskScheduler } from './task-scheduler';
+import { TaskScheduler, withTaskScheduler, WithTaskScheduler } from './task-scheduler';
+import { parseIntOrElse } from '~/util/misc';
+import { WithMongoGenArgs } from '~/db/mongodb';
 
 export async function createExtractionService(
+  shadowDB: ShadowDB,
+  taskScheduler: TaskScheduler,
   postResultsToOpenReview: boolean
 ): Promise<ExtractionService> {
   const browserPool: BrowserPool = createBrowserPool();
@@ -25,25 +29,34 @@ export async function createExtractionService(
 
   const s = new ExtractionService(
     corpusRoot,
+    shadowDB,
+    taskScheduler,
     browserPool,
     postResultsToOpenReview
   );
   await s.connect();
   return s;
 }
+export type WithExtractionService = WithTaskScheduler & {
+  extractionService: ExtractionService
+};
 
-function parseNumberOrElse(s: string, fallback: number): number {
-  try {
-    return Number.parseInt(s);
-  }
-  catch {
-    return fallback;
+type WithExtractionServiceArgs = WithMongoGenArgs & {
+  postResultsToOpenReview: boolean;
+}
+
+export async function* withExtractionService(args: WithExtractionServiceArgs): AsyncGenerator<WithExtractionService, void, any> {
+  for await (const components of withTaskScheduler(args)) {
+    const { postResultsToOpenReview } = args;
+    const { taskScheduler, shadowDB  } = components;
+    const extractionService = await createExtractionService(shadowDB, taskScheduler, postResultsToOpenReview);
+    yield _.merge({}, components, { extractionService });
   }
 }
 
 export class ExtractionService {
   log: Logger;
-  shadow: ShadowDB;
+  shadowDB: ShadowDB;
   browserPool: BrowserPool;
   taskScheduler: TaskScheduler
   postResultsToOpenReview: boolean;
@@ -51,12 +64,14 @@ export class ExtractionService {
 
   constructor(
     corpusRoot: string,
+    shadowDB: ShadowDB,
+    taskScheduler: TaskScheduler,
     browserPool: BrowserPool,
-    postResultsToOpenReview: boolean
+    postResultsToOpenReview: boolean,
   ) {
     this.log = getServiceLogger('ExtractionService');
-    this.shadow = new ShadowDB();
-    this.taskScheduler = new TaskScheduler
+    this.shadowDB = shadowDB;
+    this.taskScheduler = taskScheduler;
     this.postResultsToOpenReview = postResultsToOpenReview
     this.corpusRoot = corpusRoot;
     this.browserPool = browserPool;
@@ -64,19 +79,20 @@ export class ExtractionService {
 
 
   async connect() {
-    await this.shadow.connect();
+    await this.shadowDB.connect();
   }
 
   async close() {
-    await this.shadow.close();
+    await this.shadowDB.close();
     await this.browserPool.shutdown();
   }
 
+  // Main Extraction Loop
   async runExtractionLoop(limit: number) {
     let currCount = 0;
     const runForever = limit === 0;
 
-    for await (const urlStatus of this.taskScheduler.urlGenerator()) {
+    for await (const urlStatus of this.taskScheduler.genUrlStream()) {
       if (runForever) {
         await this.extractUrl(urlStatus);
         continue;
@@ -120,7 +136,7 @@ export class ExtractionService {
 
 
   async updateWorkflowStatus(noteId: string, workflowStatus: WorkflowStatus): Promise<boolean> {
-    const update = await this.shadow.mdb.updateUrlStatus(noteId, { workflowStatus });
+    const update = await this.shadowDB.mdb.updateUrlStatus(noteId, { workflowStatus });
     if (!update) {
       this.log.error(`Problem updating workflow status='${workflowStatus}' for note ${noteId}`)
     }
@@ -132,7 +148,7 @@ export class ExtractionService {
     this.log.debug(`Extraction succeeded, continuing...`);
 
     const { status, responseUrl } = extractionEnv.urlFetchData;
-    const httpStatus = parseNumberOrElse(status, 0);
+    const httpStatus = parseIntOrElse(status, 0);
 
     const canonicalFields = getEnvCanonicalFields(extractionEnv);
 
@@ -146,15 +162,15 @@ export class ExtractionService {
 
     if (this.postResultsToOpenReview) {
       if (hasAbstract) {
-        await this.shadow.updateFieldStatus(noteId, 'abstract', theAbstract);
+        await this.shadowDB.updateFieldStatus(noteId, 'abstract', theAbstract);
       }
       if (hasPdfLink) {
-        await this.shadow.updateFieldStatus(noteId, 'pdf', pdfLink);
+        await this.shadowDB.updateFieldStatus(noteId, 'pdf', pdfLink);
       }
       await this.updateWorkflowStatus(noteId, 'fields:posted');
     }
 
-    await this.shadow.mdb.updateUrlStatus(noteId, {
+    await this.shadowDB.mdb.updateUrlStatus(noteId, {
       hasAbstract,
       hasPdfLink,
       httpStatus,
@@ -166,9 +182,9 @@ export class ExtractionService {
     this.log.debug(`Extraction Failed, exiting...`);
 
     const { status } = urlFetchData;
-    const httpStatus = parseNumberOrElse(status, 0);
+    const httpStatus = parseIntOrElse(status, 0);
 
-    await this.shadow.mdb.updateUrlStatus(noteId, {
+    await this.shadowDB.mdb.updateUrlStatus(noteId, {
       httpStatus,
     });
     prettyPrint({ urlFetchData });
@@ -235,7 +251,7 @@ function chooseCanonicalPdfLink(canonicalFields: CanonicalFieldRecords): string 
 
   //   return asyncDoUntil(
   //     async () => {
-  //       const nextNoteCursor = await this.shadow.getNextAvailableUrl();
+  //       const nextNoteCursor = await this.shadowDB.getNextAvailableUrl();
   //       // update URL workflow status
   //       const msg = `nextNoteCursor=${nextNoteCursor?.noteId}; num=${nextNoteCursor?.noteNumber}`;
   //       putStrLn(msg);
@@ -245,7 +261,7 @@ function chooseCanonicalPdfLink(canonicalFields: CanonicalFieldRecords): string 
   //         this.log.info('No more spiderable URLs available');
   //         return 'done';
   //       }
-  //       const nextUrlStatus = await this.shadow.getUrlStatusForCursor(nextNoteCursor);
+  //       const nextUrlStatus = await this.shadowDB.getUrlStatusForCursor(nextNoteCursor);
   //       if (!nextUrlStatus) {
   //         throw new Error(`Invalid state: nextNoteCursor(${nextNoteCursor.noteId}) had not corresponding urlStatus`)
   //       }
@@ -279,14 +295,14 @@ function chooseCanonicalPdfLink(canonicalFields: CanonicalFieldRecords): string 
   //         let httpStatus = 0;
   //         try { httpStatus = Number.parseInt(status); } catch {}
 
-  //         await this.shadow.mdb.updateUrlStatus(noteId, {
+  //         await this.shadowDB.mdb.updateUrlStatus(noteId, {
   //           httpStatus,
   //           // response: responseUrl
   //         });
   //         prettyPrint({ errCode, urlFetchData });
 
   //         await this.updateWorkflowStatus(noteId, 'extractor:fail');
-  //         await this.shadow.releaseSpiderableUrl(nextNoteCursor);
+  //         await this.shadowDB.releaseSpiderableUrl(nextNoteCursor);
   //         return 'continue';
   //       }
 
@@ -311,16 +327,16 @@ function chooseCanonicalPdfLink(canonicalFields: CanonicalFieldRecords): string 
 
   //       if (postResultsToOpenReview) {
   //         if (hasAbstract) {
-  //           await this.shadow.updateFieldStatus(noteId, 'abstract', theAbstract);
+  //           await this.shadowDB.updateFieldStatus(noteId, 'abstract', theAbstract);
   //         }
   //         if (hasPdfLink) {
-  //           await this.shadow.updateFieldStatus(noteId, 'pdf', pdfLink);
+  //           await this.shadowDB.updateFieldStatus(noteId, 'pdf', pdfLink);
   //         }
   //         await this.updateWorkflowStatus(noteId, 'fields:posted');
   //       }
 
-  //       await this.shadow.releaseSpiderableUrl(nextNoteCursor);
-  //       await this.shadow.mdb.updateUrlStatus(noteId, {
+  //       await this.shadowDB.releaseSpiderableUrl(nextNoteCursor);
+  //       await this.shadowDB.mdb.updateUrlStatus(noteId, {
   //         hasAbstract,
   //         hasPdfLink,
   //         httpStatus,
@@ -331,7 +347,7 @@ function chooseCanonicalPdfLink(canonicalFields: CanonicalFieldRecords): string 
   //     stopCondition
   //   ).finally(async () => {
   //     await browserPool.shutdown();
-  //     await this.shadow.close();
+  //     await this.shadowDB.close();
   //   });
   // }
 

@@ -1,6 +1,6 @@
 import _ from 'lodash';
 import { Logger } from 'winston';
-import { PageInstance } from './browser-pool';
+import { PageInstance } from './browser-instance';
 
 const AllBlockableResources = {
   cspviolationreport: null,

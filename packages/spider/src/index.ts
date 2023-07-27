@@ -1,4 +1,5 @@
 export * from './core/browser-pool';
+export * from './core/browser-instance';
 export * from './core/taskflow-defs';
 export * from './core/puppet';
 export * from './core/url-fetch-chains';

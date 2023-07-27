@@ -11,7 +11,8 @@ import {
   HashEncodedPath,
 } from '@watr/commonlib';
 
-import { BrowserInstance, BrowserPool, PageInstance } from './browser-pool';
+import { BrowserPool } from './browser-pool';
+import { BrowserInstance, PageInstance } from './browser-instance';
 
 export interface NamespacedLogging {
   log: Logger;

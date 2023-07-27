@@ -3,8 +3,8 @@
  * Initialize event logging and create interception hooks
  */
 
-import { putStrLn } from '@watr/commonlib';
 import _ from 'lodash';
+import { putStrLn } from '@watr/commonlib';
 
 import {
   HTTPResponse,
@@ -14,13 +14,12 @@ import {
   Metrics,
   WebWorker,
   Dialog,
-  BrowserEmittedEvents,
 } from 'puppeteer';
 
 import { Logger } from 'winston';
 
-import { BrowserInstance, PageInstance } from './browser-pool';
 import { currentlyBlockedResources } from './resource-blocking';
+import { PageInstance } from './browser-instance';
 
 const PageEvents: Array<keyof PageEventObject> = [
   'close',
@@ -51,34 +50,6 @@ const RequestCycleEvents: Array<keyof PageEventObject> = [
 ];
 
 
-/*
- * Log all events when log level = Verbose
- */
-export function logBrowserEvent(browserInstance: BrowserInstance, logger: Logger) {
-  const { browser } = browserInstance;
-
-  const events = [
-    BrowserEmittedEvents.TargetChanged,
-    BrowserEmittedEvents.TargetCreated,
-    BrowserEmittedEvents.TargetDestroyed,
-    BrowserEmittedEvents.Disconnected,
-  ];
-
-  const bproc = browser.process();
-  const pid = bproc?.pid;
-  if (bproc === null || pid === undefined) {
-    logger.error('logBrowserEvents(): browser.process().pid is undefined');
-    return;
-  }
-
-  _.each(events, (event) => {
-    browser.on(event, (e) => {
-      const ttype = e?._targetInfo?.type;
-      const turl = e?._targetInfo?.url;
-      logger.verbose(`Browser#${pid}: browserEvent: ${event}, targetType: ${ttype}, targetUrl: ${turl}`);
-    });
-  });
-}
 
 function _updateMap<K, V>(
   m: Map<K, V>,

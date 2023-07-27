@@ -17,8 +17,9 @@ import {
 } from '~/core/taskflow-defs';
 
 import { getServiceLogger, putStrLn, setLogEnvLevel } from '@watr/commonlib';
-import { createBrowserPool, ScriptablePageInstanceOptions } from '~/core/browser-pool';
+import { createBrowserPool } from '~/core/browser-pool';
 import { closeTestServer, resetTestServer } from '~/dev/test-http-server';
+import { ScriptablePageInstanceOptions } from '~/core/browser-instance';
 
 const corpusRoot = 'test.d';
 

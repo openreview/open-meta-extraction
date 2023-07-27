@@ -27,9 +27,10 @@
 ** Next Actions
 
 - [ ] Option to have multiple extraction cursors, one for bleeding edge additions, another for reprocessing historical notes
-
+  - [ ] Test case w/new and old extractable url status recs
 - [ ] refactor monitor/stats module to show basic functionality
 
+- [ ] Fetch loop doesn't need cursor
 - [ ] review extraction loop
   - [ ] should use 2 cursors, one recent one historical
   - [ ] should have several modes:

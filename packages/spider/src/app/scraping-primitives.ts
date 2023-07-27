@@ -21,10 +21,7 @@ import {
 } from '~/core/taskflow-defs';
 
 import {
-  PageInstanceOptions,
-  DefaultPageInstanceOptions,
   BrowserPool,
-  PageInstance
 } from '~/core/browser-pool';
 
 import {
@@ -40,7 +37,8 @@ import {
 
 import { UrlFetchData, getFetchDataFromResponse } from '~/core/url-fetch-chains';
 import { Logger } from 'winston';
-import { cleanArtifactDir, getHashEncodedPath, putStrLn, taskflow } from '@watr/commonlib';
+import { cleanArtifactDir, getHashEncodedPath, taskflow } from '@watr/commonlib';
+import { DefaultPageInstanceOptions, PageInstance, PageInstanceOptions } from '~/core/browser-instance';
 
 // Initialize SpiderEnv
 export async function createSpiderEnv(

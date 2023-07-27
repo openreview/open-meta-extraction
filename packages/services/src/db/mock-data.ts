@@ -5,6 +5,7 @@ import { MongoQueries } from './query-api';
 import { WorkflowStatuses } from './schemas';
 import { Note, Notes } from '~/components/openreview-gateway';
 
+// export async function populateDBHostNoteStatus(shadowDB: ShadowDB, n: number) {
 export async function populateDBHostNoteStatus(mdb: MongoQueries, n: number) {
   await asyncEachOfSeries(
     _.range(n),
@@ -64,9 +65,9 @@ export function createFakeNote({
   const inputStr = `2023-07-10T18:${minutes}:12.629Z`;
   const date = new Date(inputStr);
   const dateAsNum = date.getTime();
-  const abs = hasAbstract ? 'Some Abstract Text' : undefined;
-  const pdf = hasPDFLink ? `http://localhost:9100/pdf/${number}` : undefined;
-  const html = hasHTMLLink ? `http://localhost:9100/html/${number}` : undefined;
+  const abs = hasAbstract ? `Abstract: Paper ${number} description...` : undefined;
+  const pdf = hasPDFLink ? `http://localhost:9100/pdf/paper-${number}.pdf` : undefined;
+  const html = hasHTMLLink ? `http://localhost:9100/html/${number}.htm` : undefined;
 
   return {
     id: `note#${number}`,

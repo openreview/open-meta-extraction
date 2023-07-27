@@ -1,10 +1,59 @@
-import { asyncEachSeries, getServiceLogger, setLogEnvLevel  } from '@watr/commonlib';
-import { BrowserInstance, createBrowserPool, DefaultPageInstanceOptions } from './browser-pool';
+import _ from 'lodash';
+
+import {
+  asyncEachSeries,
+  getServiceLogger,
+  prettyPrint,
+  putStrLn,
+  setLogEnvLevel
+} from '@watr/commonlib';
+
+import {
+  createBrowserPool,
+  withBrowserInstance,
+  withBrowserPool,
+  WithPageInstance,
+  withPageInstance
+} from './browser-pool';
+
+import { Pool } from 'tarn';
+import { BrowserInstance, DefaultPageInstanceOptions } from './browser-instance';
 
 describe('browser pooling', () => {
-  setLogEnvLevel('info');
+  setLogEnvLevel('trace');
 
   const log = getServiceLogger('pool')
+
+  it('generators properly yield/close, own or share components', async () => {
+    try {
+
+      for await (const l1Components of withBrowserPool()) {
+        expect(_.keys(l1Components)).toStrictEqual(['browserPool']);
+
+        for await (const l2Components of withBrowserInstance(l1Components.browserPool)) {
+          expect(_.keys(l2Components)).toStrictEqual(['browserPool', 'browserInstance']);
+          expect(l2Components.browserPool).toBe(l1Components.browserPool)
+
+          for await (const l3Components of withPageInstance(l2Components)) {
+            expect(_.keys(l3Components)).toStrictEqual(['browserPool', 'browserInstance', 'page']);
+            expect(l3Components.browserPool).toBe(l1Components.browserPool)
+            expect(l3Components.browserInstance).toBe(l2Components.browserInstance)
+          }
+
+          for await (const comps of withPageInstance()) {
+            expect(_.keys(comps)).toStrictEqual(['browserPool', 'browserInstance', 'page']);
+            expect(comps.browserPool).not.toBe(l1Components.browserPool)
+            expect(comps.browserPool).not.toBe(l2Components.browserPool)
+          }
+        }
+      }
+
+    } catch (error: any) {
+      putStrLn(error['actual']);
+      putStrLn(error['expected']);
+      putStrLn(error['message']);
+    }
+  });
 
   it('borrow/return to pool', async () => {
     const browserPool = createBrowserPool();
@@ -19,26 +68,81 @@ describe('browser pooling', () => {
     await browserPool.shutdown();
   });
 
-  it('shutdown on error', async () => {
-    log.debug('pos.0');
-    const browserPool = createBrowserPool();
+  it.only('should properly shutdown/cleanup on errors', async () => {
+    let poolNum = 0;
+    let failPtNum = -1;
 
-    log.debug('pos.1');
+    const setupPools = new Set<Pool<BrowserInstance>>();
+    function setupComponentHandlers({ browserPool }: Partial<WithPageInstance>) {
+      if (browserPool) {
+        const pool = browserPool.pool;
+        if (setupPools.has(pool)) {
+          putStrLn('Pool already setup');
+          return;
+        }
 
-    await browserPool.use(async (_browserInstance: BrowserInstance) => {
-      log.debug('pos.2');
-      throw new Error('problem');
-    }).catch((_err) => {
-      log.debug('pos.4');
-      log.debug('but we are okay now...');
-    });
+        setupPools.add(pool);
+        const pnum = poolNum;
+        pool.on('poolDestroyRequest', () => {
+          putStrLn(`Pool#${pnum} Destroyed (request)`);
+        });
+        pool.on('poolDestroySuccess', () => {
+          putStrLn(`Pool#${pnum} Destroyed (sucess)`);
+        });
+        poolNum++;
+      }
+    }
 
-    const browser = await browserPool.acquire();
-    await browserPool.release(browser);
+    async function attempt(failAtPosition: number) {
+      putStrLn(`Attempt w/fail at ${failAtPosition}`);
+      failPtNum = -1;
+      poolNum = 0;
+      function failPoint(comps: Partial<WithPageInstance>) {
+        failPtNum++;
+        setupComponentHandlers(comps);
+        if (failPtNum === failAtPosition) {
+          putStrLn(`Failing at p ${failPtNum}`);
+          throw new Error(`Pos ${failPtNum} failure`);
+        }
+        putStrLn(`Passed p ${failPtNum}`);
+      }
+      try {
 
-    await browserPool.shutdown();
+        for await (const l1Components of withBrowserPool()) {
 
-    log.debug('pos.7');
+          failPoint(l1Components);
+
+          for await (const l2Components of withBrowserInstance(l1Components.browserPool)) {
+
+            failPoint(l2Components);
+
+            for await (const l3Components of withPageInstance(l2Components)) {
+              failPoint(l3Components);
+            }
+            failPoint({});
+
+            for await (const comps of withPageInstance()) {
+              failPoint(comps);
+            }
+            failPoint({});
+          }
+          failPoint({});
+        }
+        failPoint({});
+      } catch (error: any) {
+        putStrLn(error.message);
+        // putStrLn(error['actual']);
+        // putStrLn(error['expected']);
+        // putStrLn(error['message']);
+        // fail(error);
+      } finally {
+        // if (n < failAtPosition) {
+        // warn...
+        // }
+      }
+    }
+
+    await asyncEachSeries(_.range(10), (i) => attempt(i));
   });
 
   ///// Debug urls to simulate events in chrome, call as chrome://url
@@ -115,4 +219,6 @@ describe('browser pooling', () => {
     log.debug('Pool Shutdown');
     await browserPool.shutdown();
   });
+
+
 });

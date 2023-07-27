@@ -16,7 +16,7 @@ export interface NoteStatus {
 }
 
 export const NoteStatusSchema = new Schema<NoteStatus>({
-  id: { type: String },
+  id: { type: String, required: true, unique: true },
   number: { type: Number, required: true, unique: true },
   validUrl: { type: Boolean, required: true },
   url: { type: String, required: false },
@@ -152,7 +152,6 @@ export interface FieldStatus {
 export const FieldStatusSchema = new Schema<FieldStatus>({
   noteId: { type: String, index: true, unique: true },
   fieldType: { type: String, required: true },
-  // state: { type: String, required: true, index: true },
   contentHash: { type: String, required: false },
 }, {
   collection: 'field_status',

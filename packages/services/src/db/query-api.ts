@@ -4,7 +4,7 @@ import { Document, Mongoose, Types } from 'mongoose';
 import { asyncMapSeries, getServiceLogger, initConfig, shaEncodeAsHex, validateUrl } from '@watr/commonlib';
 import { Logger } from 'winston';
 import { FetchCursor, FieldStatus, UrlStatus, UrlStatusUpdateFields, NoteStatus, WorkflowStatus, createCollections } from './schemas';
-import { connectToMongoDB } from './mongodb';
+import { WithMongoGenArgs, WithMongoose, connectToMongoDB, withMongoGen } from './mongodb';
 import { UpdatableField } from '~/components/openreview-gateway';
 
 export type CursorID = Types.ObjectId;
@@ -22,6 +22,17 @@ export async function createMongoQueries(mongoose?: Mongoose): Promise<MongoQuer
   const s = new MongoQueries(mongoose);
   await s.connect();
   return s;
+}
+
+export type WithMongoQueries = WithMongoose & {
+  mdb: MongoQueries
+};
+
+export async function* withMongoQueriesGen(args: WithMongoGenArgs): AsyncGenerator<WithMongoQueries, void, any> {
+  for await (const { mongoose } of withMongoGen(args)) {
+    const mdb = await createMongoQueries(mongoose);
+    yield { mongoose, mdb };
+  }
 }
 
 export class MongoQueries {
@@ -99,6 +110,7 @@ export class MongoQueries {
     );
     return s || undefined;
   }
+
   async getPrevNoteWithValidURL(noteNumber: number): Promise<NoteStatus | undefined> {
     const s = await NoteStatus.findOne(
       { number: { $lt: noteNumber }, validUrl: true },
@@ -112,11 +124,11 @@ export class MongoQueries {
     const s = await UrlStatus.findOne(
       { response: { $exists: true, $ne: null } },
       null,
-      { sort: { number: -1 } }
+      { sort: { noteNumber: -1 } }
     );
     if (!s) return;
 
-    const n = await NoteStatus.findById(s._id);
+    const n = await NoteStatus.findOne({ id: s.noteId });
     return n || undefined;
   }
 

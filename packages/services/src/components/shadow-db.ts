@@ -8,15 +8,28 @@ import { FetchCursor, NoteStatus, WorkflowStatus } from '~/db/schemas';
 import {
   MongoQueries,
   UrlStatusDocument,
+  WithMongoQueries,
+  withMongoQueriesGen,
 } from '~/db/query-api';
 
 import { Note, OpenReviewGateway, UpdatableField } from './openreview-gateway';
+import { WithMongoGenArgs } from '~/db/mongodb';
 
 
 export async function createShadowDB(mdb?: MongoQueries): Promise<ShadowDB> {
   const s = new ShadowDB(mdb);
   await s.connect();
   return s;
+}
+export type WithShadowDB = WithMongoQueries & {
+  shadowDB: ShadowDB;
+};
+
+export async function* withShadowDB(args: WithMongoGenArgs): AsyncGenerator<WithShadowDB, void, any> {
+  for await (const { mongoose, mdb } of withMongoQueriesGen(args)) {
+    const shadowDB = await createShadowDB(mdb);
+    yield { mongoose, mdb, shadowDB };
+  }
 }
 
 export class ShadowDB {

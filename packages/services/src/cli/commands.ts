@@ -5,7 +5,7 @@ import { arglib, initConfig, putStrLn } from '@watr/commonlib';
 import { formatStatusMessages, showStatusSummary } from '~/db/extraction-summary';
 import { connectToMongoDB, mongoConnectionString, resetMongoDB } from '~/db/mongodb';
 import { createFetchService } from '~/components/fetch-service';
-import { createExtractionService } from '~/components/extraction-service';
+import { createExtractionService, withExtractionService } from '~/components/extraction-service';
 import { OpenReviewGateway } from '~/components/openreview-gateway';
 import { runMonitor } from '~/components/monitor-service';
 import { CursorRoles, createMongoQueries, isCursorRole } from '~/db/query-api';
@@ -160,12 +160,11 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
   )(async (args: any) => {
     const postResultsToOpenReview: boolean = args.postResults;
     const limit: number = args.limit;
+    // TODO limit not enabled
 
-    const extractionService = await createExtractionService(postResultsToOpenReview);
-
-    await extractionService.runExtractionLoop(limit);
-
-    console.log('done! run-extraction-service');
+    for await (const { extractionService } of withExtractionService({ postResultsToOpenReview })) {
+      await extractionService.runExtractionLoop(limit);
+    }
   });
 
   registerCmd(

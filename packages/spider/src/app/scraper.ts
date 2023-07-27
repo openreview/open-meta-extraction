@@ -18,7 +18,7 @@ import {
 
 import {
   PageInstance
-} from '~/core/browser-pool';
+} from '~/core/browser-instance';
 
 
 import { Logger } from 'winston';

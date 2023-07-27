@@ -4,8 +4,10 @@ import { delay, getServiceLogger } from '@watr/commonlib';
 import { NoteStatus, UrlStatus } from '~/db/schemas';
 import { CursorRole, MongoQueries } from '~/db/query-api';
 import differenceInMilliseconds from 'date-fns/differenceInMilliseconds';
+import { WithMongoGenArgs } from '~/db/mongodb';
+import { WithShadowDB, withShadowDB } from './shadow-db';
 
-export async function createTaskScheduler(
+async function createTaskScheduler(
   mdb?: MongoQueries
 ): Promise<TaskScheduler> {
   const s = new TaskScheduler(mdb);
@@ -13,14 +15,23 @@ export async function createTaskScheduler(
   return s;
 }
 
+export type WithTaskScheduler = WithShadowDB & {
+  taskScheduler: TaskScheduler;
+};
+
+export async function* withTaskScheduler(args: WithMongoGenArgs): AsyncGenerator<WithTaskScheduler, void, any> {
+  for await (const { mongoose, mdb, shadowDB } of withShadowDB(args)) {
+    const taskScheduler = await createTaskScheduler(mdb);
+    yield { mongoose, mdb, shadowDB, taskScheduler };
+  }
+}
+
 export class TaskScheduler {
   log: Logger;
   mdb: MongoQueries;
 
-  constructor(
-    mdb?: MongoQueries
-  ) {
-    this.log = getServiceLogger('ExtractionService');
+  constructor(mdb?: MongoQueries) {
+    this.log = getServiceLogger('TaskScheduler');
     this.mdb = mdb || new MongoQueries();
   }
 
@@ -32,7 +43,7 @@ export class TaskScheduler {
     await this.mdb.close();
   }
 
-  async* urlGenerator(): AsyncGenerator<UrlStatus, void, void> {
+  async* genUrlStream(): AsyncGenerator<UrlStatus, void, void> {
     let done = false
     while (!done) {
       for await (const url of this.newUrlGenerator()) {
@@ -53,9 +64,9 @@ export class TaskScheduler {
     }
   }
 
-  async* urlGeneratorRateLimited(maxRateMs: number): AsyncGenerator<UrlStatus, void, void> {
+  async* genUrlStreamRateLimited(maxRateMs: number): AsyncGenerator<UrlStatus, void, void> {
     let startTime = new Date();
-    for await (const url of this.urlGenerator()) {
+    for await (const url of this.genUrlStream()) {
       yield url;
       const currTime = new Date();
       const elapsedMs = differenceInMilliseconds(currTime, startTime);

@@ -2,7 +2,7 @@ import _ from 'lodash';
 
 import {
   delay,
-  getServiceLogger, prettyPrint, putStrLn
+  getServiceLogger
 } from '@watr/commonlib';
 
 import { Logger } from 'winston';
