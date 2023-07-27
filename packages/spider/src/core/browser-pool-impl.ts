@@ -4,7 +4,7 @@ import { BrowserInstance } from './browser-instance';
 import { launchBrowser } from './puppet';
 
 export function createUnderlyingPool(): Pool<BrowserInstance> {
-  const log = getServiceLogger(`pool<browser>`);
+  const log = getServiceLogger(`PoolImpl<Browser>`);
   const pool = new Pool<BrowserInstance>({
     async create(): Promise<BrowserInstance> {
       return launchBrowser().then(browser => {
@@ -17,19 +17,7 @@ export function createUnderlyingPool(): Pool<BrowserInstance> {
       });
     },
     async destroy(browserInstance: BrowserInstance): Promise<void> {
-      const browser = browserInstance.browser;
-      const isStale = browserInstance.isStale();
-      if (isStale) {
-        log.debug(`Browser#${browserInstance.pid()} already closed`);
-        return;
-      }
-      return browser.close()
-        .then(async () => {
-          log.debug(`Browser#${browserInstance.pid()} closed`);
-        })
-        .catch(async (error) => {
-          log.warn(`Browser#${browserInstance.pid()} close error: ${error}`);
-        });
+      await browserInstance.close();
     },
 
     validate(browserInstance: BrowserInstance) {
@@ -97,11 +85,6 @@ export function createUnderlyingPool(): Pool<BrowserInstance> {
   pool.on('poolDestroySuccess', eventId => {
     log.verbose(`pool/event: poolDestroySuccess:${eventId}`);
   });
-
-  // onExit(function (code?: number | null, signal?: string | null) {
-  //   log.debug(`Node process got ${signal}/${code}; cleaning up browser pool`);
-  //   pool.destroy();
-  // }, { alwaysLast: false });
 
   return pool;
 }

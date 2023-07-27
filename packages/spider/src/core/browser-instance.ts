@@ -18,41 +18,31 @@ import { interceptRequestCycle, interceptPageEvents } from './page-event';
 import { BlockableResource, RewritableUrl, RewritableUrls } from './resource-blocking';
 import { Logger } from 'winston';
 
+function browserStringId(browser: Browser): string {
+  const proc = browser.process();
+  const pid = proc? proc.pid :  '?pid?';
+  return `Browser#${pid}`;
+
+}
 export class BrowserInstance {
   browser: Browser;
   logPrefix: string;
   createdAt: Date;
-  events: string[];
   log: Logger;
+  isClosed: boolean = false;
 
   constructor(b: Browser) {
     this.browser = b;
-    this.logPrefix = '';
+    this.logPrefix = browserStringId(b) ;
     this.createdAt = new Date();
-    this.events = [];
-    this.log = getServiceLogger('Browser')
+    this.log = getServiceLogger(browserStringId(b))
   }
 
   installEventHandlers(): void {
     logBrowserEvent(this, this.log);
-    const bproc = this.browser.process();
-    if (bproc !== null) {
-      // Triggered on child process stdio streams closing
-      bproc.on('close', (_signum: number, signame: NodeJS.Signals) => {
-        this.log.debug(`Browser#${this.pid()} onClose: ${signame} / ${_signum}`);
-        this.events.push('close');
-      });
-
-      // Triggered on child process final exit
-      bproc.on('exit', (_signum: number, signame: NodeJS.Signals) => {
-        this.log.debug(`Browser#${this.pid()} onExit: ${signame} / ${_signum}`);
-        this.events.push('exit');
-      });
-    }
   }
 
   pid(): number {
-
     const proc = this.browser.process();
     if (proc === null) return -1;
     const pid = proc.pid;
@@ -76,14 +66,27 @@ export class BrowserInstance {
     interceptRequestCycle(pageInstance, this.log);
     this.log.debug('newPage:done');
     return pageInstance;
-
   }
+
   isStale(): boolean {
-    const closedOrExited = this.events.some(s => s === 'close' || s === 'exit');
-    return closedOrExited;
-
+    return this.isClosed;
   }
+
+  async close(): Promise<void> {
+    if (this.isClosed) return;
+    this.isClosed = true;
+    return this.browser.close()
+      .then(() => {
+        this.log.debug(`${this.asString()} closed`);
+      })
+      .catch((error) => {
+        this.log.error(`${this.asString()} close error: ${error}`);
+      });
+  }
+
   async kill(): Promise<void> {
+    if (this.isClosed) return;
+    this.isClosed = true;
     const bproc = this.browser.process();
     if (bproc === null) return;
 
@@ -95,7 +98,7 @@ export class BrowserInstance {
 
       bproc.on('exit', (_signum: number, signame: NodeJS.Signals) => {
         this.log.debug(`Killed Browser#${pid}: ${signame}`);
-        this.events.push('exit');
+        // this.events.push('exit');
         resolve();
       });
 
@@ -103,15 +106,14 @@ export class BrowserInstance {
         process.kill(pid, 'SIGKILL');
       } catch (error) {
         this.log.debug(`process.kill() error: ${error}`);
-        this.events.push('exit');
+        // this.events.push('exit');
         resolve();
       }
     });
   }
 
   asString(): string {
-    const pid = this.pid();
-    return `Browser#${pid}`;
+    return this.logPrefix;
   }
 }
 

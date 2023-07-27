@@ -6,6 +6,7 @@ import { Logger } from 'winston';
 import { asyncEach, getServiceLogger, prettyPrint, putStrLn } from '@watr/commonlib';
 import { createUnderlyingPool } from './browser-pool-impl';
 import { BrowserInstance, DefaultPageInstanceOptions, PageInstance } from './browser-instance';
+import EventEmitter from 'events';
 
 export function createBrowserPool(): BrowserPool {
   const pool = createUnderlyingPool();
@@ -24,7 +25,7 @@ export async function* withBrowserPool(): AsyncGenerator<WithBrowserPool, void, 
   try {
     yield { browserPool };
   } finally {
-    const destroyP = new Promise((resolve, reject) => {
+    const destroyP = new Promise((resolve) => {
       pool.on('poolDestroyRequest', () => {
         putStrLn(`Pool Destroyed (request)`);
       });
@@ -34,7 +35,7 @@ export async function* withBrowserPool(): AsyncGenerator<WithBrowserPool, void, 
       });
 
     });
-    const shutdownP =  browserPool.shutdown();
+    const shutdownP = browserPool.shutdown();
     await Promise.all([shutdownP, destroyP]);
   }
 }
@@ -124,14 +125,17 @@ export async function* withPageInstance(
 
 export class BrowserPool {
   pool: Pool<BrowserInstance>;
-  cachedResources: Record<string, BrowserInstance>;
   log: Logger;
+  cachedResources: Record<string, BrowserInstance>;
+  releaseQueue: Promise<void>
 
   constructor(pool: Pool<BrowserInstance>) {
     this.pool = pool;
     this.log = getServiceLogger('BrowserPool')
     this.cachedResources = {};
+    this.releaseQueue = Promise.resolve();
   }
+
   async acquire(): Promise<BrowserInstance> {
     const acq = this.pool.acquire();
     const b: BrowserInstance = await acq.promise;
@@ -140,30 +144,52 @@ export class BrowserPool {
     return b;
   }
 
-  async release(b: BrowserInstance): Promise<void> {
-    const pid = b.pid().toString()
-    this.log.debug(`this.pool.release(B<${pid}>)`);
+  async release(browserInstance: BrowserInstance): Promise<void> {
+    const self = this;
+    const pid = browserInstance.pid().toString()
+    if (!(pid in this.cachedResources)) {
+      return;
+    }
     delete this.cachedResources[pid];
-    let normalShutdown = false;
+    this.log.debug(`Releasing ${browserInstance.asString()}`);
 
-    b.browser.removeAllListeners();
-    const pages = await b.browser.pages();
+    function makeReleaser(targetId: string) {
+      function releaser(resource: BrowserInstance): boolean {
+        const releasedId = resource.asString();
+        self.log.verbose(`Pool/ReleaseEvent: checking ${releasedId}  =?= ${targetId}`);
+        if (targetId === releasedId) {
+          self.log.verbose(`Pool/ReleaseEvent: matched ${resource.asString()}`);
+          return true;
+        }
+        return false;
+      };
+      return releaser;
+    }
 
-    await asyncEach(pages, async (page) => {
-      const url = page.url();
-      page.removeAllListeners();
-      this.log.debug(`    release(Page<${url}>)`);
-      return page.close();
+    self.log.verbose('Await Enter Release Queue')
+    await this.releaseQueue;
+    self.log.verbose('Entered Release Queue')
+
+    const releaseP = new Promise<void>((resolve) => {
+      const targetId = browserInstance.asString();
+      const releaseFunc = makeReleaser(targetId);
+      // icky hack to expose internal EventEmitter, need more complete
+      // access than pool implementation provides
+      const emitter: EventEmitter = (this.pool as any).emitter;
+      emitter.on('release', function handler(resource) {
+        if(releaseFunc(resource)) {
+          self.log.verbose('removing release listener')
+          emitter.removeListener('release', handler);
+          resolve();
+        }
+      });
     });
-    normalShutdown = true;
-    // if (!normalShutdown) {
-    //   this.log.warn(`this.pool.release(B<${pid}>): abnormal shutdown, running kill()`);
-    //   await b.kill();
-    // }
-    await b.kill();
-    this.pool.release(b);
-    this.log.debug(`this.pool.release(B<${pid}>): done`);
 
+    this.releaseQueue = this.releaseQueue.then(() => releaseP)
+    await browserInstance.close();
+    this.pool.release(browserInstance);
+    self.log.verbose('Exit Release Queue')
+    this.log.debug(`Done Releasing ${browserInstance.asString()}`);
   }
 
   // TODO obsolete func
@@ -180,21 +206,21 @@ export class BrowserPool {
 
   }
   async shutdown(): Promise<void> {
-    this.log.debug('pool.shutdown()');
+    this.log.debug('Begin Shutdown');
     const cachedInstances: Array<[string, BrowserInstance]> = _.toPairs(this.cachedResources);
     const cachedBrowsers = _.map(cachedInstances, ([, v]) => v);
     await asyncEach(cachedBrowsers, b => this.release(b));
-
-    await this.pool.destroy();
-
+    return this.pool.destroy().then(() => {
+      this.log.debug('Done Shutdown');
+    });
   }
+
   report(): void {
     const numFree = this.pool.numFree();
     const numPendingAcquires = this.pool.numPendingAcquires();
     const numPendingCreates = this.pool.numPendingCreates();
     const numPendingValidations = this.pool.numPendingValidations();
     const numUsed = this.pool.numUsed();
-
     const cachedInstances: Array<[string, BrowserInstance]> = _.toPairs(this.cachedResources);
     const cachedPIDs = _.map(cachedInstances, ([k]) => k);
     const cachedInstanceIds = cachedPIDs.join('; ');
@@ -210,15 +236,6 @@ export class BrowserPool {
 
   }
   async clearCache(): Promise<void> {
-    this.log.debug('pool.clearCache()');
-    const cachedResources = this.cachedResources;
-    const cachedInstances: Array<[string, BrowserInstance]> = _.toPairs(cachedResources);
-    const cachedBrowsers = _.map(cachedInstances, ([, v]) => v);
-    const cachedPIDs = _.map(cachedInstances, ([k]) => k);
-    await asyncEach(cachedBrowsers, b => this.release(b));
-    _.each(cachedPIDs, pid => {
-      delete cachedResources[pid];
-    });
-
+    this.log.debug('Clear Cache (disabled)');
   }
 }
