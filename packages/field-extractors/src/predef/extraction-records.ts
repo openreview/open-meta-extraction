@@ -24,6 +24,7 @@ export interface CanonicalFieldRecords {
   fields: FieldRecord[];
 }
 
+
 export interface ExtractionErrors {
   url?: string;
   finalUrl?: string;

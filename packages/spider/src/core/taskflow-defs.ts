@@ -50,7 +50,7 @@ export const {
   collectFanout,
   valueEnvPair,
   initArg,
-  controlEnvPair
+  controlEnvPair,
 } = fp;
 
 export const spiderTaskflow = fp;

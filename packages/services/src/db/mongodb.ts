@@ -57,6 +57,7 @@ export type WithMongoGenArgs = {
   emptyDB?: boolean;
   uniqDB?: boolean;
   retainDB?: boolean;
+  useMongoose?: Mongoose
 }
 
 export type WithMongoose = {
@@ -66,27 +67,31 @@ export type WithMongoose = {
 export async function* withMongoGen({
   emptyDB,
   uniqDB,
-  retainDB
+  retainDB,
+  useMongoose
 }: WithMongoGenArgs): AsyncGenerator<WithMongoose, void, any> {
   const log = getServiceLogger('withMongoose');
-  const config = initConfig();
-  const MongoDBName = config.get('mongodb:dbName');
-  if (!/.+test.*/.test(MongoDBName)) {
-    throw new Error(`Tried to reset mongodb ${MongoDBName}; can only reset a db w/name matching /test/`);
-  }
+  let mongoose: Mongoose | undefined = useMongoose;
+  let dbName = mongoose? mongoose.connection.name : '';
+  if (!mongoose) {
+    const config = initConfig();
+    const MongoDBName = config.get('mongodb:dbName');
+    if (!/.+test.*/.test(MongoDBName)) {
+      throw new Error(`Tried to reset mongodb ${MongoDBName}; can only reset a db w/name matching /test/`);
+    }
 
-  const randomString = randomBytes(3).toString('hex').slice(0, 3);
-  const dbSuffix = uniqDB ? '-' + randomString : undefined;
-  const mongoose = await connectToMongoDB(dbSuffix);
+    const randomString = randomBytes(3).toString('hex').slice(0, 3);
+    const dbSuffix = uniqDB ? '-' + randomString : undefined;
+    mongoose = await connectToMongoDB(dbSuffix);
 
-  const dbName = mongoose.connection.name;
-  log.debug(`mongo db ${dbName} connected...`);
-  if (uniqDB) {
-    await createCollections();
-  }
-  if (emptyDB) {
-    log.debug(`mongo db ${dbName} resetting...`);
-    await resetMongoDB();
+    dbName = mongoose.connection.name;
+    log.debug(`mongo db ${dbName} connected...`);
+    if (uniqDB) {
+      await createCollections();
+    } else if (emptyDB) {
+      log.debug(`mongo db ${dbName} resetting...`);
+      await resetMongoDB();
+    }
   }
   try {
     log.debug(`mongo db ${dbName} running client...`);

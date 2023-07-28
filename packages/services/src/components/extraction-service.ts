@@ -8,9 +8,10 @@ import {
   getCorpusRootDir,
 } from '@watr/commonlib';
 
-import { CanonicalFieldRecords, ExtractionEnv, getEnvCanonicalFields, SpiderAndExtractionTransform } from '@watr/field-extractors';
 
-import { BrowserPool, createBrowserPool, createSpiderEnv, UrlFetchData } from '@watr/spider';
+import { BrowserPool, createSpiderEnv, UrlFetchData, withBrowserPool } from '@watr/spider';
+
+import { CanonicalFieldRecords, ExtractionEnv, getEnvCanonicalFields, SpiderAndExtractionTransform } from '@watr/field-extractors';
 
 import { Logger } from 'winston';
 import { ShadowDB } from './shadow-db';
@@ -19,12 +20,12 @@ import { TaskScheduler, withTaskScheduler, WithTaskScheduler } from './task-sche
 import { parseIntOrElse } from '~/util/misc';
 import { WithMongoGenArgs } from '~/db/mongodb';
 
-export async function createExtractionService(
+async function createExtractionService(
   shadowDB: ShadowDB,
+  browserPool: BrowserPool,
   taskScheduler: TaskScheduler,
   postResultsToOpenReview: boolean
 ): Promise<ExtractionService> {
-  const browserPool: BrowserPool = createBrowserPool();
   const corpusRoot = getCorpusRootDir();
 
   const s = new ExtractionService(
@@ -34,6 +35,7 @@ export async function createExtractionService(
     browserPool,
     postResultsToOpenReview
   );
+
   await s.connect();
   return s;
 }
@@ -46,11 +48,14 @@ type WithExtractionServiceArgs = WithMongoGenArgs & {
 }
 
 export async function* withExtractionService(args: WithExtractionServiceArgs): AsyncGenerator<WithExtractionService, void, any> {
+  const { postResultsToOpenReview } = args;
   for await (const components of withTaskScheduler(args)) {
-    const { postResultsToOpenReview } = args;
-    const { taskScheduler, shadowDB  } = components;
-    const extractionService = await createExtractionService(shadowDB, taskScheduler, postResultsToOpenReview);
-    yield _.merge({}, components, { extractionService });
+    const { taskScheduler, shadowDB } = components;
+
+    for await (const { browserPool } of withBrowserPool()) {
+      const extractionService = await createExtractionService(shadowDB, browserPool, taskScheduler, postResultsToOpenReview);
+      yield _.merge({}, components, { extractionService });
+    }
   }
 }
 
@@ -117,7 +122,7 @@ export class ExtractionService {
 
     await this.updateWorkflowStatus(noteId, 'spider:begun');
     const fieldExtractionResults = await SpiderAndExtractionTransform(TE.right([url, spiderEnv]))()
-      .catch(async error => {
+      .catch(async (error: any) => {
         prettyPrint({ error })
         await this.updateWorkflowStatus(noteId, 'extractor:fail');
         throw error;
@@ -125,7 +130,9 @@ export class ExtractionService {
 
 
     if (E.isLeft(fieldExtractionResults)) {
-      const [, { urlFetchData }] = fieldExtractionResults.left;
+      const asdf  = fieldExtractionResults.left;
+      const urlFetchData = asdf[1].urlFetchData;
+      // const [, { urlFetchData }] = fieldExtractionResults.left;
       await this.recordExtractionFailure(noteId, urlFetchData);
       return;
     }

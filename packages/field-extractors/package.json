@@ -28,7 +28,8 @@
     "lodash": "^4.17.21",
     "puppeteer": "^20.9.0",
     "winston": "^3.10.0",
-    "xml2js": "~0.6.0"
+    "xml2js": "~0.6.0",
+    "ts-jest": "^29.1.1"
   },
   "devDependencies": {
     "@watr/root": "0.1.0",
