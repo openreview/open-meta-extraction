@@ -72,6 +72,7 @@ export async function* withMongoGen({
 }: WithMongoGenArgs): AsyncGenerator<WithMongoose, void, any> {
   const log = getServiceLogger('withMongoose');
   let mongoose: Mongoose | undefined = useMongoose;
+  const externalMongooseConnection = useMongoose !== undefined;
   let dbName = mongoose? mongoose.connection.name : '';
   if (!mongoose) {
     const config = initConfig();
@@ -97,6 +98,8 @@ export async function* withMongoGen({
     log.debug(`mongo db ${dbName} running client...`);
     yield { mongoose };
   } finally {
+    if (externalMongooseConnection) return;
+
     if (!retainDB) {
       log.debug(`mongo dropping db ${dbName}...`);
       await mongoose.connection.dropDatabase()

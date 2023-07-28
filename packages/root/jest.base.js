@@ -12,27 +12,18 @@ function makeConfig(modulePackage) {
   const tildePathMap = rootPath(moduleRoot, 'src/$1');
   const tsconfig = rootPath(moduleRoot, 'tsconfig.json');
 
+
   const config = {
     testEnvironment: 'node',
     bail: true,
     verbose: true,
-    maxWorkers: 1, // forces serial execution
+    // maxWorkers: 1, // forces serial execution
     rootDir: '.',
     roots: ['<rootDir>/src'],
     displayName,
     testRegex: ".*\\.test\\.ts$",
     moduleNameMapper: {
       "^~/(.*)$": tildePathMap,
-    },
-    transform: {
-      "\\.tsx?$": ['ts-jest', {
-        tsconfig,
-        diagnostics: true,
-        isolatedModules: false,
-        noEmit: true,
-        useESM: true,
-        allowJs: true
-      }]
     },
     // testRunner: "jest-jasmine2",
     moduleFileExtensions: ["ts", "js", "json", "node"],

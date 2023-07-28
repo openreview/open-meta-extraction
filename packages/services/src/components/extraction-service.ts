@@ -105,7 +105,7 @@ export class ExtractionService {
 
       currCount++;
       if (currCount >= limit) {
-        break;
+        return;
       }
     }
   }
