@@ -4,8 +4,8 @@ import _ from 'lodash';
 import { arglib, initConfig, putStrLn } from '@watr/commonlib';
 import { formatStatusMessages, showStatusSummary } from '~/db/extraction-summary';
 import { connectToMongoDB, mongoConnectionString, resetMongoDB } from '~/db/mongodb';
-import { createFetchService } from '~/components/fetch-service';
-import { createExtractionService, withExtractionService } from '~/components/extraction-service';
+import { withFetchService } from '~/components/fetch-service';
+import { withExtractionService } from '~/components/extraction-service';
 import { OpenReviewGateway } from '~/components/openreview-gateway';
 import { runMonitor } from '~/components/monitor-service';
 import { CursorRoles, createMongoQueries, isCursorRole } from '~/db/query-api';
@@ -39,10 +39,12 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
     opt.num('limit: Only fetch the specified # of notes before exiting', 0),
   )(async (args: any) => {
     const { limit } = args;
-    const fetchService = await createFetchService();
-    await fetchService.runFetchLoop(limit);
-    await fetchService.close();
+
+    for await (const { fetchService } of withFetchService({ uniqDB: true })) {
+      await fetchService.runFetchLoop(limit);
+    }
   });
+
   registerCmd(
     yargv,
     'list-cursors',

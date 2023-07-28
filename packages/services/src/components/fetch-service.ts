@@ -12,36 +12,36 @@ import {
 } from './openreview-gateway';
 
 import { generateFromBatch } from '~/util/generators';
-import { ShadowDB } from './shadow-db';
+import { ShadowDB, WithShadowDB, withShadowDB } from './shadow-db';
+import { WithMongoGenArgs } from '~/db/mongodb';
 
+export type WithFetchService = WithShadowDB & {
+  fetchService: FetchService
+};
 
-export async function createFetchService(
-  shadow?: ShadowDB
-): Promise<FetchService> {
-  const s = new FetchService(shadow);
-  await s.connect();
-  return s;
+type WithFetchServiceArgs = WithMongoGenArgs;
+
+export async function* withFetchService(args: WithFetchServiceArgs): AsyncGenerator<WithFetchService, void, any> {
+  for await (const components of withShadowDB(args)) {
+    const { shadowDB } = components;
+    const fetchService =  new FetchService(shadowDB);
+    yield _.merge({}, components, { fetchService });
+  }
 }
 
+/**
+ * Fetch  Notes  from  Openreview  and  store  them  in  a  local  database  for
+ * spidering/extraction
+ */
 export class FetchService {
   log: Logger;
   gate: OpenReviewGateway;
   shadow: ShadowDB;
 
-  constructor(
-    shadow?: ShadowDB
-  ) {
+  constructor(shadow: ShadowDB) {
     this.log = getServiceLogger('FetchService');
     this.gate = new OpenReviewGateway();
-    this.shadow = shadow || new ShadowDB();
-  }
-
-  async connect() {
-    await this.shadow.connect();
-  }
-
-  async close() {
-    await this.shadow.close();
+    this.shadow = shadow;
   }
 
   async* createNoteBatchGenerator(startingNoteId?: string): AsyncGenerator<Note[], void, void> {
@@ -74,13 +74,14 @@ export class FetchService {
   }
 
 
+  // Main loop
   async runFetchLoop(limit?: number) {
     limit = _.isNumber(limit) && limit > 0 ? limit : undefined;
     this.log.info('Starting Fetch Service');
-    const startingNote = await this.getFetchCursor();
-    const startingNoteId = startingNote ? startingNote.noteId : undefined;
+    const lastNoteFetched = await this.shadow.mdb.getLastSavedNote();
+    const startingNoteId = lastNoteFetched ? lastNoteFetched.id : undefined;
     if (startingNoteId) {
-      this.log.info(`Resuming Fetch Service from note ${startingNoteId}`);
+      this.log.info(`Resuming Fetch Service after note ${startingNoteId}`);
     }
 
     const noteGenerator = this.createNoteGenerator(startingNoteId, limit);

@@ -102,6 +102,13 @@ export class MongoQueries {
     return ret === null ? undefined : ret;
   }
 
+  async getLastSavedNote(): Promise<NoteStatus | undefined> {
+    const s = await NoteStatus.findOne(
+      {}, null, { sort: { number: -1 } }
+    );
+    return s || undefined;
+  }
+
   async getNextNoteWithValidURL(noteNumber: number): Promise<NoteStatus | undefined> {
     const s = await NoteStatus.findOne(
       { number: { $gt: noteNumber }, validUrl: true },

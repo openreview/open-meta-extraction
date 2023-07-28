@@ -26,6 +26,9 @@
 
 ** Next Actions
 
+
+- [ ] Create basic report summary for fetch/extraction loops
+
 - [ ] Option to have multiple extraction cursors, one for bleeding edge additions, another for reprocessing historical notes
   - [ ] Test case w/new and old extractable url status recs
 - [ ] refactor monitor/stats module to show basic functionality

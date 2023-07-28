@@ -2,13 +2,10 @@ import _ from 'lodash';
 import { setLogEnvLevel } from '@watr/commonlib';
 
 import { withServerGen } from '@watr/spider';
-import { createFetchService } from './fetch-service';
+import { withFetchService } from './fetch-service';
 
-import { FetchCursor, UrlStatus, NoteStatus } from '~/db/schemas';
-import { createFakeNotes } from '~/db/mock-data';
-import { openreviewAPIRoutes } from './testing-utils';
-import { withShadowDB } from './shadow-db';
-
+import { createFakeNoteList, createFakeNotes } from '~/db/mock-data';
+import { fakeNoteIds, listNoteStatusIds, openreviewAPIForNotes } from './testing-utils';
 
 describe('Fetch Service', () => {
 
@@ -23,38 +20,32 @@ describe('Fetch Service', () => {
       .toMatchObject([{ id: 'note#2', number: 2 }, { id: 'note#3', number: 3 }]);
   });
 
-  it('should run fetch loop with cursor', async () => {
-    const fourNoteIds = _.range(4).map(i => `note#${i + 1}`);
-    const eightNoteIds = _.range(8).map(i => `note#${i + 1}`);
+  it.only('should repeatedly start from last know fetched note', async () => {
+    const noteCount = 5;
+    const batchSize = 2;
+    const notes = createFakeNoteList(noteCount, 1);
+    const routes = openreviewAPIForNotes({ notes, batchSize })
 
-    for await (const __ of withServerGen(openreviewAPIRoutes)) {
-      for await (const { shadowDB } of withShadowDB({ uniqDB: true })) {
-        // instantiate fetch service w/ our own server connection mongoose/mdb
-        // const mdb = await createMongoQueries(mongoose);
-        // const shadow = await createShadowDB(mdb)
-        const fetchService = await createFetchService(shadowDB);
-        await fetchService.runFetchLoop(4);
+    for await (const __ of withServerGen(routes)) {
+      for await (const { fetchService } of withFetchService({ uniqDB: true })) {
+        expect(await listNoteStatusIds()).toHaveLength(0);
+        // get 1
+        await fetchService.runFetchLoop(1);
+        expect(await listNoteStatusIds()).toMatchObject(fakeNoteIds(1, 1));
 
-        // assert MongoDB is populated correctly
-        let notes = await NoteStatus.find();
-        expect(notes.map(n => n.id)).toMatchObject(fourNoteIds);
+        // get 2
+        await fetchService.runFetchLoop(1);
+        expect(await listNoteStatusIds()).toMatchObject(fakeNoteIds(1, 2));
 
-        let cursors = await FetchCursor.find();
-        expect(cursors.map(n => n.noteId)).toMatchObject(['note#4']);
-        let hosts = await UrlStatus.find();
-        expect(hosts.map(n => n.noteId)).toMatchObject(fourNoteIds);
+        // get 3-5
+        await fetchService.runFetchLoop(3);
+        expect(await listNoteStatusIds()).toMatchObject(fakeNoteIds(1, 5));
 
-
-        await fetchService.runFetchLoop(4);
-
-        notes = await NoteStatus.find();
-        expect(notes.map(n => n.id)).toMatchObject(eightNoteIds);
-
-        cursors = await FetchCursor.find();
-        expect(cursors.map(n => n.noteId)).toMatchObject(['note#8']);
-        hosts = await UrlStatus.find();
-        expect(hosts.map(n => n.noteId)).toMatchObject(eightNoteIds);
+        // get w/none left
+        await fetchService.runFetchLoop(3);
+        expect(await listNoteStatusIds()).toMatchObject(fakeNoteIds(1, 5));
       }
     }
   });
+
 });
