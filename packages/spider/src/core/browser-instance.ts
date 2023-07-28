@@ -22,8 +22,8 @@ function browserStringId(browser: Browser): string {
   const proc = browser.process();
   const pid = proc? proc.pid :  '?pid?';
   return `Browser#${pid}`;
-
 }
+
 export class BrowserInstance {
   browser: Browser;
   logPrefix: string;

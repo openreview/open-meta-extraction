@@ -135,37 +135,6 @@ export async function* withServerGen(
   }
 }
 
-
-export async function withServer(
-  setup: (router: Router) => void,
-  userCallback: (s: WithServerCallbackArgs) => Promise<void>,
-): Promise<void> {
-  const routes = new Router();
-  const app = new Koa();
-  setup(routes);
-  // TODO config port
-  const port = 9100;
-
-
-  app.use(routes.routes());
-  app.use(routes.allowedMethods());
-
-  const server = await new Promise<Server>((resolve) => {
-    const server = app.listen(port, () => {
-      log.info(`Koa is listening to http://localhost:${port}`);
-      resolve(server);
-    });
-  });
-
-  const callbackArgs = { server };
-
-  await userCallback(callbackArgs).catch(error => {
-    throw (error);
-  });
-
-  await closeTestServer(server);
-}
-
 export async function isGETEqual(
   url: string,
   data: any

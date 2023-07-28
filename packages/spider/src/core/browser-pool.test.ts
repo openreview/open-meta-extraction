@@ -18,7 +18,7 @@ import { Pool } from 'tarn';
 import { BrowserInstance, DefaultPageInstanceOptions } from './browser-instance';
 
 describe('browser pooling', () => {
-  setLogEnvLevel('verbose');
+  setLogEnvLevel('info');
 
   it('generators properly yield/close, own or share components', async () => {
     try {
@@ -53,14 +53,10 @@ describe('browser pooling', () => {
 
   it('borrow/return to pool', async () => {
     const browserPool = createBrowserPool();
-
     const browserInstance = await browserPool.acquire();
     const { page } = await browserInstance.newPage(DefaultPageInstanceOptions);
-
     await page.close();
-
     await browserPool.release(browserInstance);
-
     await browserPool.shutdown();
   });
 
@@ -127,14 +123,6 @@ describe('browser pooling', () => {
         failPoint({});
       } catch (error: any) {
         putStrLn(error.message);
-        // putStrLn(error['actual']);
-        // putStrLn(error['expected']);
-        // putStrLn(error['message']);
-        // fail(error);
-      } finally {
-        // if (n < failAtPosition) {
-        // warn...
-        // }
       }
     }
 
@@ -166,36 +154,36 @@ describe('browser pooling', () => {
     // 'webuijserror',
   ];
 
-  it.only('force kill on hang/timeout', async () => {
+  it('force kill on hang/timeout', async () => {
     const browserPool = createBrowserPool();
 
     const attemptOne = async (url: string) => {
-      putStrLn(`attempting ${url}`);
+      // putStrLn(`attempting ${url}`);
       const browser = await browserPool.acquire();
-      putStrLn('acquired browser');
+      // putStrLn('acquired browser');
       const pageInstance = await browser.newPage(DefaultPageInstanceOptions);
-      putStrLn('acquired page');
+      // putStrLn('acquired page');
       const { page } = pageInstance;
-      putStrLn('navigating...');
+      // putStrLn('navigating...');
       const httpResponseP = page.goto(`chrome://${url}`, { timeout: 2000 });
 
       const resp = httpResponseP.then(async () => {
-        putStrLn(`finished page.goto( ${url} )`);
+        // putStrLn(`finished page.goto( ${url} )`);
       }).catch(error => {
-        putStrLn(`httpResponse: ${error}`);
+        // putStrLn(`httpResponse: ${error}`);
       });
 
-      putStrLn('await resp');
+      // putStrLn('await resp');
       await resp;
-      putStrLn('await release');
+      // putStrLn('await release');
       await browserPool.release(browser);
-      putStrLn('/done attempt');
+      // putStrLn('/done attempt');
     };
 
     await asyncEachSeries(debugUrls, async (dbgUrl) => {
-      putStrLn(`1. Trying chrome://${dbgUrl}`);
+      // putStrLn(`1. Trying chrome://${dbgUrl}`);
       await attemptOne(dbgUrl);
-      putStrLn(`2. Trying chrome://${dbgUrl}`);
+      // putStrLn(`2. Trying chrome://${dbgUrl}`);
       await attemptOne(dbgUrl);
     });
 
@@ -204,17 +192,17 @@ describe('browser pooling', () => {
 
   it('close all remaining browserInstances on pool.shutdown()', async () => {
     const browserPool = createBrowserPool();
-    putStrLn('Acquiring browserInstances without releasing...');
+    // putStrLn('Acquiring browserInstances without releasing...');
     await browserPool.acquire();
     await browserPool.acquire();
     const bi = await browserPool.acquire();
-    putStrLn('Navigating to page');
+    // putStrLn('Navigating to page');
     const bp = await bi.newPage(DefaultPageInstanceOptions);
 
     // const httpResponse = await bp.gotoUrl('chrome://shorthang');
     bp.gotoUrl('chrome://hang');
-    browserPool.report();
-    putStrLn('Pool Shutdown');
+    // browserPool.report();
+    // putStrLn('Pool Shutdown');
     await browserPool.shutdown();
   });
 

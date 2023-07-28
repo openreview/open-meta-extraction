@@ -1,19 +1,16 @@
 import _ from 'lodash';
 
-import { Pool } from 'tarn';
 import { Logger } from 'winston';
 
-import { asyncEach, getServiceLogger, prettyPrint, putStrLn } from '@watr/commonlib';
-import { createUnderlyingPool } from './browser-pool-impl';
+import { asyncEach, getServiceLogger, prettyPrint } from '@watr/commonlib';
+import { PoolX, createUnderlyingPool } from './browser-pool-impl';
 import { BrowserInstance, DefaultPageInstanceOptions, PageInstance } from './browser-instance';
-import EventEmitter from 'events';
 
 export function createBrowserPool(): BrowserPool {
   const pool = createUnderlyingPool();
   const browserPool = new BrowserPool(pool);
   return browserPool;
 }
-
 
 export type WithBrowserPool = {
   browserPool: BrowserPool
@@ -27,10 +24,10 @@ export async function* withBrowserPool(): AsyncGenerator<WithBrowserPool, void, 
   } finally {
     const destroyP = new Promise((resolve) => {
       pool.on('poolDestroyRequest', () => {
-        putStrLn(`Pool Destroyed (request)`);
+        // putStrLn(`Pool Destroyed (request)`);
       });
       pool.on('poolDestroySuccess', () => {
-        putStrLn(`Pool Destroyed (sucess)`);
+        // putStrLn(`Pool Destroyed (sucess)`);
         resolve(undefined);
       });
 
@@ -39,10 +36,10 @@ export async function* withBrowserPool(): AsyncGenerator<WithBrowserPool, void, 
     await Promise.all([shutdownP, destroyP]);
   }
 }
+
 export type WithBrowserInstance = WithBrowserPool & {
   browserInstance: BrowserInstance;
 }
-
 
 export async function* withBrowserInstance(
   providedBrowserPool?: BrowserPool
@@ -124,12 +121,12 @@ export async function* withPageInstance(
 
 
 export class BrowserPool {
-  pool: Pool<BrowserInstance>;
+  pool: PoolX<BrowserInstance>;
   log: Logger;
   cachedResources: Record<string, BrowserInstance>;
   releaseQueue: Promise<void>
 
-  constructor(pool: Pool<BrowserInstance>) {
+  constructor(pool: PoolX<BrowserInstance>) {
     this.pool = pool;
     this.log = getServiceLogger('BrowserPool')
     this.cachedResources = {};
@@ -153,8 +150,8 @@ export class BrowserPool {
     delete this.cachedResources[pid];
     this.log.debug(`Releasing ${browserInstance.asString()}`);
 
-    function makeReleaser(targetId: string) {
-      function releaser(resource: BrowserInstance): boolean {
+    function resourceIdMatches(targetId: string) {
+      function isMatch(resource: BrowserInstance): boolean {
         const releasedId = resource.asString();
         self.log.verbose(`Pool/ReleaseEvent: checking ${releasedId}  =?= ${targetId}`);
         if (targetId === releasedId) {
@@ -163,7 +160,7 @@ export class BrowserPool {
         }
         return false;
       };
-      return releaser;
+      return isMatch;
     }
 
     self.log.verbose('Await Enter Release Queue')
@@ -172,12 +169,10 @@ export class BrowserPool {
 
     const releaseP = new Promise<void>((resolve) => {
       const targetId = browserInstance.asString();
-      const releaseFunc = makeReleaser(targetId);
-      // icky hack to expose internal EventEmitter, need more complete
-      // access than pool implementation provides
-      const emitter: EventEmitter = (this.pool as any).emitter;
-      emitter.on('release', function handler(resource) {
-        if(releaseFunc(resource)) {
+      const isMatch = resourceIdMatches(targetId);
+      const emitter = this.pool.getEmitter();
+      this.pool.on('release', function handler(resource) {
+        if (isMatch(resource)) {
           self.log.verbose('removing release listener')
           emitter.removeListener('release', handler);
           resolve();
@@ -192,19 +187,6 @@ export class BrowserPool {
     this.log.debug(`Done Releasing ${browserInstance.asString()}`);
   }
 
-  // TODO obsolete func
-  async use<A>(f: (browser: BrowserInstance) => A | Promise<A>): Promise<A> {
-    const acq = this.pool.acquire();
-    const browser = await acq.promise;
-    const a = await Promise
-      .resolve(f(browser))
-      .finally(() => {
-        this.pool.release(browser);
-      });
-
-    return a;
-
-  }
   async shutdown(): Promise<void> {
     this.log.debug('Begin Shutdown');
     const cachedInstances: Array<[string, BrowserInstance]> = _.toPairs(this.cachedResources);

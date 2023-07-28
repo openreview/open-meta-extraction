@@ -140,7 +140,6 @@ export class MongoQueries {
     const setQ: Record<string, any> = {};
     const unsetQ: Record<string, any> = {};
 
-    // _.merge(setQ, fields, { workflowStatus });
     _.merge(setQ, fields);
 
     if ('response' in fields) {

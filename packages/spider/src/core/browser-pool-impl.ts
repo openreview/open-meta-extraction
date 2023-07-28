@@ -2,10 +2,32 @@ import { Pool } from 'tarn';
 import { getServiceLogger } from '@watr/commonlib';
 import { BrowserInstance } from './browser-instance';
 import { launchBrowser } from './puppet';
+import EventEmitter from 'events';
+import { PoolOptions } from 'tarn/dist/Pool';
 
-export function createUnderlyingPool(): Pool<BrowserInstance> {
+export class PoolX<T> extends Pool<T> {
+  constructor(opts: PoolOptions<T>) {
+    super(opts);
+  }
+
+  getEmitter(): EventEmitter {
+    const emitter: EventEmitter = (this as any).emitter;
+    return emitter;
+  }
+
+  once(eventName: 'release', handler: (resource: BrowserInstance) => void): void {
+    const emitter = this.getEmitter();
+    emitter.on(eventName, function outerHandler(resource) {
+      handler(resource);
+      emitter.removeListener('release', outerHandler);
+    });
+  }
+}
+
+export function createUnderlyingPool(): PoolX<BrowserInstance> {
   const log = getServiceLogger(`PoolImpl<Browser>`);
-  const pool = new Pool<BrowserInstance>({
+  const pool = new PoolX<BrowserInstance>({
+    log: (s: string) => log.info(s),
     async create(): Promise<BrowserInstance> {
       return launchBrowser().then(browser => {
         const browserInstance = new BrowserInstance(browser);
@@ -20,13 +42,22 @@ export function createUnderlyingPool(): Pool<BrowserInstance> {
       await browserInstance.close();
     },
 
-    validate(browserInstance: BrowserInstance) {
+    validate(browserInstance: BrowserInstance): boolean {
       log.debug(`validating Browser#${browserInstance.pid()}`);
       return !browserInstance.isStale();
     },
 
     max: 5, // maximum size of the pool
     min: 1, // minimum size of the pool
+
+
+    // acquireTimeoutMillis?: number;
+    // createTimeoutMillis?: number;
+    // destroyTimeoutMillis?: number;
+    // idleTimeoutMillis?: number;
+    // createRetryIntervalMillis?: number;
+    // reapIntervalMillis?: number;
+    // propagateCreateError?: boolean;
   });
 
 

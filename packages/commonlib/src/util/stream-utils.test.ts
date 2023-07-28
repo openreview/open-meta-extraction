@@ -78,6 +78,7 @@ describe('Stream utils', () => {
     });
   });
 
+  // TODO uncomment or delete
   // it("should do parallel work on streams", async done => {
   //   async function doAsync(s: string): Promise<string> {
   //     return delay(200).then(() => {

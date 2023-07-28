@@ -48,6 +48,7 @@ describe('MongoDB Queries', () => {
       expect(initEntry.noteId).toEqual('asdf');
       expect(initEntry.noteNumber).toEqual(1);
 
+      // TODO finish tests
       // const nextSpiderable = await mdb.getNextSpiderableUrl();
 
       // expect(nextSpiderable).toBeDefined;

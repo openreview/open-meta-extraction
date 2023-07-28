@@ -5,7 +5,6 @@ import { MongoQueries } from './query-api';
 import { WorkflowStatuses } from './schemas';
 import { Note, Notes } from '~/components/openreview-gateway';
 
-// export async function populateDBHostNoteStatus(shadowDB: ShadowDB, n: number) {
 export async function populateDBHostNoteStatus(mdb: MongoQueries, n: number) {
   await asyncEachOfSeries(
     _.range(n),
@@ -45,7 +44,6 @@ export const genHttpStatus = fc.oneof(
 
 export const numberSeries = (start: number, end?: number) =>
   fc.Stream.of<number>(... _.range(start, end));
-  // new fc.Stream<number>(... _.range(start, end));
 
 type CreateFakeNote = {
   noteNumber: number;
