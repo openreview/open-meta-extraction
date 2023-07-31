@@ -37,7 +37,7 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
   )(async (args: any) => {
     const { limit } = args;
 
-    for await (const { fetchService } of withFetchService({ uniqDB: true })) {
+    for await (const { fetchService } of withFetchService({})) {
       await fetchService.runFetchLoop(limit);
     }
   });

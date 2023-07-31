@@ -79,7 +79,7 @@ export async function* withMongoGen({
   }
 
   const config = initConfig();
-  const testingOnlyOptions = emptyDB || uniqDB || retainDB || useMongoose;
+  const testingOnlyOptions = emptyDB || uniqDB || retainDB;
   const MongoDBName = config.get('mongodb:dbName');
   const isTestDB = /.+test.*/.test(MongoDBName);
   if (isTestingEnv()) {
