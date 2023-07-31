@@ -1,6 +1,6 @@
 import _ from 'lodash';
 import { Logger } from 'winston';
-import { delay, getServiceLogger } from '@watr/commonlib';
+import { delay, getServiceLogger, putStrLn } from '@watr/commonlib';
 import { NoteStatus, UrlStatus } from '~/db/schemas';
 import { CursorRole, MongoQueries } from '~/db/query-api';
 import differenceInMilliseconds from 'date-fns/differenceInMilliseconds';
@@ -46,11 +46,14 @@ export class TaskScheduler {
   async* genUrlStream(): AsyncGenerator<UrlStatus, void, void> {
     let done = false
     while (!done) {
+      this.log.info(`Iterating new URLs`)
       for await (const url of this.newUrlGenerator()) {
+        this.log.debug(`Scheduling new URL ${url.noteId}`);
         yield url;
       }
       let counter = 0;
       let bailEarly = false;
+      this.log.info(`Iterating old URLs`);
       for await (const url of this.oldUrlGenerator()) {
         // only process 100 old urls before trying new urls again
         counter++;
@@ -87,6 +90,9 @@ export class TaskScheduler {
         return 'error:inconsistent-state';
       }
       try {
+        // Advance cursor before yielding
+        current = await this.mdb.advanceCursor(current._id);
+        //
         yield urlStatus;
       }
       catch (error) {
@@ -94,7 +100,6 @@ export class TaskScheduler {
         return 'error:exception';
       }
 
-      current = await this.mdb.advanceCursor(current._id);
     }
     return 'done';
   }
@@ -138,4 +143,10 @@ export class TaskScheduler {
     this.log.info('Done');
   }
 
+  async deleteUrlCursor(role: CursorRole) {
+    this.log.info(`Deleting Cursor ${role}`);
+    const didDelete = await this.mdb.deleteCursor(role);
+    const msg = didDelete ? 'deleted' : 'not deleted';
+    this.log.info(`  Cursor was ${msg}`);
+  }
 }

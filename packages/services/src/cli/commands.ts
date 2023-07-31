@@ -1,6 +1,5 @@
 import _ from 'lodash';
 
-
 import { arglib, initConfig, putStrLn } from '@watr/commonlib';
 import { formatStatusMessages, showStatusSummary } from '~/db/extraction-summary';
 import { connectToMongoDB, mongoConnectionString, resetMongoDB } from '~/db/mongodb';
@@ -9,11 +8,9 @@ import { withExtractionService } from '~/components/extraction-service';
 import { OpenReviewGateway } from '~/components/openreview-gateway';
 import { runMonitor } from '~/components/monitor-service';
 import { CursorRoles, createMongoQueries, isCursorRole } from '~/db/query-api';
-import { TaskScheduler } from '~/components/task-scheduler';
-
+import { withTaskScheduler } from '~/components/task-scheduler';
 
 const { opt, config, registerCmd } = arglib;
-
 
 export function registerCLICommands(yargv: arglib.YArgsT) {
   registerCmd(
@@ -98,9 +95,8 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
       return;
     }
 
-    const mdb = await createMongoQueries();
 
-    try {
+    for await (const { taskScheduler, mdb } of withTaskScheduler({})) {
       if (_.isNumber(move) && move !== 0) {
         putStrLn(`Moving cursor w/role ${role}`);
         const cursor = await mdb.getCursor(role);
@@ -119,26 +115,17 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
       }
 
       if (_.isBoolean(del) && del) {
-        const didDelete = await mdb.deleteCursor(role);
-        const msg = didDelete ? 'deleted' : 'not deleted';
-        putStrLn(`Cursor was ${msg}`);
+        await taskScheduler.deleteUrlCursor(role);
         return;
       }
 
       if (_.isBoolean(create) && create) {
-        putStrLn(`Creating cursor w/role ${role}`);
-        const taskScheduler = new TaskScheduler(mdb);
         await taskScheduler.createUrlCursor(role);
         return;
       }
 
       putStrLn('No operation specifed...');
-
-    } finally {
-      putStrLn('Closing DB');
-      await mdb.close();
     }
-
   });
 
   registerCmd(
@@ -162,10 +149,9 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
   )(async (args: any) => {
     const postResultsToOpenReview: boolean = args.postResults;
     const limit: number = args.limit;
-    // TODO limit not enabled
 
     for await (const { extractionService } of withExtractionService({ postResultsToOpenReview })) {
-      await extractionService.runExtractionLoop(limit);
+      await extractionService.runExtractionLoop(limit, true);
     }
   });
 

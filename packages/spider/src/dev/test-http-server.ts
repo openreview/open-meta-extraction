@@ -1,6 +1,7 @@
 import _ from 'lodash';
 import Koa, { Context } from 'koa';
 import Router from '@koa/router';
+import { koaBody } from 'koa-body';
 import { Server } from 'http';
 import axios from 'axios';
 
@@ -114,6 +115,8 @@ export async function* withServerGen(
 ): AsyncGenerator<Server, void, any> {
   const routes = new Router();
   const app = new Koa();
+  app.use(koaBody());
+
   setup(routes);
   // TODO config port
   const port = 9100;
@@ -173,6 +176,18 @@ export function responseHandler(
   };
 }
 
+
+export function respondWithHtml(
+  body: string
+): (ctx: Application.ParameterizedContext) => void {
+  return (ctx) => {
+    const { response } = ctx;
+    response.type = 'text/html';
+    response.status = 200;
+    response.body = body;
+  };
+}
+
 export async function startTestServer(): Promise<Server> {
   const app = new Koa();
 
@@ -203,8 +218,13 @@ export async function closeTestServer(server: Server | undefined): Promise<void>
     if (server === undefined) return;
     server.on('close', () => {
       putStrLn('test server closed.');
+    });
+    server.close((error?: Error) => {
+      putStrLn('test server close Callback.');
+      if (error) {
+        prettyPrint({ error })
+      }
       resolve(undefined);
     });
-    server.close();
   });
 }

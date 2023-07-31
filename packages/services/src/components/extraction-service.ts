@@ -6,6 +6,7 @@ import {
   prettyPrint,
   getServiceLogger,
   getCorpusRootDir,
+  prettyFormat,
 } from '@watr/commonlib';
 
 
@@ -93,13 +94,16 @@ export class ExtractionService {
   }
 
   // Main Extraction Loop
-  async runExtractionLoop(limit: number) {
-    let currCount = 0;
+  async runExtractionLoop(limit: number, rateLimited: boolean) {
     const runForever = limit === 0;
+    this.log.info(`Starting extraction loop, runForever=${runForever}`);
+    const maxRateMS = rateLimited ? 5000 : 0;
+    const generator = this.taskScheduler.genUrlStreamRateLimited(maxRateMS)
 
-    for await (const urlStatus of this.taskScheduler.genUrlStream()) {
+    let currCount = 0;
+    for await (const urlStatus of generator) {
+      await this.extractUrl(urlStatus);
       if (runForever) {
-        await this.extractUrl(urlStatus);
         continue;
       }
 
@@ -130,9 +134,8 @@ export class ExtractionService {
 
 
     if (E.isLeft(fieldExtractionResults)) {
-      const asdf  = fieldExtractionResults.left;
+      const asdf = fieldExtractionResults.left;
       const urlFetchData = asdf[1].urlFetchData;
-      // const [, { urlFetchData }] = fieldExtractionResults.left;
       await this.recordExtractionFailure(noteId, urlFetchData);
       return;
     }
@@ -165,7 +168,8 @@ export class ExtractionService {
     const hasAbstract = theAbstract !== undefined;
     const pdfLink = chooseCanonicalPdfLink(canonicalFields);
     const hasPdfLink = pdfLink !== undefined;
-    prettyPrint({ canonicalFields, theAbstract, pdfLink });
+    const msg = prettyFormat({ canonicalFields, theAbstract, pdfLink });
+    this.log.info(msg)
 
     if (this.postResultsToOpenReview) {
       if (hasAbstract) {

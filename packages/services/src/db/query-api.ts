@@ -219,15 +219,15 @@ export class MongoQueries {
     return ret === null ? undefined : ret;
   }
 
-  async lockCursor(cursorId: CursorID): Promise<FetchCursor | undefined> {
-    const c = await FetchCursor.findByIdAndUpdate(cursorId, { lockStatus: 'locked' }, { new: true });
-    if (c) return c;
-  }
+  // async lockCursor(cursorId: CursorID): Promise<FetchCursor | undefined> {
+  //   const c = await FetchCursor.findByIdAndUpdate(cursorId, { lockStatus: 'locked' }, { new: true });
+  //   if (c) return c;
+  // }
 
-  async unlockCursor(cursorId: CursorID): Promise<FetchCursor | undefined> {
-    const c = await FetchCursor.findByIdAndUpdate(cursorId, { lockStatus: 'released' }, { new: true });
-    if (c) return c;
-  }
+  // async unlockCursor(cursorId: CursorID): Promise<FetchCursor | undefined> {
+  //   const c = await FetchCursor.findByIdAndUpdate(cursorId, { lockStatus: 'released' }, { new: true });
+  //   if (c) return c;
+  // }
 
 
   async advanceCursor(cursorId: CursorID): Promise<FetchCursor | undefined> {
@@ -241,9 +241,8 @@ export class MongoQueries {
 
     const nextCursor = await FetchCursor.findByIdAndUpdate(cursorId,
       {
-        noteId: nextNote._id,
-        noteNumber: nextNote.number,
-        lockStatus: 'available'
+        noteId: nextNote.id,
+        noteNumber: nextNote.number
       }, { new: true });
 
     if (!nextCursor) {
@@ -293,9 +292,8 @@ export class MongoQueries {
 
     const nextCursor = await FetchCursor.findByIdAndUpdate(cursorId,
       {
-        noteId: lastNote._id,
-        noteNumber: lastNote.number,
-        lockStatus: 'available'
+        noteId: lastNote.id,
+        noteNumber: lastNote.number
       }, { new: true });
 
     if (!nextCursor) {
@@ -372,13 +370,12 @@ export class MongoQueries {
 
 export type ExtractedFieldName = UpdatableField;
 
-export type CursorRole = 'fetch-openreview-notes'
-  | 'extract-fields/newest'
+export type CursorRole =
+  'extract-fields/newest'
   | 'extract-fields/all'
   ;
 
 export const CursorRoles: CursorRole[] = [
-  'fetch-openreview-notes',
   'extract-fields/newest',
   'extract-fields/all'
 ];

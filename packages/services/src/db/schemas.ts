@@ -123,7 +123,7 @@ export interface FetchCursor {
   noteId: string;
   noteNumber: number;
   role: string;
-  lockStatus: string;
+  // lockStatus: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -132,7 +132,7 @@ export const FetchCursorSchema = new Schema<FetchCursor>({
   noteId: { type: String, required: true },
   noteNumber: { type: Number, required: true },
   role: { type: String, required: true, unique: true },
-  lockStatus: { type: String },
+  // lockStatus: { type: String },
 }, {
   collection: 'fetch_cursor',
   timestamps: createCurrentTimeOpt(),
@@ -150,7 +150,7 @@ export interface FieldStatus {
 
 
 export const FieldStatusSchema = new Schema<FieldStatus>({
-  noteId: { type: String, index: true, unique: true },
+  noteId: { type: String },
   fieldType: { type: String, required: true },
   contentHash: { type: String, required: false },
 }, {

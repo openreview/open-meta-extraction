@@ -117,13 +117,4 @@ export class ShadowDB {
       await this.mdb.upsertFieldStatus(note.id, 'pdf', pdfLink);
     }
   }
-
-  async updateLastFetchedNote(noteId: string): Promise<FetchCursor> {
-    return this.mdb.updateCursor('fetch-openreview-notes', noteId);
-  }
-
-  async getLastFetchedNote(): Promise<FetchCursor | undefined> {
-    return this.mdb.getCursor('fetch-openreview-notes');
-  }
-
 }

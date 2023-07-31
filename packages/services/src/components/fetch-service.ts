@@ -65,14 +65,6 @@ export class FetchService {
     return generateFromBatch<Note>(this.createNoteBatchGenerator(startingNoteId), limit || 0);
   }
 
-  async updateFetchCursor(noteId: string) {
-    return this.shadow.updateLastFetchedNote(noteId);
-  }
-
-  async getFetchCursor() {
-    return this.shadow.getLastFetchedNote();
-  }
-
 
   // Main loop
   async runFetchLoop(limit?: number) {
@@ -90,7 +82,6 @@ export class FetchService {
     for (; !cur.done; cur = await noteGenerator.next()) {
       const note = cur.value;
       await this.shadow.saveNote(note, true);
-      await this.updateFetchCursor(note.id);
     }
     this.log.info('FetchLoop complete');
     if (limit === 0) {

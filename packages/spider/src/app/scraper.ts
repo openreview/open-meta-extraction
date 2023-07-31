@@ -5,6 +5,9 @@ import {
   writeCorpusJsonFile,
   writeCorpusTextFile,
   asyncMapSeries,
+  putStrLn,
+  prettyFormat,
+  prettyPrint,
 } from '@watr/commonlib';
 
 import {
@@ -32,9 +35,10 @@ export async function gotoUrlWithRewrites(
 
   logger.debug(`gotoUrlWithRewrites(): initialGoto`)
   const response = await pageInstance.gotoUrl(url);
-  logger.debug(`gotoUrlWithRewrites(): got response`)
+  logger.debug(`gotoUrlWithRewrites(): got response`);
   if (E.isLeft(response)) {
     const error = response.left;
+    prettyPrint({ error });
     logger.debug(`Attempting Rewrite for ${error}`);
     logger.debug(` Rewrite url ${url}`);
     const msg = error;

@@ -12,7 +12,6 @@ describe('MongoDB Queries', () => {
   it('should create/update/delete fetch cursors', async () => {
     for await (const { mdb } of withMongoQueriesGen({ uniqDB: true })) {
       expect(await mdb.getCursor('extract-fields/all')).toBeUndefined();
-      expect(await mdb.getCursor('fetch-openreview-notes')).toBeUndefined();
       expect(await mdb.updateCursor('extract-fields/all', '1')).toMatchObject({ role: 'extract-fields/all', noteId: '1' });
       expect(await mdb.updateCursor('extract-fields/newest', '2')).toMatchObject({ role: 'extract-fields/newest', noteId: '2' });
       expect(await mdb.deleteCursor('extract-fields/all')).toBe(true);
@@ -21,7 +20,7 @@ describe('MongoDB Queries', () => {
     }
   });
 
-  it('should lock/unlock/advance cursors', async () => {
+  it('should advance cursors', async () => {
     for await (const { mdb } of withMongoQueriesGen({ uniqDB: true })) {
       const nocursor = await mdb.createCursor('extract-fields/all', 'note#1');
       expect(nocursor).toBeUndefined();
@@ -31,11 +30,7 @@ describe('MongoDB Queries', () => {
       expect(cursor).toBeDefined();
       if (!cursor) return;
 
-      const locked = await mdb.lockCursor(cursor._id);
-      const unlocked = await mdb.unlockCursor(cursor._id);
-      const advanced = await mdb.advanceCursor(cursor._id);
-
-      prettyPrint({ cursor, locked, unlocked, advanced });
+      prettyPrint({ cursor });
 
     }
   });
@@ -54,7 +49,7 @@ describe('MongoDB Queries', () => {
       // expect(nextSpiderable).toBeDefined;
 
       // if (nextSpiderable !== undefined) {
-      //   const noteId = nextSpiderable._id;
+      //   const noteId = nextSpiderable.id;
       //   const updateRes = await mdb.upsertUrlStatus(noteId, 'spider:success', {
       //     httpStatus: 200
       //   });

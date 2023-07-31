@@ -4,7 +4,7 @@ import { withTaskScheduler } from './task-scheduler';
 import { createFakeNote } from '~/db/mock-data';
 
 describe('Task Scheduling', () => {
-  setLogEnvLevel('trace');
+  setLogEnvLevel('warn');
 
   const _3Notes = _.map(_.range(1, 4), (i) => createFakeNote({
     noteNumber: i,
@@ -51,7 +51,7 @@ describe('Task Scheduling', () => {
       for await (const url of taskScheduler.genUrlStream()) {
         schedulerOrder.push(url.noteId);
       }
-      expect(schedulerOrder).toMatchObject(['note#3', 'note#1']);
+      expect(schedulerOrder).toMatchObject(['note#3', 'note#1', 'note#2', 'note#3']);
     }
   });
 });

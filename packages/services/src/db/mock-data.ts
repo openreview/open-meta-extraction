@@ -65,7 +65,7 @@ export function createFakeNote({
   const dateAsNum = date.getTime();
   const abs = hasAbstract ? `Abstract: Paper ${number} description...` : undefined;
   const pdf = hasPDFLink ? `http://localhost:9100/pdf/paper-${number}.pdf` : undefined;
-  const html = hasHTMLLink ? `http://localhost:9100/html/${number}.htm` : undefined;
+  const html = hasHTMLLink ? `http://localhost:9100/html/${number}` : undefined;
 
   return {
     id: `note#${number}`,
