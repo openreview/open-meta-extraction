@@ -21,10 +21,12 @@ describe('Task Scheduling', () => {
       // Populate db
       await asyncEachOfSeries(_3Notes, async note => await shadowDB.saveNote(note, true));
       // Set middle note to success
-      const updatedUrl = await mdb.updateUrlStatus(middleNote.id, { response: middleNote.content.html })
-      expect(updatedUrl).toMatchObject({ noteId: 'note#2', response: middleNote.content.html });
+      // const updatedUrl = await mdb.updateUrlStatus(middleNote.id, { response: middleNote.content.html })
+      // expect(updatedUrl).toMatchObject({ noteId: 'note#2', response: middleNote.content.html });
+      const updatedUrl = await mdb.updateUrlStatus(middleNote.id, { hasAbstract: true });
+      expect(updatedUrl).toMatchObject({ noteId: 'note#2', hasAbstract: true });
       // verify
-      const lastSuccessfulExtraction = await mdb.getLastNoteWithSuccessfulExtraction();
+      const lastSuccessfulExtraction = await mdb.getLastNoteWithSuccessfulExtractionV2();
       expect(lastSuccessfulExtraction).toMatchObject({ id: 'note#2', url: middleNote.content.html });
 
 

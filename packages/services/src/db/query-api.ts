@@ -127,9 +127,21 @@ export class MongoQueries {
     return s || undefined;
   }
 
-  async getLastNoteWithSuccessfulExtraction(): Promise<NoteStatus | undefined> {
+  async getLastNoteWithSuccessfulExtractionV1(): Promise<NoteStatus | undefined> {
     const s = await UrlStatus.findOne(
       { response: { $exists: true, $ne: null } },
+      null,
+      { sort: { noteNumber: -1 } }
+    );
+    if (!s) return;
+
+    const n = await NoteStatus.findOne({ id: s.noteId });
+    return n || undefined;
+  }
+
+  async getLastNoteWithSuccessfulExtractionV2(): Promise<NoteStatus | undefined> {
+    const s = await UrlStatus.findOne(
+      { hasAbstract: true },
       null,
       { sort: { noteNumber: -1 } }
     );

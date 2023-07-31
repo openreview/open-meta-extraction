@@ -21,6 +21,7 @@
 - [ ] Reap dead chrome instances
 - [ ] Option to start extractor from last successful URL (to start with most recently added)
 - [ ] Fix documentation (some sidebar links don't work)
+- [ ] Bug: when fetch service finishes, it loops around and causes key error on save note
 
 
 

@@ -3,7 +3,6 @@ import _ from 'lodash';
 import { makeHashEncodedPath, HashEncodedPath } from '~/util/hash-encoded-paths';
 import nconf from 'nconf';
 import fs from 'fs';
-import { putStrLn } from '..';
 
 export const ENV_MODES = {
   'dev': null,

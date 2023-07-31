@@ -126,7 +126,7 @@ export class TaskScheduler {
         break;
 
       case 'extract-fields/newest':
-        const lastSuccess = await this.mdb.getLastNoteWithSuccessfulExtraction();
+        const lastSuccess = await this.mdb.getLastNoteWithSuccessfulExtractionV2();
         if (!lastSuccess) {
           return;
         }
