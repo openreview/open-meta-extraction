@@ -145,6 +145,10 @@ export class ExtractionService {
           await this.updateWorkflowStatus(noteId, 'extractor:fail');
         }
         throw error;
+      }).finally(async () => {
+        const { browserPool, browserInstance } = spiderEnv;
+        await browserPool.release(browserInstance);
+        browserPool.report();
       });
 
 
