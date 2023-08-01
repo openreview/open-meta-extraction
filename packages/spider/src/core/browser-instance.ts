@@ -8,7 +8,7 @@ import {
   BrowserEmittedEvents,
 } from 'puppeteer';
 
-import { getServiceLogger } from '@watr/commonlib';
+import { getServiceLogger, prettyPrint, putStrLn } from '@watr/commonlib';
 
 import {
   Browser, Page,
@@ -39,7 +39,7 @@ export class BrowserInstance {
   }
 
   installEventHandlers(): void {
-    logBrowserEvent(this, this.log);
+    // logBrowserEvent(this, this.log);
   }
 
   pid(): number {
@@ -121,7 +121,10 @@ export class BrowserInstance {
  * Log all events when log level = Verbose
  */
 export function logBrowserEvent(browserInstance: BrowserInstance, logger: Logger) {
+  putStrLn('begin logBrowserEvent')
+  // prettyPrint({ browserInstance, logger })
   const { browser } = browserInstance;
+  putStrLn('next logBrowserEvent')
 
   const events = [
     BrowserEmittedEvents.TargetChanged,
@@ -129,15 +132,19 @@ export function logBrowserEvent(browserInstance: BrowserInstance, logger: Logger
     BrowserEmittedEvents.TargetDestroyed,
     BrowserEmittedEvents.Disconnected,
   ];
+  putStrLn('logBrowserEvent0')
 
   const bproc = browser.process();
   const pid = bproc?.pid;
+  putStrLn('logBrowserEvent1')
   if (bproc === null || pid === undefined) {
     logger.error('logBrowserEvents(): browser.process().pid is undefined');
     return;
   }
+  putStrLn('logBrowserEvent3')
 
   _.each(events, (event) => {
+    putStrLn(`logBrowserEvent4 ${event}`)
     browser.on(event, (e) => {
       const ttype = e?._targetInfo?.type;
       const turl = e?._targetInfo?.url;

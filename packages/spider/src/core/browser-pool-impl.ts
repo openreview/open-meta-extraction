@@ -1,5 +1,5 @@
 import { Pool } from 'tarn';
-import { getServiceLogger } from '@watr/commonlib';
+import { getServiceLogger, putStrLn } from '@watr/commonlib';
 import { BrowserInstance } from './browser-instance';
 import { launchBrowser } from './puppet';
 import EventEmitter from 'events';

@@ -40,7 +40,7 @@ export async function launchBrowser(): Promise<Browser> {
   useAnonPlugin();
   return puppeteer.launch({
     headless: 'new',
-    channel: 'chrome',
+    // channel: 'chrome',
     // These arguments seem to be required to avoid bug where chrome doesn't shutdown on browser.close()
     // executablePath: process.env.CHROME_EXECUTABLE,
     // devtools: true,
@@ -48,13 +48,13 @@ export async function launchBrowser(): Promise<Browser> {
     args: [
       //'--single-process', '--no-zygote', '--no-sandbox'
       // Disable all cached/tmp files
-      '--aggressive-cache-discard',
-      '--disable-cache',
-      '--disable-application-cache',
-      '--disable-offline-load-stale-cache',
-      '--disable-gpu-shader-disk-cache',
-      '--media-cache-size=0',
-      '--disk-cache-size=0',
+      // '--aggressive-cache-discard',
+      // '--disable-cache',
+      // '--disable-application-cache',
+      // '--disable-offline-load-stale-cache',
+      // '--disable-gpu-shader-disk-cache',
+      // '--media-cache-size=0',
+      // '--disk-cache-size=0',
     ]
   });
 }
