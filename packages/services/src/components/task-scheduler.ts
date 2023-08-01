@@ -67,14 +67,15 @@ export class TaskScheduler {
     }
   }
   async* genUrlStreamRateLimited(maxRateMs: number): AsyncGenerator<UrlStatus, void, void> {
-    let startTime = new Date();
     for await (const url of this.genUrlStream()) {
+      const startTime = new Date();
       yield url;
-      const currTime = new Date();
-      const elapsedMs = differenceInMilliseconds(currTime, startTime);
+      const endTime = new Date();
+      const elapsedMs = differenceInMilliseconds(endTime, startTime);
+      this.log.debug(`RateLimiter: ${elapsedMs}ms processing time`);
       const waitTime = maxRateMs - elapsedMs;
       if (waitTime > 0) {
-        this.log.info(`Delaying ${waitTime / 1000} seconds...`);
+        this.log.info(`RateLimiter: delaying ${waitTime / 1000} seconds...`);
         await delay(waitTime);
       }
     }
