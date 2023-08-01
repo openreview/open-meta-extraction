@@ -117,6 +117,8 @@ export class BrowserInstance {
   }
 }
 
+
+
 /*
  * Log all events when log level = Verbose
  */

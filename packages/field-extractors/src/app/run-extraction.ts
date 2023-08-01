@@ -11,8 +11,8 @@ import {
   asyncEachSeries,
 } from '@watr/commonlib';
 
-
 import * as TE from 'fp-ts/TaskEither';
+
 import { BrowserPool, createBrowserPool, createSpiderEnv, UrlFetchData } from '@watr/spider';
 
 import {

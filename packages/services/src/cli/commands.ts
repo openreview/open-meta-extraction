@@ -154,6 +154,20 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
       await extractionService.runExtractionLoop(limit, true);
     }
   });
+  registerCmd(
+    yargv,
+    'extract-url',
+    'Run extraction loop on a single url, nothing is recorded or posted to openreview',
+    opt.str('url: The url to spider/extract'),
+  )(async (args: any) => {
+    const postResultsToOpenReview: boolean = args.postResults;
+    const urlstr: string = args.url;
+
+    const url = new URL(urlstr);
+    for await (const { extractionService } of withExtractionService({ postResultsToOpenReview })) {
+      await extractionService.extractUrl(url);
+    }
+  });
 
   registerCmd(
     yargv,

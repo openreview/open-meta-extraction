@@ -102,7 +102,7 @@ export class ExtractionService {
 
     let currCount = 0;
     for await (const urlStatus of generator) {
-      await this.extractUrl(urlStatus);
+      await this.extractUrlStatus(urlStatus);
       if (runForever) {
         continue;
       }
@@ -115,20 +115,35 @@ export class ExtractionService {
   }
 
   // Run extraction on a single URL
-  async extractUrl(urlStatus: UrlStatus) {
+  async extractUrlStatus(urlStatus: UrlStatus) {
     this.log.debug(`Extracting URL = ${urlStatus.requestUrl}`);
 
     const noteId = urlStatus.noteId;
     const url = new URL(urlStatus.requestUrl);
-    await this.updateWorkflowStatus(noteId, 'processing');
+    const extractionEnv = await this.extractUrl(url);
+
+    if (extractionEnv) {
+      await this.recordExtractionResults(noteId, extractionEnv);
+    }
+  }
+
+  async extractUrl(url: URL, noteId?: string) {
+
+    if (noteId) {
+      await this.updateWorkflowStatus(noteId, 'processing');
+    }
 
     const spiderEnv = await createSpiderEnv(this.log, this.browserPool, this.corpusRoot, url);
 
-    await this.updateWorkflowStatus(noteId, 'spider:begun');
+    if (noteId) {
+      await this.updateWorkflowStatus(noteId, 'spider:begun');
+    }
     const fieldExtractionResults = await SpiderAndExtractionTransform(TE.right([url, spiderEnv]))()
       .catch(async (error: any) => {
         prettyPrint({ error })
-        await this.updateWorkflowStatus(noteId, 'extractor:fail');
+        if (noteId) {
+          await this.updateWorkflowStatus(noteId, 'extractor:fail');
+        }
         throw error;
       });
 
@@ -136,12 +151,15 @@ export class ExtractionService {
     if (E.isLeft(fieldExtractionResults)) {
       const asdf = fieldExtractionResults.left;
       const urlFetchData = asdf[1].urlFetchData;
-      await this.recordExtractionFailure(noteId, urlFetchData);
+      if (noteId) {
+        await this.recordExtractionFailure(noteId, urlFetchData);
+      }
       return;
     }
 
     const [, extractionEnv] = fieldExtractionResults.right;
-    await this.recordExtractionResults(noteId, extractionEnv);
+    // await this.recordExtractionResults(noteId, extractionEnv);
+    return extractionEnv
   }
 
 

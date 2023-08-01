@@ -16,6 +16,7 @@ import {
   runTidyCmdBuffered,
   runFileCmd,
   toUrl,
+  Change,
 } from '@watr/commonlib';
 
 import {
@@ -62,6 +63,7 @@ import {
 } from './data-cleaning';
 import { joinLines, loadTextFile } from './text-primitives';
 import { SpiderEnv, UrlFetchData } from '@watr/spider';
+import { Logger } from 'winston';
 
 
 
@@ -395,8 +397,8 @@ export const forInputs: (re: RegExp, transform: Transform<CacheFileKey, unknown>
 export const withResponsePage: (transform: Transform<BrowserPage, unknown>) => Transform<unknown, unknown> =
   transform => forInputs(/response-body/, compose(loadBrowserPage(), transform));
 
-function validateAndCleanAbstract(field: FieldRecord): void {
-  const [cleaned0, cleaningRuleResults] = applyCleaningRules(AbstractCleaningRules, field.value);
+function validateAndCleanAbstract(field: FieldRecord, log: Logger): void {
+  const [cleaned0, cleaningRuleResults] = applyCleaningRules(AbstractCleaningRules, field.value, log);
   field.value = cleaned0;
   const ruleNames = _.map(cleaningRuleResults, r => {
     return `clean: ${r.rule}`;
@@ -420,16 +422,19 @@ export const validateEvidence: (mapping: Record<string, string>) => Transform<un
     return compose(
       takeWhileSuccess(...filters),
       tap((_a, env) => {
+        env.log.debug('validateEvidence: examine candidates')
         const url = env.urlFetchData.responseUrl;
 
         _.each(evidenceKeys, evKey0 => {
           const fieldName = mapping[evKey0];
 
+          env.log.debug(`validateEvidence: ${evKey0} -> ${fieldName} `);
           const evKey = evKey0.endsWith('?') ? evKey0.slice(0, -1) : evKey0;
 
           const evKeys = _.map(evKey.split('|'), s => s.trim());
 
           _.each(evKeys, (key) => {
+            env.log.debug(`validateEvidence: ${key} for (${evKey0} -> ${fieldName}) `);
             const maybeCandidates = candidatesForEvidence(env, key);
 
             _.each(maybeCandidates, c => {
@@ -441,8 +446,9 @@ export const validateEvidence: (mapping: Record<string, string>) => Transform<un
                 value: text
               };
 
+              env.log.debug(`validateEvidence: cleaning...`);
               if (fieldName === 'abstract') {
-                validateAndCleanAbstract(field);
+                validateAndCleanAbstract(field, env.log);
               } else if (fieldName.startsWith('pdf-')) {
                 validateAndCleanPdfLinks(field, url);
               }
@@ -510,7 +516,7 @@ export const summarizeEvidence: Transform<unknown, unknown> = tapEitherEnv((env)
 });
 
 
-function applyCleaningRules(rules: CleaningRule[], initialString: string): [string, CleaningRuleResult[]] {
+function applyCleaningRules(rules: CleaningRule[], initialString: string, log: Logger): [string, CleaningRuleResult[]] {
   let currentString = initialString;
   const cleaningResults: CleaningRuleResult[] = [];
   _.each(rules, (rule) => {
@@ -520,11 +526,13 @@ function applyCleaningRules(rules: CleaningRule[], initialString: string): [stri
     );
 
     if (!someGuardMatches) return;
+    log.debug(`Applying cleaning rule: ${rule.name}`);
 
     const cleaned = rule.run(currentString, rule.guards);
     if (cleaned === undefined) return;
     if (cleaned !== currentString) {
-      const changes = diffByChars(currentString, cleaned, { brief: true });
+      log.debug(`Applying cleaning rule: diffing changes...`);
+      const changes: Change[] = [];
       cleaningResults.push({
         rule: rule.name,
         changes,

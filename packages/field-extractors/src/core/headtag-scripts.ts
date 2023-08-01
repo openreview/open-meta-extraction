@@ -7,7 +7,8 @@
 
 import {
   collectFanout,
-  compose
+  compose,
+  tap
 } from '~/predef/extraction-prelude';
 
 import {
@@ -21,6 +22,7 @@ import { loadBrowserPage } from './html-query-primitives';
 
 
 export const gatherHighwirePressTags = collectFanout(
+  tap((__, env) => env.log.info('gather HighwirePress Tags')),
   selectMetaEvidence('citation_title'),
   selectMetaEvidence('citation_date'),
   selectMetaEvidence('citation_pdf_url'),
@@ -29,6 +31,7 @@ export const gatherHighwirePressTags = collectFanout(
 );
 
 export const gatherOpenGraphTags = collectFanout(
+  tap((__, env) => env.log.info('gather OpenGraph Tags')),
   selectMetaEvidence('og:url'),
   selectMetaEvidence('og:url', 'property'),
   selectMetaEvidence('og:title'),
@@ -41,6 +44,7 @@ export const gatherOpenGraphTags = collectFanout(
 
 /// [dublinCore]
 export const gatherDublinCoreTags = collectFanout(
+  tap((__, env) => env.log.info('gather DublinCore Tags')),
   selectMetaEvidence('DC.Description'),
   selectMetaEvidence('DCTERMS.Abstract'),
   selectMetaEvidence('DC.Title'),

@@ -21,4 +21,3 @@ export {
     CanonicalFieldRecords,
     ExtractionErrors,
 } from '~/predef/extraction-records';
-export * as fieldExtractorCLI from '~/cli';

@@ -208,13 +208,15 @@ export const getElemOuterHtml: Transform<Elem, string> =
 
 export const loadBrowserPage: (pageOptions?: PageInstanceOptions) => Transform<CacheFileKey, Page> =
   (pageOpts = DefaultPageInstanceOptions) => through((cacheKey: CacheFileKey, env) => {
-    const{ browserPageCache, fileContentCache, browserInstance } = env;
+    const{ browserPageCache, fileContentCache, browserInstance, log } = env;
 
     if (cacheKey in browserPageCache) {
+      log.debug('loading browser page from cache');
       return browserPageCache[cacheKey].page;
     }
 
     if (cacheKey in fileContentCache) {
+      log.debug('loading new browser page');
       const fileContent = fileContentCache[cacheKey];
       const pagePromise = browserInstance.newPage(pageOpts)
         .then(async (pageInstance) => {
@@ -223,6 +225,7 @@ export const loadBrowserPage: (pageOptions?: PageInstanceOptions) => Transform<C
             timeout: 8000,
             waitUntil: 'domcontentloaded',
           });
+          log.debug('..loaded new browser page');
           browserPageCache[cacheKey] = pageInstance;
           return page;
         });

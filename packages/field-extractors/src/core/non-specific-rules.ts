@@ -3,6 +3,7 @@ import parseUrl from 'url-parse';
 import {
   compose,
   eachOrElse,
+  tap,
 } from '~/predef/extraction-prelude';
 
 import {
@@ -31,7 +32,9 @@ const addUrlEvidence = addEvidences((a, env) => {
 export const GeneralExtractionAttempts = compose(
   addUrlEvidence,
   gatherSchemaEvidence,
+  tap((__, { log }) => log.debug('clearEvidence')),
   clearEvidence(/^url:/),
+  tap((__, { log }) => log.debug('validateEvidence')),
   eachOrElse(
     validateEvidence({
       'title': 'title',
