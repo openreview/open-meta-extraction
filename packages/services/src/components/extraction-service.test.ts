@@ -1,18 +1,19 @@
 import _ from 'lodash';
-import { prettyPrint, setLogEnvLevel } from '@watr/commonlib';
+import { asyncEachOfSeries, asyncEachSeries, prettyPrint, setLogEnvLevel } from '@watr/commonlib';
 
 import { withServerGen } from '@watr/spider';
 import { useFetchService } from './fetch-service';
 import { createFakeNoteList } from '~/db/mock-data';
-import { listNoteStatusIds, openreviewAPIForNotes, spiderableRoutes } from './testing-utils';
-import { withExtractionService } from './extraction-service';
+import { fakeNoteIds, listNoteStatusIds, openreviewAPIForNotes, spiderableRoutes } from './testing-utils';
+import { extractionServiceMonitor, withExtractionService } from './extraction-service';
 import { CursorRole, MongoQueries } from '~/db/query-api';
+import { useShadowDB } from './shadow-db';
 
 describe('Extraction Service', () => {
 
   setLogEnvLevel('warn');
 
-  it('...', async () => {
+  it('smokescreen', async () => {
     const noteCount = 10;
     const batchSize = 2;
     const startingId = 1;
@@ -61,5 +62,24 @@ describe('Extraction Service', () => {
       }
     }
 
+  });
+
+  it.only('should monitor newly extracted fields', async () => {
+    for await (const { shadowDB } of useShadowDB({ uniqDB: true })) {
+      shadowDB.writeChangesToOpenReview = false;
+
+      const noteIds = fakeNoteIds(1, 100);
+      await asyncEachOfSeries(noteIds, async (noteId, i) => {
+        const theAbstract = 'Ipsem..'
+        const pdf = 'http://some/paper.pdf';
+        if (i % 2 === 0) {
+          await shadowDB.updateFieldStatus(noteId, 'abstract', theAbstract);
+        }
+        if (i % 3 === 0) {
+          await shadowDB.updateFieldStatus(noteId, 'pdf', pdf);
+        }
+      });
+      await extractionServiceMonitor();
+    }
   });
 });

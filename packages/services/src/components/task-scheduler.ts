@@ -5,7 +5,7 @@ import { NoteStatus, UrlStatus } from '~/db/schemas';
 import { CursorRole, MongoQueries } from '~/db/query-api';
 import differenceInMilliseconds from 'date-fns/differenceInMilliseconds';
 import { UseMongooseArgs } from '~/db/mongodb';
-import { WithShadowDB, withShadowDB } from './shadow-db';
+import { WithShadowDB, useShadowDB } from './shadow-db';
 
 async function createTaskScheduler(
   mdb?: MongoQueries
@@ -20,7 +20,7 @@ export type WithTaskScheduler = WithShadowDB & {
 };
 
 export async function* withTaskScheduler(args: UseMongooseArgs): AsyncGenerator<WithTaskScheduler, void, any> {
-  for await (const { mongoose, mdb, shadowDB } of withShadowDB(args)) {
+  for await (const { mongoose, mdb, shadowDB } of useShadowDB(args)) {
     const taskScheduler = await createTaskScheduler(mdb);
     yield { mongoose, mdb, shadowDB, taskScheduler };
   }

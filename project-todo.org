@@ -26,6 +26,7 @@
 - [ ] Bug: when fetch service finishes, it loops around and causes key error on save note
 
 
+- better parameterization of mocktimestamps on testing
 ** Ideas
 - keep track of slow extraction ids
 - Fetch should only hit openreview api 1 time.

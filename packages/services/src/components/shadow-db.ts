@@ -16,18 +16,17 @@ import { Note, OpenReviewGateway, UpdatableField } from './openreview-gateway';
 import { UseMongooseArgs } from '~/db/mongodb';
 
 
-export async function createShadowDB(mdb?: MongoQueries): Promise<ShadowDB> {
-  const s = new ShadowDB(mdb);
-  await s.connect();
-  return s;
-}
 export type WithShadowDB = WithMongoQueries & {
   shadowDB: ShadowDB;
 };
 
-export async function* withShadowDB(args: UseMongooseArgs): AsyncGenerator<WithShadowDB, void, any> {
+interface UseShadowDBArgs extends UseMongooseArgs {
+};
+
+export async function* useShadowDB(args: UseShadowDBArgs): AsyncGenerator<WithShadowDB, void, any> {
   for await (const { mongoose, mdb } of useMongoQueries(args)) {
-    const shadowDB = await createShadowDB(mdb);
+    const shadowDB = new ShadowDB(mdb);
+    await shadowDB.connect();
     yield { mongoose, mdb, shadowDB };
   }
 }
@@ -36,11 +35,15 @@ export class ShadowDB {
   log: Logger;
   gate: OpenReviewGateway;
   mdb: MongoQueries;
+  writeChangesToOpenReview: boolean;
 
-  constructor(mdb?: MongoQueries) {
+  constructor(
+    mdb?: MongoQueries,
+  ) {
     this.log = getServiceLogger('ShadowDB');
     this.gate = new OpenReviewGateway();
     this.mdb = mdb || new MongoQueries();
+    this.writeChangesToOpenReview = true;
   }
 
   async connect() {
@@ -70,7 +73,9 @@ export class ShadowDB {
       fieldName,
       fieldValue
     );
-    await this.gate.updateFieldStatus(noteId, fieldName, fieldValue);
+    if (this.writeChangesToOpenReview) {
+      await this.gate.updateFieldStatus(noteId, fieldName, fieldValue);
+    }
   }
 
   async getUrlStatusForCursor(cursor: FetchCursor): Promise<UrlStatusDocument | undefined> {

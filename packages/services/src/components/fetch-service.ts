@@ -2,7 +2,7 @@ import _ from 'lodash';
 
 import {
   delay,
-  getServiceLogger
+  getServiceLogger,
 } from '@watr/commonlib';
 
 import { Logger } from 'winston';
@@ -12,8 +12,10 @@ import {
 } from './openreview-gateway';
 
 import { generateFromBatch } from '~/util/generators';
-import { ShadowDB, WithShadowDB, withShadowDB } from './shadow-db';
+import { ShadowDB, WithShadowDB, useShadowDB } from './shadow-db';
 import { UseMongooseArgs } from '~/db/mongodb';
+
+
 
 export type UseFetchService = WithShadowDB & {
   fetchService: FetchService
@@ -22,9 +24,9 @@ export type UseFetchService = WithShadowDB & {
 type UseFetchServiceArgs = UseMongooseArgs;
 
 export async function* useFetchService(args: UseFetchServiceArgs): AsyncGenerator<UseFetchService, void, any> {
-  for await (const components of withShadowDB(args)) {
+  for await (const components of useShadowDB(args)) {
     const { shadowDB } = components;
-    const fetchService =  new FetchService(shadowDB);
+    const fetchService = new FetchService(shadowDB);
     yield _.merge({}, components, { fetchService });
   }
 }
@@ -95,4 +97,58 @@ export class FetchService {
       await delay(4 * oneHour);
     }
   }
+
+}
+
+import { subDays } from 'date-fns';
+import { NoteStatus } from '~/db/schemas';
+import { PipelineStage } from 'mongoose';
+
+interface CountPerDay {
+  day: Date;
+  count: number;
+}
+
+export interface FetchServiceMonitor {
+  createdByDay: CountPerDay[]
+}
+// How many new note records, per day, over past week (histogram)
+export async function fetchServiceMonitor(): Promise<FetchServiceMonitor> {
+  const daysAgo7 = subDays(new Date(), 7);
+
+  const selectOneWeek: PipelineStage.Match = {
+    $match: {
+      createdAt: {
+        $gte: daysAgo7
+      },
+    }
+  };
+
+  const countByDay: PipelineStage.Group = {
+    $group: {
+      _id: {
+        $dateToString: {
+          format: '%Y-%m-%d',
+          date: '$createdAt',
+        }
+      },
+      count: {
+        $sum: 1
+      },
+    }
+  };
+  const sortByDay: PipelineStage.Sort = {
+    $sort: { _id: 1 }
+  };
+
+  const res = await NoteStatus.aggregate([{
+    $facet: {
+      createdByDay: [selectOneWeek, countByDay, sortByDay],
+    }
+  }]);
+
+  const byDay = _.map(res[0].createdByDay, ({ _id, count }) => {
+    return { day: _id, count };
+  });
+  return { createdByDay: byDay }
 }

@@ -16,10 +16,11 @@ import { CanonicalFieldRecords, ExtractionEnv, getEnvCanonicalFields, SpiderAndE
 
 import { Logger } from 'winston';
 import { ShadowDB } from './shadow-db';
-import { UrlStatus, WorkflowStatus } from '~/db/schemas';
+import { FieldStatus, UrlStatus, WorkflowStatus } from '~/db/schemas';
 import { TaskScheduler, withTaskScheduler, WithTaskScheduler } from './task-scheduler';
 import { parseIntOrElse } from '~/util/misc';
 import { UseMongooseArgs } from '~/db/mongodb';
+import * as mh from '~/db/mongo-helpers';
 
 async function createExtractionService(
   shadowDB: ShadowDB,
@@ -162,7 +163,6 @@ export class ExtractionService {
     }
 
     const [, extractionEnv] = fieldExtractionResults.right;
-    // await this.recordExtractionResults(noteId, extractionEnv);
     return extractionEnv
   }
 
@@ -246,152 +246,41 @@ function chooseCanonicalPdfLink(canonicalFields: CanonicalFieldRecords): string 
   }
 }
 
-  // async runExtractionLoop({ limit, postResultsToOpenReview }: RunRelayExtract) {
-  //   const this = this;
-  //   let currCount = 0;
-  //   const runForever = limit === 0;
+export interface ExtractionServiceMonitor {
+  newAbstracts: mh.CountPerDay[]
+  newPdfLinks: mh.CountPerDay[]
+}
 
-  //   const corpusRoot = getCorpusRootDir();
-  //   const browserPool = createBrowserPool();
+export async function extractionServiceMonitor(): Promise<ExtractionServiceMonitor> {
+  //   success? failure? withAbstract/pdf?
+  // Current note# by cursor
 
-  //   // Rate limits
-  //   const pauseIntervalAfterNoteExhaustion = 2 * oneHour;
-  //   const minTimePerIteration = 5 * oneSecond;
-  //   let currTime = new Date();
+  //// Fields extracted per day
+  // Abstracts
+  const matchAbstracts = mh.matchAll(
+    mh.matchCreatedAtDaysFromToday(-14),
+    mh.matchFieldVal('fieldType', 'abstract')
+  );
 
-  //   async function stopCondition(msg: string): Promise<boolean> {
-  //     putStrLn(`stopCondition(msg=${msg})`);
-  //     if (msg === 'done') {
-  //       if (runForever) {
-  //         // Pause before exiting.
-  //         // PM2 will relaunch immediately
-  //         await delay(pauseIntervalAfterNoteExhaustion)
-  //       }
+  // Pdf Links
+  const matchPdfLinks = mh.matchAll(
+    mh.matchCreatedAtDaysFromToday(-14),
+    mh.matchFieldVal('fieldType', 'pdf')
+  );
 
-  //       return true;
-  //     }
-  //     await browserPool.clearCache();
-  //     browserPool.report();
-  //     const atCountLimit = currCount >= limit;
-  //     prettyPrint({ atCountLimit, runForever })
-  //     putStrLn(`stop? atCountLimit(${atCountLimit} = curr:${currCount} >= lim:${limit}`)
-  //     if (atCountLimit && !runForever) {
-  //       return true;
-  //     }
-  //     currTime = await self.rateLimit(currTime, minTimePerIteration);
-  //     return atCountLimit && !runForever;
-  //   }
+  const res = await FieldStatus.aggregate([{
+    $facet: {
+      newAbstracts: [matchAbstracts, mh.countByDay('createdAt'), mh.sortByDay],
+      newPdfLinks: [matchPdfLinks, mh.countByDay('createdAt'), mh.sortByDay],
+    }
+  }]);
 
-  //   return asyncDoUntil(
-  //     async () => {
-  //       const nextNoteCursor = await this.shadowDB.getNextAvailableUrl();
-  //       // update URL workflow status
-  //       const msg = `nextNoteCursor=${nextNoteCursor?.noteId}; num=${nextNoteCursor?.noteNumber}`;
-  //       putStrLn(msg);
-  //       this.log.debug(msg);
+  const newAbstracts = _.map(res[0].newAbstracts, ({ _id, count }) => {
+    return { day: _id, count };
+  });
+  const newPdfLinks = _.map(res[0].newPdfLinks, ({ _id, count }) => {
+    return { day: _id, count };
+  });
 
-  //       if (!nextNoteCursor) {
-  //         this.log.info('No more spiderable URLs available');
-  //         return 'done';
-  //       }
-  //       const nextUrlStatus = await this.shadowDB.getUrlStatusForCursor(nextNoteCursor);
-  //       if (!nextUrlStatus) {
-  //         throw new Error(`Invalid state: nextNoteCursor(${nextNoteCursor.noteId}) had not corresponding urlStatus`)
-  //       }
-  //       this.log.debug(`next Host = ${nextUrlStatus.requestUrl}`);
-
-  //       currCount += 1;
-
-  //       const noteId = nextUrlStatus._id;
-  //       const url = nextUrlStatus.requestUrl;
-  //       self.log.info(`Starting URL: ${url}`);
-  //       await this.updateWorkflowStatus(noteId, 'processing');
-
-  //       const spiderEnv = await createSpiderEnv(self.log, browserPool, corpusRoot, new URL(url));
-  //       const init = new URL(url);
-  //       self.log.debug(`Created Spidering Environment`);
-
-  //       await this.updateWorkflowStatus(noteId, 'spider:begun');
-  //       const fieldExtractionResults = await SpiderAndExtractionTransform(TE.right([init, spiderEnv]))()
-  //         .catch(async error => {
-  //           prettyPrint({ error })
-  //           await this.updateWorkflowStatus(noteId, 'extractor:fail');
-  //           throw error;
-  //         });
-
-
-  //       if (E.isLeft(fieldExtractionResults)) {
-  //         const [errCode, { urlFetchData }] = fieldExtractionResults.left;
-  //         self.log.debug(`Extraction Failed, exiting...`);
-
-  //         const { status } = urlFetchData;
-  //         let httpStatus = 0;
-  //         try { httpStatus = Number.parseInt(status); } catch {}
-
-  //         await this.shadowDB.mdb.updateUrlStatus(noteId, {
-  //           httpStatus,
-  //           // response: responseUrl
-  //         });
-  //         prettyPrint({ errCode, urlFetchData });
-
-  //         await this.updateWorkflowStatus(noteId, 'extractor:fail');
-  //         await this.shadowDB.releaseSpiderableUrl(nextNoteCursor);
-  //         return 'continue';
-  //       }
-
-  //       self.log.debug(`Extraction succeeded, continuing...`);
-  //       await this.updateWorkflowStatus(noteId, 'extractor:success');
-
-  //       const [, extractionEnv] = fieldExtractionResults.right;
-
-  //       const { status, responseUrl } = extractionEnv.urlFetchData;
-  //       let httpStatus = 0;
-  //       try { httpStatus = Number.parseInt(status); } catch {}
-
-  //       const canonicalFields = getEnvCanonicalFields(extractionEnv);
-
-
-  //       await this.updateWorkflowStatus(noteId, 'extractor:success');
-  //       const theAbstract = chooseCanonicalAbstract(canonicalFields);
-  //       const hasAbstract = theAbstract !== undefined;
-  //       const pdfLink = chooseCanonicalPdfLink(canonicalFields);
-  //       const hasPdfLink = pdfLink !== undefined;
-  //       prettyPrint({ canonicalFields, theAbstract, pdfLink });
-
-  //       if (postResultsToOpenReview) {
-  //         if (hasAbstract) {
-  //           await this.shadowDB.updateFieldStatus(noteId, 'abstract', theAbstract);
-  //         }
-  //         if (hasPdfLink) {
-  //           await this.shadowDB.updateFieldStatus(noteId, 'pdf', pdfLink);
-  //         }
-  //         await this.updateWorkflowStatus(noteId, 'fields:posted');
-  //       }
-
-  //       await this.shadowDB.releaseSpiderableUrl(nextNoteCursor);
-  //       await this.shadowDB.mdb.updateUrlStatus(noteId, {
-  //         hasAbstract,
-  //         hasPdfLink,
-  //         httpStatus,
-  //         response: responseUrl
-  //       });
-  //       return 'continue';
-  //     },
-  //     stopCondition
-  //   ).finally(async () => {
-  //     await browserPool.shutdown();
-  //     await this.shadowDB.close();
-  //   });
-  // }
-
-  // async rateLimit(prevTime: Date, maxRateMs: number): Promise<Date> {
-  //   const currTime = new Date();
-  //   const elapsedMs = differenceInMilliseconds(currTime, prevTime);
-  //   const waitTime = maxRateMs - elapsedMs;
-
-  //   if (waitTime > 0) {
-  //     this.log.info(`Delaying ${waitTime / 1000} seconds...`);
-  //     await delay(waitTime);
-  //   }
-  //   return currTime;
-  // }
+  return { newAbstracts, newPdfLinks };
+}

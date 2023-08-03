@@ -1,11 +1,12 @@
 import _ from 'lodash';
-import { setLogEnvLevel } from '@watr/commonlib';
+import { asyncEachSeries, setLogEnvLevel } from '@watr/commonlib';
 
 import { withServerGen } from '@watr/spider';
-import { useFetchService } from './fetch-service';
+import { fetchServiceMonitor, useFetchService } from './fetch-service';
 
 import { createFakeNoteList, createFakeNotes } from '~/db/mock-data';
 import { fakeNoteIds, listNoteStatusIds, openreviewAPIForNotes } from './testing-utils';
+import { useShadowDB } from './shadow-db';
 
 describe('Fetch Service', () => {
 
@@ -20,7 +21,7 @@ describe('Fetch Service', () => {
       .toMatchObject([{ id: 'note#2', number: 2 }, { id: 'note#3', number: 3 }]);
   });
 
-  it.only('should repeatedly start from last know fetched note', async () => {
+  it('should repeatedly start from last know fetched note', async () => {
     const noteCount = 5;
     const batchSize = 2;
     const notes = createFakeNoteList(noteCount, 1);
@@ -45,6 +46,16 @@ describe('Fetch Service', () => {
         await fetchService.runFetchLoop(3);
         expect(await listNoteStatusIds()).toMatchObject(fakeNoteIds(1, 5));
       }
+    }
+  });
+
+  it.only('should monitor and report progress', async () => {
+    const noteCount = 50;
+    const notes = createFakeNoteList(noteCount, 1);
+
+    for await (const { mdb, shadowDB } of useShadowDB({ uniqDB: true })) {
+      await asyncEachSeries(notes, n =>  shadowDB.saveNote(n, true))
+      await fetchServiceMonitor();
     }
   });
 
