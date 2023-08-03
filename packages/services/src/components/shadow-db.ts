@@ -9,11 +9,11 @@ import {
   MongoQueries,
   UrlStatusDocument,
   WithMongoQueries,
-  withMongoQueriesGen,
+  useMongoQueries,
 } from '~/db/query-api';
 
 import { Note, OpenReviewGateway, UpdatableField } from './openreview-gateway';
-import { WithMongoGenArgs } from '~/db/mongodb';
+import { UseMongooseArgs } from '~/db/mongodb';
 
 
 export async function createShadowDB(mdb?: MongoQueries): Promise<ShadowDB> {
@@ -25,8 +25,8 @@ export type WithShadowDB = WithMongoQueries & {
   shadowDB: ShadowDB;
 };
 
-export async function* withShadowDB(args: WithMongoGenArgs): AsyncGenerator<WithShadowDB, void, any> {
-  for await (const { mongoose, mdb } of withMongoQueriesGen(args)) {
+export async function* withShadowDB(args: UseMongooseArgs): AsyncGenerator<WithShadowDB, void, any> {
+  for await (const { mongoose, mdb } of useMongoQueries(args)) {
     const shadowDB = await createShadowDB(mdb);
     yield { mongoose, mdb, shadowDB };
   }

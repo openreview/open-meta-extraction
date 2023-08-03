@@ -2,7 +2,7 @@ import _ from 'lodash';
 import { prettyPrint, setLogEnvLevel } from '@watr/commonlib';
 
 import { withServerGen } from '@watr/spider';
-import { withFetchService } from './fetch-service';
+import { useFetchService } from './fetch-service';
 import { createFakeNoteList } from '~/db/mock-data';
 import { listNoteStatusIds, openreviewAPIForNotes, spiderableRoutes } from './testing-utils';
 import { withExtractionService } from './extraction-service';
@@ -31,7 +31,7 @@ describe('Extraction Service', () => {
     }
 
     for await (const __ of withServerGen(r => { routes(r); spiderRoutes(r); })) {
-      for await (const { fetchService, mongoose, mdb } of withFetchService({ uniqDB: true, retainDB: false })) {
+      for await (const { fetchService, mongoose, mdb } of useFetchService({ uniqDB: true, retainDB: false })) {
         // Init the shadow db
         await fetchService.runFetchLoop(100);
         const noteStatusIds = await listNoteStatusIds();

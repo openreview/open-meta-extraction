@@ -1,6 +1,6 @@
 import _ from 'lodash';
 import { prettyPrint, setLogEnvLevel } from '@watr/commonlib';
-import { withMongoQueriesGen } from './query-api';
+import { useMongoQueries } from './query-api';
 import { populateDBHostNoteStatus } from './mock-data';
 
 describe('MongoDB Queries', () => {
@@ -10,7 +10,7 @@ describe('MongoDB Queries', () => {
   it('should crud noteStatus records', async () => {});
 
   it('should create/update/delete fetch cursors', async () => {
-    for await (const { mdb } of withMongoQueriesGen({ uniqDB: true })) {
+    for await (const { mdb } of useMongoQueries({ uniqDB: true })) {
       expect(await mdb.getCursor('extract-fields/all')).toBeUndefined();
       expect(await mdb.updateCursor('extract-fields/all', '1')).toMatchObject({ role: 'extract-fields/all', noteId: '1' });
       expect(await mdb.updateCursor('extract-fields/newest', '2')).toMatchObject({ role: 'extract-fields/newest', noteId: '2' });
@@ -21,7 +21,7 @@ describe('MongoDB Queries', () => {
   });
 
   it('should advance cursors', async () => {
-    for await (const { mdb } of withMongoQueriesGen({ uniqDB: true })) {
+    for await (const { mdb } of useMongoQueries({ uniqDB: true })) {
       const nocursor = await mdb.createCursor('extract-fields/all', 'note#1');
       expect(nocursor).toBeUndefined();
 
@@ -37,7 +37,7 @@ describe('MongoDB Queries', () => {
 
 
   it('get/update next spiderable host/url', async () => {
-    for await (const { mdb } of withMongoQueriesGen({ uniqDB: true })) {
+    for await (const { mdb } of useMongoQueries({ uniqDB: true })) {
       const initEntry = await mdb.upsertUrlStatus('asdf', 1, 'unknown', { hasAbstract: false });
 
       expect(initEntry.noteId).toEqual('asdf');
@@ -59,7 +59,7 @@ describe('MongoDB Queries', () => {
   });
 
   it('should release all locks, allow for re-extraction of failed notes', async () => {
-    for await (const { mdb } of withMongoQueriesGen({ uniqDB: true })) {
+    for await (const { mdb } of useMongoQueries({ uniqDB: true })) {
       await populateDBHostNoteStatus(mdb, 200);
     }
   });

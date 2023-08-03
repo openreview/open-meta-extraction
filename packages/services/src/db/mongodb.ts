@@ -53,24 +53,24 @@ export function createCurrentTimeOpt(): CurrentTimeOpt {
   return mockedOpts;
 }
 
-export type WithMongoGenArgs = {
+export type UseMongooseArgs = {
   emptyDB?: boolean;
   uniqDB?: boolean;
   retainDB?: boolean;
   useMongoose?: Mongoose
 }
 
-export type WithMongoose = {
+export type UseMongoose = {
   mongoose: Mongoose
 }
 
-export async function* withMongoGen({
+export async function* useMongoose({
   emptyDB,
   uniqDB,
   retainDB,
   useMongoose
-}: WithMongoGenArgs): AsyncGenerator<WithMongoose, void, any> {
-  const log = getServiceLogger('withMongoose');
+}: UseMongooseArgs): AsyncGenerator<UseMongoose, void, any> {
+  const log = getServiceLogger('useMongoose');
   if (useMongoose) {
     let dbName = useMongoose.connection.name;
     log.info(`Using supplied mongo connection to ${dbName}`);

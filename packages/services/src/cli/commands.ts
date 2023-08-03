@@ -3,7 +3,7 @@ import _ from 'lodash';
 import { arglib, initConfig, putStrLn } from '@watr/commonlib';
 import { formatStatusMessages, showStatusSummary } from '~/db/extraction-summary';
 import { connectToMongoDB, mongoConnectionString, resetMongoDB } from '~/db/mongodb';
-import { withFetchService } from '~/components/fetch-service';
+import { useFetchService } from '~/components/fetch-service';
 import { withExtractionService } from '~/components/extraction-service';
 import { OpenReviewGateway } from '~/components/openreview-gateway';
 import { runMonitor } from '~/components/monitor-service';
@@ -37,7 +37,7 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
   )(async (args: any) => {
     const { limit } = args;
 
-    for await (const { fetchService } of withFetchService({})) {
+    for await (const { fetchService } of useFetchService({})) {
       await fetchService.runFetchLoop(limit);
     }
   });

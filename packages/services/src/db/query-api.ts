@@ -4,7 +4,7 @@ import { Document, Mongoose, Types } from 'mongoose';
 import { asyncMapSeries, getServiceLogger, initConfig, shaEncodeAsHex, validateUrl } from '@watr/commonlib';
 import { Logger } from 'winston';
 import { FetchCursor, FieldStatus, UrlStatus, UrlStatusUpdateFields, NoteStatus, WorkflowStatus, createCollections } from './schemas';
-import { WithMongoGenArgs, WithMongoose, connectToMongoDB, withMongoGen } from './mongodb';
+import { UseMongooseArgs, UseMongoose, connectToMongoDB, useMongoose } from './mongodb';
 import { UpdatableField } from '~/components/openreview-gateway';
 
 export type CursorID = Types.ObjectId;
@@ -24,12 +24,12 @@ export async function createMongoQueries(mongoose?: Mongoose): Promise<MongoQuer
   return s;
 }
 
-export type WithMongoQueries = WithMongoose & {
+export type WithMongoQueries = UseMongoose & {
   mdb: MongoQueries
 };
 
-export async function* withMongoQueriesGen(args: WithMongoGenArgs): AsyncGenerator<WithMongoQueries, void, any> {
-  for await (const { mongoose } of withMongoGen(args)) {
+export async function* useMongoQueries(args: UseMongooseArgs): AsyncGenerator<WithMongoQueries, void, any> {
+  for await (const { mongoose } of useMongoose(args)) {
     const mdb = await createMongoQueries(mongoose);
     yield { mongoose, mdb };
   }

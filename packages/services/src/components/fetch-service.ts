@@ -13,15 +13,15 @@ import {
 
 import { generateFromBatch } from '~/util/generators';
 import { ShadowDB, WithShadowDB, withShadowDB } from './shadow-db';
-import { WithMongoGenArgs } from '~/db/mongodb';
+import { UseMongooseArgs } from '~/db/mongodb';
 
-export type WithFetchService = WithShadowDB & {
+export type UseFetchService = WithShadowDB & {
   fetchService: FetchService
 };
 
-type WithFetchServiceArgs = WithMongoGenArgs;
+type UseFetchServiceArgs = UseMongooseArgs;
 
-export async function* withFetchService(args: WithFetchServiceArgs): AsyncGenerator<WithFetchService, void, any> {
+export async function* useFetchService(args: UseFetchServiceArgs): AsyncGenerator<UseFetchService, void, any> {
   for await (const components of withShadowDB(args)) {
     const { shadowDB } = components;
     const fetchService =  new FetchService(shadowDB);

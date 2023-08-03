@@ -2,7 +2,7 @@ import _ from 'lodash';
 import { setLogEnvLevel } from '@watr/commonlib';
 
 import { withServerGen } from '@watr/spider';
-import { withFetchService } from './fetch-service';
+import { useFetchService } from './fetch-service';
 
 import { createFakeNoteList, createFakeNotes } from '~/db/mock-data';
 import { fakeNoteIds, listNoteStatusIds, openreviewAPIForNotes } from './testing-utils';
@@ -27,7 +27,7 @@ describe('Fetch Service', () => {
     const routes = openreviewAPIForNotes({ notes, batchSize })
 
     for await (const __ of withServerGen(routes)) {
-      for await (const { fetchService } of withFetchService({ uniqDB: true })) {
+      for await (const { fetchService } of useFetchService({ uniqDB: true })) {
         expect(await listNoteStatusIds()).toHaveLength(0);
         // get 1
         await fetchService.runFetchLoop(1);

@@ -1,43 +1,14 @@
 ** List project plan for current task
 
-** TASK Modify openreview note fetcher to use '?after=' param
-*** Fetch Service
-- [X] Modify runRelayFetch logic to store and use last known noteId (most recently fetched).
-  - [X] Implement a note iterator/generator with a limit count
-  - [X] Use named cursor
-    e.g., 'front/abstract', 'rear/*'
-  - [X] Run fetching w/ sort num:asc
-- [ ] Create logic to re-run fetch for all papers
-  - [ ] Use named cursors, stored in mongodb
-- [X] Create test plan
-  - [X] Run against live site w/dev config
-  - [X] Run against mocked api
-    - [X] Koa-based api mimicking openreview
-      - [X] /login api mockup
-      - [X] /notes api mockup
-  - [X] Profile and report api fetch times
-- [ ] Delete downloaded htmls/artifacts when done
-- [ ] Delete /tmp files created by chrome
-- [ ] Reap dead chrome instances
-- [ ] Option to start extractor from last successful URL (to start with most recently added)
-- [ ] Fix documentation (some sidebar links don't work)
-- [ ] Bug: when fetch service finishes, it loops around and causes key error on save note
 
-
-- Error (hang) https://doi.org/10.3390/jimaging5030034
-  - fixed rm diffs
-
-- [ ] Extracting URL = https://doi.org/10.1007/s11265-017-1247-5
 ** Next Actions
 
+- [ ] 1. Create basic report summary for fetch/extraction loops
+- [ ] 2. reinstate emails
+- [ ] 3. use pm2 ecosystem
 
-- [ ] Create basic report summary for fetch/extraction loops
-
-- [ ] Option to have multiple extraction cursors, one for bleeding edge additions, another for reprocessing historical notes
-  - [ ] Test case w/new and old extractable url status recs
-- [ ] refactor monitor/stats module to show basic functionality
-
-- [ ] Fetch loop doesn't need cursor
+- [ ] remove bree
+- [X] Fetch loop doesn't need cursor
 - [ ] review extraction loop
   - [ ] should use 2 cursors, one recent one historical
   - [ ] should have several modes:
@@ -46,6 +17,14 @@
     - check http status
     - check hash values
 
+** Tasks
+- [ ] Delete downloaded htmls/artifacts when done
+- [ ] Delete /tmp files created by chrome
+- [ ] Reap dead chrome instances
+- [ ] Option to start extractor from last successful URL (to start with most recently added)
+- [ ] Fix documentation (some sidebar links don't work)
+- [ ] Bug: when fetch service finishes, it loops around and causes key error on save note
+
 
 ** Ideas
 - keep track of slow extraction ids
@@ -53,19 +32,6 @@
   - keep track of hash of extracted fields, make note of
     when they change
   - re-extracting from the beginning is a local-only operation,
-    make a log record when updates should/do happen
 - use PM2 hooks to autodeploy
-- allow multiple extraction workers when responseUrl is known and hosts can be spread out over time
+- [TaskScheduler] allow multiple extraction workers when responseUrl is known and hosts can be spread out over time
 - Make spider not write body/header files (use cli option to control behavior)
-
-** Cursor design/implementation
-*** Cursor is (noteId, role)
-*** Fetch Cursor
-*** Extraction Cursor filters
-**** abstract/pdf-link/both
-**** just process certain domains
-- Use url_status responseUrl to avoid redirect issues
-*** Operations
-**** Worker locks/owns current cursor
-**** Worker unlocks cursor
-**** Worker advances cursor to next available note

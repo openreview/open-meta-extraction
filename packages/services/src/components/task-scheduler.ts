@@ -4,7 +4,7 @@ import { delay, getServiceLogger, putStrLn } from '@watr/commonlib';
 import { NoteStatus, UrlStatus } from '~/db/schemas';
 import { CursorRole, MongoQueries } from '~/db/query-api';
 import differenceInMilliseconds from 'date-fns/differenceInMilliseconds';
-import { WithMongoGenArgs } from '~/db/mongodb';
+import { UseMongooseArgs } from '~/db/mongodb';
 import { WithShadowDB, withShadowDB } from './shadow-db';
 
 async function createTaskScheduler(
@@ -19,7 +19,7 @@ export type WithTaskScheduler = WithShadowDB & {
   taskScheduler: TaskScheduler;
 };
 
-export async function* withTaskScheduler(args: WithMongoGenArgs): AsyncGenerator<WithTaskScheduler, void, any> {
+export async function* withTaskScheduler(args: UseMongooseArgs): AsyncGenerator<WithTaskScheduler, void, any> {
   for await (const { mongoose, mdb, shadowDB } of withShadowDB(args)) {
     const taskScheduler = await createTaskScheduler(mdb);
     yield { mongoose, mdb, shadowDB, taskScheduler };

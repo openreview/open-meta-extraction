@@ -19,7 +19,7 @@ import { ShadowDB } from './shadow-db';
 import { UrlStatus, WorkflowStatus } from '~/db/schemas';
 import { TaskScheduler, withTaskScheduler, WithTaskScheduler } from './task-scheduler';
 import { parseIntOrElse } from '~/util/misc';
-import { WithMongoGenArgs } from '~/db/mongodb';
+import { UseMongooseArgs } from '~/db/mongodb';
 
 async function createExtractionService(
   shadowDB: ShadowDB,
@@ -44,7 +44,7 @@ export type WithExtractionService = WithTaskScheduler & {
   extractionService: ExtractionService
 };
 
-type WithExtractionServiceArgs = WithMongoGenArgs & {
+type WithExtractionServiceArgs = UseMongooseArgs & {
   postResultsToOpenReview: boolean;
 }
 
