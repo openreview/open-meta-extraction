@@ -1,10 +1,6 @@
-
 import _ from 'lodash';
 import { PipelineStage } from 'mongoose';
-import { subDays, addDays } from 'date-fns';
-import {
-  prettyPrint,
-} from '@watr/commonlib';
+import { addDays } from 'date-fns';
 
 
 export interface CountPerDay {
@@ -50,6 +46,5 @@ export function countByDay(dateField: string): PipelineStage.Group {
     }
   };
   _.set(countByDayStage, ['$group', '_id', '$dateToString', 'date'], `$${dateField}`);
-  prettyPrint({ countByDayStage })
   return countByDayStage;
 }

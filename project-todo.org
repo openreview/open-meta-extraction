@@ -8,7 +8,6 @@
 - [ ] 3. use pm2 ecosystem
 
 - [ ] remove bree
-- [X] Fetch loop doesn't need cursor
 - [ ] review extraction loop
   - [ ] should use 2 cursors, one recent one historical
   - [ ] should have several modes:
@@ -24,6 +23,7 @@
 - [ ] Option to start extractor from last successful URL (to start with most recently added)
 - [ ] Fix documentation (some sidebar links don't work)
 - [ ] Bug: when fetch service finishes, it loops around and causes key error on save note
+- [ ] system crashes when openreview rest api fails (e.g., during server restarts)
 
 
 - better parameterization of mocktimestamps on testing

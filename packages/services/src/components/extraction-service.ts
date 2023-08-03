@@ -274,6 +274,7 @@ export async function extractionServiceMonitor(): Promise<ExtractionServiceMonit
       newPdfLinks: [matchPdfLinks, mh.countByDay('createdAt'), mh.sortByDay],
     }
   }]);
+  prettyPrint({ res })
 
   const newAbstracts = _.map(res[0].newAbstracts, ({ _id, count }) => {
     return { day: _id, count };
