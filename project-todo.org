@@ -36,3 +36,17 @@
 - use PM2 hooks to autodeploy
 - [TaskScheduler] allow multiple extraction workers when responseUrl is known and hosts can be spread out over time
 - Make spider not write body/header files (use cli option to control behavior)
+
+
+** Error when running fetch service off the edge of the cliff
+18:35:29:2929 info [OpenReviewExchange] Logged in as saunders@cs.umass.edu
+18:35:31:3131 debug [OpenReviewExchange] perf: 2710ms - GET /notes
+18:35:31:3131 debug [FetchService] Fetched 1000 /notes after:xjyyrCA3OL (of 871416 total)
+18:35:31:3131 info [ShadowDB] SaveNote: creating new Note<id:YJ1Lu9q1fd1, #847635>
+18:35:31:3131 info [ShadowDB] SaveNote: creating new Note<id:IsJio4hlY0_, #847635>
+Error:
+      null
+
+        Error was: MongoServerError: Plan executor error during findAndModify :: caused by :: E11000 duplicate key error collection: meta-extraction-prod.note_status index: number_1 dup key: { number: 847635 }
+
+cli run-fetch-service

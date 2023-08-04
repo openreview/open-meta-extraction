@@ -134,10 +134,12 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
     'Periodically send notifications with system monitor report',
     config(
       opt.flag('send-notification'),
+      opt.flag('start-server'),
+      opt.num('port'),
     )
   )(async (args: any) => {
-    const { sendNotification } = args;
-    await runMonitor({ sendNotification });
+    const { sendNotification, startServer, port } = args;
+    await runMonitor({ sendNotification, startServer, port });
   });
 
   registerCmd(

@@ -100,55 +100,24 @@ export class FetchService {
 
 }
 
-import { subDays } from 'date-fns';
 import { NoteStatus } from '~/db/schemas';
-import { PipelineStage } from 'mongoose';
-
-interface CountPerDay {
-  day: Date;
-  count: number;
-}
+import * as mh from '~/db/mongo-helpers';
 
 export interface FetchServiceMonitor {
-  createdByDay: CountPerDay[]
+  newNotesPerDay: mh.CountPerDay[]
 }
 // How many new note records, per day, over past week (histogram)
 export async function fetchServiceMonitor(): Promise<FetchServiceMonitor> {
-  const daysAgo7 = subDays(new Date(), 7);
-
-  const selectOneWeek: PipelineStage.Match = {
-    $match: {
-      createdAt: {
-        $gte: daysAgo7
-      },
-    }
-  };
-
-  const countByDay: PipelineStage.Group = {
-    $group: {
-      _id: {
-        $dateToString: {
-          format: '%Y-%m-%d',
-          date: '$createdAt',
-        }
-      },
-      count: {
-        $sum: 1
-      },
-    }
-  };
-  const sortByDay: PipelineStage.Sort = {
-    $sort: { _id: 1 }
-  };
+  const matchLastWeek = mh.matchCreatedAtDaysFromToday(-7);
 
   const res = await NoteStatus.aggregate([{
     $facet: {
-      createdByDay: [selectOneWeek, countByDay, sortByDay],
+      createdByDay: [matchLastWeek, mh.countByDay('createdAt'), mh.sortByDay],
     }
   }]);
 
   const byDay = _.map(res[0].createdByDay, ({ _id, count }) => {
     return { day: _id, count };
   });
-  return { createdByDay: byDay }
+  return { newNotesPerDay: byDay }
 }

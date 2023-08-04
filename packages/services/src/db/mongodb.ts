@@ -40,7 +40,7 @@ export function createCurrentTimeOpt(): CurrentTimeOpt {
   }
   putStrLn('Using MongoDB Mock Timestamps');
   const currentFakeDate = new Date();
-  currentFakeDate.setDate(currentFakeDate.getDate() - 14);
+  currentFakeDate.setDate(currentFakeDate.getDate() - 7);
   const mockedOpts: CurrentTimeOpt = {
     currentTime: () => {
       const currDate = new Date(currentFakeDate);

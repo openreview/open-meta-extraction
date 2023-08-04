@@ -1,13 +1,13 @@
 import _ from 'lodash';
-import { asyncEachOfSeries, asyncEachSeries, prettyPrint, setLogEnvLevel } from '@watr/commonlib';
 
-import { withServerGen } from '@watr/spider';
+import { asyncEachOfSeries, prettyPrint, setLogEnvLevel } from '@watr/commonlib';
 import { useFetchService } from './fetch-service';
 import { createFakeNoteList } from '~/db/mock-data';
 import { fakeNoteIds, listNoteStatusIds, openreviewAPIForNotes, spiderableRoutes } from './testing-utils';
 import { extractionServiceMonitor, withExtractionService } from './extraction-service';
 import { CursorRole, MongoQueries } from '~/db/query-api';
 import { useShadowDB } from './shadow-db';
+import { useHttpServer } from '@watr/spider/src/http-server/http-service';
 
 describe('Extraction Service', () => {
 
@@ -31,7 +31,7 @@ describe('Extraction Service', () => {
       expect(c1.noteId).toBe(noteId)
     }
 
-    for await (const __ of withServerGen(r => { routes(r); spiderRoutes(r); })) {
+    for await (const __ of useHttpServer({ port: 9100, setup: r => { routes(r); spiderRoutes(r); }} )) {
       for await (const { fetchService, mongoose, mdb } of useFetchService({ uniqDB: true, retainDB: false })) {
         // Init the shadow db
         await fetchService.runFetchLoop(100);

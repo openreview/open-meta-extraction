@@ -252,19 +252,16 @@ export interface ExtractionServiceMonitor {
 }
 
 export async function extractionServiceMonitor(): Promise<ExtractionServiceMonitor> {
-  //   success? failure? withAbstract/pdf?
-  // Current note# by cursor
-
   //// Fields extracted per day
   // Abstracts
   const matchAbstracts = mh.matchAll(
-    mh.matchCreatedAtDaysFromToday(-14),
+    mh.matchCreatedAtDaysFromToday(-7),
     mh.matchFieldVal('fieldType', 'abstract')
   );
 
   // Pdf Links
   const matchPdfLinks = mh.matchAll(
-    mh.matchCreatedAtDaysFromToday(-14),
+    mh.matchCreatedAtDaysFromToday(-7),
     mh.matchFieldVal('fieldType', 'pdf')
   );
 

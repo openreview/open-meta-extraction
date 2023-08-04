@@ -1,7 +1,7 @@
 import _ from 'lodash';
-import { asyncEachSeries, setLogEnvLevel } from '@watr/commonlib';
+import { asyncEachSeries, prettyPrint, setLogEnvLevel } from '@watr/commonlib';
 
-import { withServerGen } from '@watr/spider';
+import { useHttpServer } from '@watr/spider';
 import { fetchServiceMonitor, useFetchService } from './fetch-service';
 
 import { createFakeNoteList, createFakeNotes } from '~/db/mock-data';
@@ -25,9 +25,9 @@ describe('Fetch Service', () => {
     const noteCount = 5;
     const batchSize = 2;
     const notes = createFakeNoteList(noteCount, 1);
-    const routes = openreviewAPIForNotes({ notes, batchSize })
+    const setup = openreviewAPIForNotes({ notes, batchSize })
 
-    for await (const __ of withServerGen(routes)) {
+    for await (const __ of useHttpServer({ setup, port: 9100 })) {
       for await (const { fetchService } of useFetchService({ uniqDB: true })) {
         expect(await listNoteStatusIds()).toHaveLength(0);
         // get 1
@@ -53,9 +53,10 @@ describe('Fetch Service', () => {
     const noteCount = 50;
     const notes = createFakeNoteList(noteCount, 1);
 
-    for await (const { mdb, shadowDB } of useShadowDB({ uniqDB: true })) {
+    for await (const { shadowDB } of useShadowDB({ uniqDB: true })) {
       await asyncEachSeries(notes, n =>  shadowDB.saveNote(n, true))
-      await fetchServiceMonitor();
+      const summary = await fetchServiceMonitor();
+      prettyPrint({ summary })
     }
   });
 

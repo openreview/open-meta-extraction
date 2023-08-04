@@ -123,6 +123,8 @@ export class OpenReviewExchange {
           const totalTime = end - start;
           this.log.debug(`perf: ${totalTime}ms - POST ${url}`);
           return response.data;
+        }).catch((error: Error) => {
+          this.log.error(`POST error: ${error.name}: ${error.message}`);
         });
     };
 
@@ -132,7 +134,10 @@ export class OpenReviewExchange {
   async apiAttempt<R>(apiCall: () => Promise<R>, retries: number): Promise<R | undefined> {
     if (retries === 0) return undefined;
 
-    await this.getCredentials();
+    await this.getCredentials()
+      .catch((error: Error) => {
+          this.log.error(`getCredentials error: ${error.name}: ${error.message}`);
+      });
     return apiCall()
       .catch(error => {
         displayRestError(this.log, error);
@@ -155,9 +160,6 @@ export function displayRestError(log: Logger, error: ErrorTypes): void {
     errorList.push(`HTTP Request Error: ${message}`);
     if (request) {
       const req: ClientRequest = request;
-      // const headers = req.getHeaders()
-      // const headerFmt = `${headers}`; // prettyFormat(headers)
-      // const headerLines = headerFmt.split('\n');
       const { path } = req;
       errorList.push(`Request: path=${path}`);
     }

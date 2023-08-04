@@ -1,6 +1,6 @@
 import _ from 'lodash';
 
-import { respondWith, respondWithHtml } from '@watr/spider';
+import { respondWithJson, respondWithHtml } from '@watr/spider';
 import { asNoteBatch, createFakeNoteList } from '~/db/mock-data';
 import Router from '@koa/router';
 import { Note } from './openreview-gateway';
@@ -13,7 +13,7 @@ import { prettyPrint, stripMargin } from '@watr/commonlib';
 //  e.g., { id: 'note#3', number: 3, content:{ ... } }
 //        { id: 'note#4', number: 4, content:{ ... } }
 export function openreviewAPIRoutes(router: Router) {
-  router.post('/login', respondWith({ token: 'fake-token', user: { id: '~TestUser;' } }));
+  router.post('/login', respondWithJson({ token: 'fake-token', user: { id: '~TestUser;' } }));
 
   const totalNotes = 100;
   const batchSize = 10;
@@ -26,12 +26,12 @@ export function openreviewAPIRoutes(router: Router) {
       prevIdNum = Number.parseInt(idnum, 10);
     }
     const noteList = createFakeNoteList(batchSize, prevIdNum + 1);
-    respondWith(asNoteBatch(totalNotes, noteList))(ctx);
+    respondWithJson(asNoteBatch(totalNotes, noteList))(ctx);
   });
   router.post('/notes', (ctx) => {
     const body = ctx.body;
     prettyPrint({ body })
-    respondWith({ id: 'note#any' })(ctx)
+    respondWithJson({ id: 'note#any' })(ctx)
   });
 }
 
@@ -42,7 +42,7 @@ type OpenreviewAPIForNotes = {
 
 export function openreviewAPIForNotes({ notes, batchSize }: OpenreviewAPIForNotes) {
   function routes(router: Router) {
-    router.post('/login', respondWith({ token: 'fake-token', user: { id: '~TestUser;' } }));
+    router.post('/login', respondWithJson({ token: 'fake-token', user: { id: '~TestUser;' } }));
     const noteCollections = _.clone(notes);
     const totalNotes = notes.length;
     router.get('/notes', (ctx) => {
@@ -63,7 +63,7 @@ export function openreviewAPIForNotes({ notes, batchSize }: OpenreviewAPIForNote
       }
 
       const toReturn = noteCollections.slice(begin, end);
-      respondWith(asNoteBatch(totalNotes, toReturn))(ctx);
+      respondWithJson(asNoteBatch(totalNotes, toReturn))(ctx);
     });
 
     router.post('/notes', (ctx) => {
@@ -71,7 +71,7 @@ export function openreviewAPIForNotes({ notes, batchSize }: OpenreviewAPIForNote
 
       const body: any = anyReq.body;
       const { referent } = body
-      respondWith({ id: referent })(ctx)
+      respondWithJson({ id: referent })(ctx)
     });
   }
 

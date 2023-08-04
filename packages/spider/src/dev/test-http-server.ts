@@ -1,19 +1,15 @@
 import _ from 'lodash';
-import Koa, { Context } from 'koa';
+import { Context } from 'koa';
 import Router from '@koa/router';
-import { koaBody } from 'koa-body';
-import { Server } from 'http';
-import axios from 'axios';
 
 import {
-  putStrLn,
   stripMargin,
   getServiceLogger,
   prettyPrint
 } from '@watr/commonlib';
 
 import fs from 'fs-extra';
-import Application from 'koa';
+import { useHttpServer } from '~/http-server/http-service';
 
 const withFields = stripMargin(`
 |<html>
@@ -67,11 +63,11 @@ const htmlSamples: Record<string, string> = {
   custom404: '<html><body>404 Not Found</body></html>'
 };
 
-const log = getServiceLogger('test-server');
 
 
-function htmlRouter(): Router<Koa.DefaultState, Koa.DefaultContext> {
-  const router = new Router({ routerPath: '/echo' });
+export function testHtmlRoutes(router: Router) {
+  // const router = new Router({ routerPath: '/echo' });
+  const log = getServiceLogger('test-server');
 
   router.get('/echo', async (ctx: Context) => {
     log.info(`${ctx.method} ${ctx.path}`);
@@ -97,134 +93,15 @@ function htmlRouter(): Router<Koa.DefaultState, Koa.DefaultContext> {
     response.body = htmlSamples[respKey] || 'Unknown';
     await next();
   });
-
-
-  return router;
 }
 
-
-
-
-export type WithServerCallbackArgs = {
-  server: Server;
-};
-
-
-export async function* withServerGen(
-  setup: (router: Router) => void,
-): AsyncGenerator<Server, void, any> {
-  const routes = new Router();
-  const app = new Koa();
-  app.use(koaBody());
-
-  setup(routes);
-  // TODO config port
-  const port = 9100;
-
-
-  app.use(routes.routes());
-  app.use(routes.allowedMethods());
-
-  const server = await new Promise<Server>((resolve) => {
-    const server = app.listen(port, () => {
-      log.info(`Koa is listening to http://localhost:${port}`);
-      resolve(server);
-    });
-  });
-  try {
-    yield server;
-  } finally {
-    await closeTestServer(server);
+export async function* useTestingHttpServer(workingDir?: string): AsyncGenerator<void, void, any> {
+  for await (const {} of useHttpServer({ port: 9100, setup: testHtmlRoutes })) {
+    if (workingDir) {
+      fs.emptyDirSync(workingDir);
+      fs.removeSync(workingDir);
+      fs.mkdirSync(workingDir);
+    }
+    yield;
   }
-}
-
-export async function isGETEqual(
-  url: string,
-  data: any
-) {
-  const resp = await axios.get(url);
-  expect(resp.data).toEqual(data);
-}
-
-export async function isPOSTEqual(
-  url: string,
-  data: any
-) {
-  const resp = await axios.post(url);
-  expect(resp.data).toEqual(data);
-}
-
-export function respondWith(
-  body: Record<string, any>
-): (ctx: Application.ParameterizedContext) => void {
-  return (ctx) => {
-    const { response } = ctx;
-    response.type = 'application/json';
-    response.status = 200;
-    response.body = body;
-  };
-}
-
-export function responseHandler(
-  body: Record<string, any>
-): (ctx: Application.ParameterizedContext) => void {
-  return (ctx) => {
-    const { response } = ctx;
-    response.type = 'application/json';
-    response.status = 200;
-    response.body = body;
-  };
-}
-
-
-export function respondWithHtml(
-  body: string
-): (ctx: Application.ParameterizedContext) => void {
-  return (ctx) => {
-    const { response } = ctx;
-    response.type = 'text/html';
-    response.status = 200;
-    response.body = body;
-  };
-}
-
-export async function startTestServer(): Promise<Server> {
-  const app = new Koa();
-
-  const port = 9100;
-
-  const htmlRoutes = htmlRouter();
-
-  app.use(htmlRoutes.routes());
-  app.use(htmlRoutes.allowedMethods());
-
-  return new Promise((resolve) => {
-    const server = app.listen(port, () => {
-      log.info(`Koa is listening to http://localhost:${port}`);
-      resolve(server);
-    });
-  });
-}
-
-export async function resetTestServer(workingDir: string): Promise<Server> {
-  fs.emptyDirSync(workingDir);
-  fs.removeSync(workingDir);
-  fs.mkdirSync(workingDir);
-  return startTestServer();
-}
-
-export async function closeTestServer(server: Server | undefined): Promise<void> {
-  return new Promise((resolve) => {
-    if (server === undefined) return;
-    server.on('close', () => {
-      putStrLn('test server closed.');
-    });
-    server.close((error?: Error) => {
-      putStrLn('test server close Callback.');
-      if (error) {
-        prettyPrint({ error })
-      }
-      resolve(undefined);
-    });
-  });
 }

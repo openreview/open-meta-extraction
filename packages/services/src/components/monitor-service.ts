@@ -1,41 +1,88 @@
-import { getServiceLogger, isTestingEnv, prettyPrint } from '@watr/commonlib';
-import { formatStatusMessages, showStatusSummary } from '~/db/extraction-summary';
-import { connectToMongoDB, useMongoose } from '~/db/mongodb';
+import { getServiceLogger, oneHour, prettyFormat, putStrLn } from '@watr/commonlib';
+import { useMongoose } from '~/db/mongodb';
 import { OpenReviewGateway } from '~/components/openreview-gateway';
-import { extractionServiceMonitor } from './extraction-service';
-import { fetchServiceMonitor } from './fetch-service';
+import { ExtractionServiceMonitor, extractionServiceMonitor } from './extraction-service';
+import { FetchServiceMonitor, fetchServiceMonitor } from './fetch-service';
+import { Router, respondWithJson, useHttpServer } from '@watr/spider';
+import { Logger } from 'winston';
 
 
 type Args = {
+  startServer: boolean,
   sendNotification: boolean,
+  port: number
 };
 
 export async function runMonitor({
-  sendNotification
+  sendNotification,
+  startServer,
+  port
 }: Args) {
-
   const log = getServiceLogger('MonitorService');
-  log.info('Running Monitor');
-  for await (const {} of useMongoose({})) {
-    // const summaryMessages = await showStatusSummary();
-    // const formattedSummary = formatStatusMessages(summaryMessages);
-    const extractionSummary = await extractionServiceMonitor();
-    const fetchSummary = await fetchServiceMonitor();
-    prettyPrint({ extractionSummary, fetchSummary })
+  const monitorUpdateInterval = oneHour;
+  const monitorNotificationInterval = oneHour * 12;
 
-    // const gateway = new OpenReviewGateway();
-    // const subject = 'OpenReview Extraction Service Status';
-    // const message = formattedSummary;
-    // log.info('Email:');
-    // log.info(`  subject: ${subject}`);
-    // log.info(message);
-    // const shouldPost = sendNotification && !isTestingEnv();
-    // if (shouldPost) {
-    //   log.info('Sending Email Notification');
-    //   await gateway.postStatusMessage(subject, message);
-    //   return;
-    // }
-    // log.warn('No monitor notification sent');
+  log.info('Running Monitor');
+  let lastSummary = await collectMonitorSummaries();
+
+  async function sendNotifications() {
+    log.info('Starting Notifications');
+    const summary = prettyFormat(lastSummary);
+    if (sendNotification) {
+      log.info('Sending Notifications');
+      await sendNotificationFunc(log, summary);
+      return;
+    }
+    log.info('No notifications sent');
+    const subject = 'OpenReview Extraction Service Status';
+    log.info(subject);
+    log.info(summary);
   }
 
+  if (startServer) {
+    async function updateSummary() {
+      lastSummary = await collectMonitorSummaries();
+    }
+    setInterval(updateSummary, monitorUpdateInterval);
+    function monitorServiceRoutes(r: Router) {
+      if (lastSummary) {
+        r.get('/monitor/status', respondWithJson(lastSummary))
+      } else {
+        r.get('/monitor/status', respondWithJson({ error: 'Monitor Status Unavailable' }));
+      }
+    }
+
+    for await (const { keepAlive } of useHttpServer({ setup: monitorServiceRoutes, port })) {
+      const intervalObj = setInterval(sendNotifications, monitorNotificationInterval);
+      await keepAlive;
+      clearInterval(intervalObj);
+    }
+    return;
+  }
+
+  await sendNotifications();
+}
+
+type MonitorSummaries = {
+  extractionSummary: ExtractionServiceMonitor,
+  fetchSummary: FetchServiceMonitor
+}
+
+async function collectMonitorSummaries(): Promise<MonitorSummaries| undefined> {
+  for await (const {} of useMongoose({})) {
+    const extractionSummary = await extractionServiceMonitor();
+    const fetchSummary = await fetchServiceMonitor();
+    return { extractionSummary, fetchSummary };
+  }
+  putStrLn('Error: No monitor summary available');
+}
+
+async function sendNotificationFunc(log: Logger, message: string) {
+  const gateway = new OpenReviewGateway();
+  const subject = 'OpenReview Extraction Service Status';
+  log.info('Email:');
+  log.info(`  subject: ${subject}`);
+  log.info(message);
+  log.info('Sending Email Notification');
+  await gateway.postStatusMessage(subject, message);
 }
