@@ -66,6 +66,16 @@ export function respondWithJson(
   };
 }
 
+export function respondWithPlainText(
+  body: string
+): (ctx: Application.ParameterizedContext) => void {
+  return (ctx) => {
+    const { response } = ctx;
+    response.type = 'text/plain';
+    response.status = 200;
+    response.body = body;
+  };
+}
 
 export function respondWithHtml(
   body: string

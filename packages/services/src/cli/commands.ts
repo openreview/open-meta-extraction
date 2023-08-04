@@ -34,11 +34,12 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
     'run-fetch-service',
     'Fetch new OpenReview URLs into local DB for spidering/extraction',
     opt.num('limit: Only fetch the specified # of notes before exiting', 0),
+    opt.flag('pause-before-exit: Only fetch the specified # of notes before exiting', false),
   )(async (args: any) => {
-    const { limit } = args;
+    const { limit, pauseBeforeExit } = args;
 
     for await (const { fetchService } of useFetchService({})) {
-      await fetchService.runFetchLoop(limit);
+      await fetchService.runFetchLoop(limit, pauseBeforeExit);
     }
   });
 

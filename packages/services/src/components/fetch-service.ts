@@ -63,14 +63,13 @@ export class FetchService {
     }
   }
 
-  createNoteGenerator(startingNoteId?: string, limit?: number): AsyncGenerator<Note, number, void> {
-    return generateFromBatch<Note>(this.createNoteBatchGenerator(startingNoteId), limit || 0);
+  createNoteGenerator(limit: number, startingNoteId?: string): AsyncGenerator<Note, number, void> {
+    return generateFromBatch<Note>(this.createNoteBatchGenerator(startingNoteId), limit);
   }
 
 
   // Main loop
-  async runFetchLoop(limit?: number) {
-    limit = _.isNumber(limit) && limit > 0 ? limit : undefined;
+  async runFetchLoop(limit: number, pauseBeforeExiting: boolean = false) {
     this.log.info('Starting Fetch Service');
     const lastNoteFetched = await this.shadow.mdb.getLastSavedNote();
     const startingNoteId = lastNoteFetched ? lastNoteFetched.id : undefined;
@@ -78,7 +77,7 @@ export class FetchService {
       this.log.info(`Resuming Fetch Service after note ${startingNoteId}`);
     }
 
-    const noteGenerator = this.createNoteGenerator(startingNoteId, limit);
+    const noteGenerator = this.createNoteGenerator(limit, startingNoteId);
 
     let cur = await noteGenerator.next();
     for (; !cur.done; cur = await noteGenerator.next()) {
@@ -86,7 +85,8 @@ export class FetchService {
       await this.shadow.saveNote(note, true);
     }
     this.log.info('FetchLoop complete');
-    if (limit === 0) {
+
+    if (pauseBeforeExiting) {
       // Pause for a given time period, then exit
       // PM2 will relaunch
 
@@ -96,6 +96,7 @@ export class FetchService {
       this.log.info('Delaying for 4 hours before restart');
       await delay(4 * oneHour);
     }
+    this.log.info('FetchLoop exiting...');
   }
 
 }
