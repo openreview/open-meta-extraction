@@ -1,8 +1,6 @@
-import { ENV_MODE, putStrLn } from '@watr/commonlib';
+import { ENV_MODE } from '@watr/commonlib';
 import _ from 'lodash';
-// import { mungeJobName } from './bree-helpers';
 
-const PM2_RUN_CLI_SCRIPT = './dist/src/pm2/jobs/run-cli.js';
 const DIRECT_RUN_CLI_SCRIPT = './dist/src/cli/index.js';
 
 export function createPM2Job(name: string, script: string, conf: Partial<PM2JobConfig>): Partial<PM2JobConfig> {
@@ -40,45 +38,10 @@ export function createDirectCliJob(app: string, args: string): Partial<PM2JobCon
   return createPM2Job(qualifiedName, DIRECT_RUN_CLI_SCRIPT, { args: appAndArgs, autorestart: true });
 }
 
-export function createPM2CliJob(cliName: string, conf: Partial<PM2JobConfig> = {}): Partial<PM2JobConfig> {
-  const qualifiedName = mungeJobName(cliName);
-  const args = conf.args ? `${cliName} ${conf.args}` : cliName;
-  return createPM2Job(qualifiedName, PM2_RUN_CLI_SCRIPT, _.merge({}, conf, { args }));
-}
-
-type CreateScheduledCliJobArgs = {
-  app: string,
-  schedule?: string, // if not present, run immediately
-  immediate?: boolean, // if schedule is present, run immediately in addition to whatever schedule is specified
-  args?: string,
-  appNameSuffix?: string,
-  once?: boolean // if true, app will not autorestart  when complete
-};
-
-export function createScheduledCliJob({
-  app,
-  args,
-  schedule,
-  appNameSuffix,
-  once
-}: CreateScheduledCliJobArgs): Partial<PM2JobConfig> {
-  const qualifiedName = mungeJobName(app, appNameSuffix);
-  const appAndArgV = app + (args ? ` ${args}` : '');
-  if (schedule === undefined) {
-    putStrLn(`Starting immediate job: ${qualifiedName}`);
-    return createPM2Job(qualifiedName, PM2_RUN_CLI_SCRIPT, { args: appAndArgV, autorestart: !once });
-  }
-  putStrLn(`Starting scheduled job: ${qualifiedName}`);
-  const jobConf: Partial<PM2JobConfig> = {
-    args: `schedule '${schedule}' -- ${appAndArgV}`,
-    autorestart: !once
-  };
-  return createPM2Job(qualifiedName, PM2_RUN_CLI_SCRIPT, jobConf);
-}
 
 type ENV_KEY = `env_${ENV_MODE}`;
 
-export type PM2JobConfig = Record<ENV_KEY, any> & {
+type PM2JobConfig = Record<ENV_KEY, any> & {
   // General
   name: string; // “my-api” application name (default to script filename without extension)
   script: string; // ”./api/app.js” script path relative to pm2 start
