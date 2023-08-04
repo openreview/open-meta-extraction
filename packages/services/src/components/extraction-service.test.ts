@@ -38,7 +38,7 @@ describe('Extraction Service', () => {
         const noteStatusIds = await listNoteStatusIds();
         prettyPrint({ noteStatusIds });
 
-        for await (const { extractionService, taskScheduler } of withExtractionService({ useMongoose: mongoose, postResultsToOpenReview })) {
+        for await (const { extractionService, taskScheduler } of withExtractionService({ mongoose, postResultsToOpenReview })) {
           // Start from beginning
           await taskScheduler.createUrlCursor('extract-fields/all');
           await checkCursor(mdb, 'extract-fields/all', 'note#1');
@@ -64,7 +64,7 @@ describe('Extraction Service', () => {
 
   });
 
-  it.only('should monitor newly extracted fields', async () => {
+  it('should monitor newly extracted fields', async () => {
     for await (const { shadowDB } of useShadowDB({ uniqDB: true })) {
       shadowDB.writeChangesToOpenReview = false;
 

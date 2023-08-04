@@ -2,11 +2,11 @@ import _ from 'lodash';
 
 import { arglib, initConfig, putStrLn } from '@watr/commonlib';
 import { formatStatusMessages, showStatusSummary } from '~/db/extraction-summary';
-import { connectToMongoDB, mongoConnectionString, resetMongoDB } from '~/db/mongodb';
+import { connectToMongoDB, mongoConnectionString, resetMongoDB, useMongoose } from '~/db/mongodb';
 import { useFetchService } from '~/components/fetch-service';
 import { withExtractionService } from '~/components/extraction-service';
 import { OpenReviewGateway } from '~/components/openreview-gateway';
-import { runMonitor } from '~/components/monitor-service';
+import { useMonitorService } from '~/components/monitor-service';
 import { CursorRoles, createMongoQueries, isCursorRole } from '~/db/query-api';
 import { withTaskScheduler } from '~/components/task-scheduler';
 
@@ -134,13 +134,22 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
     'run-monitor-service',
     'Periodically send notifications with system monitor report',
     config(
-      opt.flag('send-notification'),
-      opt.flag('start-server'),
-      opt.num('port'),
+      opt.flag('send-notifications: if true, post notification back to the Openreview API'),
+      opt.flag('start-server: if true, start a server, otherwise just print a monitor summary'),
+      opt.num('port: port for the server', 0),
     )
   )(async (args: any) => {
-    const { sendNotification, startServer, port } = args;
-    await runMonitor({ sendNotification, startServer, port });
+    const { sendNotifications, startServer, port } = args;
+
+    for await (const { mongoose } of useMongoose({})) {
+      for await (const { monitorService } of useMonitorService({mongoose, sendNotifications})) {
+        if (startServer) {
+          await monitorService.runServer(port);
+        } else {
+          await monitorService.notify();
+        }
+      }
+    }
   });
 
   registerCmd(

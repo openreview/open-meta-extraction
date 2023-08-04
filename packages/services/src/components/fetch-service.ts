@@ -17,13 +17,13 @@ import { UseMongooseArgs } from '~/db/mongodb';
 
 
 
-export type UseFetchService = WithShadowDB & {
+export type WithFetchService = WithShadowDB & {
   fetchService: FetchService
 };
 
 type UseFetchServiceArgs = UseMongooseArgs;
 
-export async function* useFetchService(args: UseFetchServiceArgs): AsyncGenerator<UseFetchService, void, any> {
+export async function* useFetchService(args: UseFetchServiceArgs): AsyncGenerator<WithFetchService, void, any> {
   for await (const components of useShadowDB(args)) {
     const { shadowDB } = components;
     const fetchService = new FetchService(shadowDB);

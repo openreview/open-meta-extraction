@@ -57,10 +57,10 @@ export type UseMongooseArgs = {
   emptyDB?: boolean;
   uniqDB?: boolean;
   retainDB?: boolean;
-  useMongoose?: Mongoose
+  mongoose?: Mongoose
 }
 
-export type UseMongoose = {
+export type WithMongoose = {
   mongoose: Mongoose
 }
 
@@ -68,13 +68,13 @@ export async function* useMongoose({
   emptyDB,
   uniqDB,
   retainDB,
-  useMongoose
-}: UseMongooseArgs): AsyncGenerator<UseMongoose, void, any> {
+  mongoose
+}: UseMongooseArgs): AsyncGenerator<WithMongoose, void, any> {
   const log = getServiceLogger('useMongoose');
-  if (useMongoose) {
-    let dbName = useMongoose.connection.name;
+  if (mongoose) {
+    let dbName = mongoose.connection.name;
     log.info(`Using supplied mongo connection to ${dbName}`);
-    yield { mongoose: useMongoose };
+    yield { mongoose };
     return;
   }
 
