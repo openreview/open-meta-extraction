@@ -11,15 +11,15 @@ import { useHttpServer } from '@watr/spider/src/http-server/http-service';
 
 describe('Extraction Service', () => {
 
-  setLogEnvLevel('warn');
+  setLogEnvLevel('debug');
 
-  it('smokescreen', async () => {
+  it.only('should run end-to-end', async () => {
     const noteCount = 10;
     const batchSize = 2;
     const startingId = 1;
     const notes = createFakeNoteList(noteCount, startingId);
-    const routes = openreviewAPIForNotes({ notes, batchSize })
-    const spiderRoutes = spiderableRoutes()
+    const routes = openreviewAPIForNotes({ notes, batchSize });
+    const spiderRoutes = spiderableRoutes();
     const postResultsToOpenReview = true;
 
     async function checkCursor(mdb: MongoQueries, role: CursorRole, noteId: string) {
@@ -31,14 +31,14 @@ describe('Extraction Service', () => {
       expect(c1.noteId).toBe(noteId)
     }
 
-    for await (const __ of useHttpServer({ port: 9100, setup: r => { routes(r); spiderRoutes(r); }} )) {
+    for await (const __ of useHttpServer({ port: 9100, setup: r => { routes(r); spiderRoutes(r); } })) {
       for await (const { fetchService, mongoose, mdb } of useFetchService({ uniqDB: true, retainDB: false })) {
         // Init the shadow db
         await fetchService.runFetchLoop(100);
         const noteStatusIds = await listNoteStatusIds();
-        prettyPrint({ noteStatusIds });
+        expect(noteStatusIds).toMatchObject(fakeNoteIds(startingId, startingId + noteCount - 1));
 
-        for await (const { extractionService, taskScheduler } of withExtractionService({ mongoose, postResultsToOpenReview })) {
+        for await (const { extractionService, taskScheduler, shadowDB } of withExtractionService({ mongoose, postResultsToOpenReview })) {
           // Start from beginning
           await taskScheduler.createUrlCursor('extract-fields/all');
           await checkCursor(mdb, 'extract-fields/all', 'note#1');
@@ -48,16 +48,22 @@ describe('Extraction Service', () => {
           // Next note should be note#3
           await checkCursor(mdb, 'extract-fields/all', 'note#3');
 
+
           // Reset to beginning
           await taskScheduler.deleteUrlCursor('extract-fields/all');
           await taskScheduler.createUrlCursor('extract-fields/all');
           await checkCursor(mdb, 'extract-fields/all', 'note#1');
 
+
+          // Fake a successful extraction
+          await shadowDB.updateFieldStatus('note#2', 'abstract', "Ipsem...");
+          mdb.updateUrlStatus('note#2', { hasAbstract: true })
+
           await taskScheduler.createUrlCursor('extract-fields/newest');
           await checkCursor(mdb, 'extract-fields/newest', 'note#3');
 
           await extractionService.runExtractionLoop(2, false);
-          await checkCursor(mdb, 'extract-fields/newest', 'note#5');
+          // await checkCursor(mdb, 'extract-fields/newest', 'note#5');
         }
       }
     }

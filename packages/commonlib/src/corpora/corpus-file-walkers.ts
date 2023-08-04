@@ -88,6 +88,11 @@ export function cleanArtifactDir(entryPath: string): void {
     fs.mkdirSync(entryPath, { recursive: true });
   }
 }
+export function purgeArtifactDirs(entryPath: string): void {
+  if (isValidCorpusEntryPath(entryPath)) {
+    fs.rmSync(entryPath, { recursive: true, force: true });
+  }
+}
 
 
 export function hasCorpusFile(entryPath: string, artifactDir: ArtifactSubdir, corpusFilename: string): boolean {

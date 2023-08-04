@@ -37,7 +37,7 @@ import {
 
 import { UrlFetchData, getFetchDataFromResponse } from '~/core/url-fetch-chains';
 import { Logger } from 'winston';
-import { cleanArtifactDir, getHashEncodedPath, taskflow } from '@watr/commonlib';
+import { cleanArtifactDir, getHashEncodedPath, purgeArtifactDirs, taskflow } from '@watr/commonlib';
 import { DefaultPageInstanceOptions, PageInstance, PageInstanceOptions } from '~/core/browser-instance';
 
 // Initialize SpiderEnv
@@ -143,5 +143,13 @@ export const writePageFrames: <A>() => Transform<A, A> =
 export const cleanArtifacts: <A>() => Transform<A, A> =
   () => tap((_a, env) => {
     const entryPath = env.entryPath();
+    env.log.debug(`Cleaning artifact directory ${entryPath}`);
     cleanArtifactDir(entryPath);
   }, 'Clean Artifacts');
+
+export const purgeArtifacts: <A>() => Transform<A, A> =
+  () => tap((_a, env) => {
+    const entryPath = env.entryPath();
+    env.log.debug(`Purging artifact directory ${entryPath}`);
+    purgeArtifactDirs(entryPath);
+  }, 'Purge Artifacts');

@@ -19,6 +19,7 @@ import {
   SpideringPipeline,
   SpiderToExtractionEnv
 } from './spidering-rules';
+import { purgeArtifacts } from '@watr/spider';
 
 
 // Field extraction pipeline
@@ -29,6 +30,7 @@ export const FieldExtractionAttempts: Transform<unknown, unknown> = compose(
     GeneralExtractionAttempts
   ),
   summarizeEvidence,
+  purgeArtifacts(),
 );
 
 // Full spidering + extraction pipeline

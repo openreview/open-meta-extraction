@@ -1,8 +1,5 @@
 import _ from 'lodash';
 
-import * as TE from 'fp-ts/TaskEither';
-import { prettyPrint, putStrLn } from '@watr/commonlib';
-
 import {
   compose,
   ExtractionEnv,
@@ -21,6 +18,8 @@ import {
   scrapingTaskflow as stflow,
   UrlFetchData,
   urlFilterAny,
+  writePageFrames,
+  writeResponseBody,
 
 } from '@watr/spider';
 
@@ -39,14 +38,11 @@ type Transform<A, B> = stflow.Transform<A, B>
 const {
   eachOrElse,
   mapEnv,
-  through
 } = sfp;
 
 const {
   fetchUrl,
   httpResponseToUrlFetchData,
-  writeResponseBody,
-  writePageFrames,
   cleanArtifacts,
 } = spPrim;
 
@@ -81,25 +77,4 @@ export const SpideringPipeline: Transform<URL, UrlFetchData> = compose(
   writeResponseBody,
   writePageFrames(),
   httpResponseToUrlFetchData,
-);
-
-export const FakeSpideringPipeline: Transform<URL, UrlFetchData> = compose(
-  through((sdf) => {
-    prettyPrint({ sdf });
-    const dummy: UrlFetchData = {
-      responseUrl: '',
-      requestUrl: '',
-      status: '',
-      timestamp: '',
-      fetchChain: [
-        {
-          requestUrl: '',
-          status: '',
-          timestamp: ''
-        }
-      ]
-    };
-    return TE.right(dummy);
-  }),
-  cleanArtifacts(),
 );
