@@ -1,6 +1,6 @@
 import { ENV_MODE, putStrLn } from '@watr/commonlib';
 import _ from 'lodash';
-import { mungeJobName } from './bree-helpers';
+// import { mungeJobName } from './bree-helpers';
 
 const PM2_RUN_CLI_SCRIPT = './dist/src/pm2/jobs/run-cli.js';
 const DIRECT_RUN_CLI_SCRIPT = './dist/src/cli/index.js';
@@ -23,6 +23,15 @@ export function createPM2Job(name: string, script: string, conf: Partial<PM2JobC
     },
     ...conf,
   };
+}
+
+export function mungeJobName(
+  app: string,
+  appNameSuffix?: string
+): string {
+  const baseName = _.upperFirst(_.camelCase(app));
+  const qualifiedName = appNameSuffix ? `${baseName}${appNameSuffix}` : baseName;
+  return qualifiedName;
 }
 
 export function createDirectCliJob(app: string, args: string): Partial<PM2JobConfig> {

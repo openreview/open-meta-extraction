@@ -1,79 +1,8 @@
 import { getServiceLogger, prettyPrint } from '@watr/commonlib';
-import pm2 from 'pm2';
 import workerThreads, { parentPort } from 'worker_threads';
 import process from 'process';
 import path from 'path';
 
-function pm2List(): Promise<pm2.ProcessDescription[]> {
-  return new Promise<pm2.ProcessDescription[]>((resolve, reject) => {
-    pm2.list((error: Error, ls: pm2.ProcessDescription[]) => {
-      if (error) {
-        reject(error);
-        return;
-      }
-      resolve(ls);
-    });
-  });
-}
-
-async function pm2Start(...args: Parameters<typeof pm2.start>): Promise<void> {
-  return new Promise<void>((resolve, reject) => {
-    pm2.start(args[0], args[1], (error: Error) => {
-      if (error) {
-        reject(error);
-        return;
-      }
-      resolve();
-    });
-  });
-}
-async function pm2Restart(proc: string | number): Promise<void> {
-  return new Promise<void>((resolve, reject) => {
-    pm2.restart(proc, (error: Error) => {
-      if (error) {
-        reject(error);
-        return;
-      }
-      resolve();
-    });
-  });
-}
-
-async function pm2Stop(proc: string | number): Promise<void> {
-  return new Promise<void>((resolve, reject) => {
-    pm2.stop(proc, (error: Error) => {
-      if (error) {
-        reject(error);
-        return;
-      }
-      resolve();
-    });
-  });
-}
-
-async function pm2Delete(proc: string | number): Promise<void> {
-  return new Promise<void>((resolve, reject) => {
-    pm2.delete(proc, (error: Error) => {
-      if (error) {
-        reject(error);
-        return;
-      }
-      resolve();
-    });
-  });
-}
-
-export const pm2x = {
-  start: pm2Start,
-  stop: pm2Stop,
-  restart: pm2Restart,
-  delete: pm2Delete,
-  list: pm2List,
-  // reload: pm2Reload,
-  // describe: pm2Describe,
-  // connect: promisify(pm2.connect),
-  // disconnect: promisify(pm2.disconnect),
-};
 
 
 function exitJob() {

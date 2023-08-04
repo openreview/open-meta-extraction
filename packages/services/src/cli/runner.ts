@@ -2,11 +2,9 @@ import { arglib, putStrLn } from '@watr/commonlib';
 
 import { spiderCLI } from '@watr/spider';
 import * as workflowCmds from './commands';
-import * as scheduling from '~/pm2/scheduling-services';
 
 export function registerAllClis() {
   workflowCmds.registerCLICommands(arglib.YArgs);
-  scheduling.registerCommands(arglib.YArgs);
   spiderCLI.registerCommands(arglib.YArgs);
 }
 
