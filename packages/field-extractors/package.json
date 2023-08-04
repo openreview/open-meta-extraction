@@ -23,12 +23,12 @@
     "@watr/spider": "0.1.0",
     "url-parse": "^1.5.10",
     "async": "^3.2.4",
-    "fp-ts": "2.16.0",
+    "fp-ts": "2.16.1",
     "fs-extra": "^11.1.1",
     "lodash": "^4.17.21",
-    "puppeteer": "^20.9.0",
+    "puppeteer": "^21.0.1",
     "winston": "^3.10.0",
-    "xml2js": "~0.6.0"
+    "xml2js": "~0.6.2"
   },
   "devDependencies": {
     "@babel/core": "~7.22.9",
@@ -37,15 +37,15 @@
     "@types/chai": "^4.3.5",
     "@types/fs-extra": "^11.0.1",
     "@types/jest": "^29.5.3",
-    "@types/lodash": "^4.14.195",
-    "@types/node": "^20.4.2",
+    "@types/lodash": "^4.14.196",
+    "@types/node": "^20.4.7",
     "@types/url-parse": "^1.4.8",
     "@types/xml2js": "~0.4.11",
     "@watr/root": "0.1.0",
     "babel-jest": "~29.6.2",
     "chai": "^4.3.7",
-    "eslint": "^8.45.0",
-    "jest": "^29.6.1",
+    "eslint": "^8.46.0",
+    "jest": "^29.6.2",
     "typescript": "^5.1.6"
   }
 }
