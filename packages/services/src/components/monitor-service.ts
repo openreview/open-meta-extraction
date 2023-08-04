@@ -46,8 +46,10 @@ export class MonitorService {
     return { extractionSummary, fetchSummary, lastUpdateTime: new Date() };
   }
 
-  async updateSummary() {
+  async updateSummary(): Promise<MonitorSummaries|undefined> {
+    this.log.info('Updating Monitor Summaries')
     this.lastSummary = await this.collectMonitorSummaries();
+    return this.lastSummary;
   }
 
   async scheduleMonitorUpdates() {
@@ -70,7 +72,7 @@ export class MonitorService {
 
   async runServer(port: number) {
     const self = this;
-    this.scheduleMonitorUpdates();
+    await this.scheduleMonitorUpdates();
     function monitorServiceRoutes(r: Router) {
       const summary = formatMonitorSummaries(self.lastSummary);
       r.get('/monitor/status', respondWithPlainText(summary));
