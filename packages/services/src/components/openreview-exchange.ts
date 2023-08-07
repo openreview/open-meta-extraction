@@ -110,7 +110,7 @@ export class OpenReviewExchange {
         });
     };
 
-    return this.apiAttempt(run, 1);
+    return this.apiAttempt(run);
   }
 
   async apiPOST<PD extends object, R>(url: string, postData: PD): Promise<R | undefined> {
@@ -128,22 +128,32 @@ export class OpenReviewExchange {
         });
     };
 
-    return this.apiAttempt(run, 1);
+    return this.apiAttempt(run);
   }
 
-  async apiAttempt<R>(apiCall: () => Promise<R>, retries: number): Promise<R | undefined> {
-    if (retries === 0) return undefined;
+  async apiAttempt<R>(apiCall: () => Promise<R>, attemptNumber: number = 0): Promise<R | undefined> {
+    if (attemptNumber == 1) {
+      this.credentials = undefined;
+      await this.getCredentials()
+        .catch((error: Error) => {
+          this.log.error(`login retry: getCredentials error: ${error.name}: ${error.message}`);
+          throw error;
+        });
+    }
+    if (attemptNumber > 1) {
+      throw new Error('Could not login to OpenReview server');
+    }
 
     await this.getCredentials()
       .catch((error: Error) => {
-          this.log.error(`getCredentials error: ${error.name}: ${error.message}`);
+        this.log.error(`getCredentials error: ${error.name}: ${error.message}`);
       });
     return apiCall()
       .catch(error => {
         displayRestError(this.log, error);
         this.credentials = undefined;
-        this.log.warn(`API Error ${error}: retries=${retries} `);
-        return this.apiAttempt(apiCall, retries - 1);
+        this.log.warn(`API Error ${error}: attempt#=${attemptNumber} `);
+        return this.apiAttempt(apiCall, attemptNumber + 1);
       });
   }
 }
@@ -153,7 +163,7 @@ function isAxiosError(error: any): error is AxiosError {
   return error.isAxiosError !== undefined && error.isAxiosError;
 }
 
-export function displayRestError(log: Logger, error: ErrorTypes): void {
+export function displayRestError(error: ErrorTypes): void {
   if (isAxiosError(error)) {
     const { request, response, message } = error;
     const errorList: string[] = [];

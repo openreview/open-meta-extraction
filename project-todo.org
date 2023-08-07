@@ -3,39 +3,19 @@
 
 ** Next Actions
 
-- [ ] 1. Create basic report summary for fetch/extraction loops
-- [ ] 2. reinstate emails
-- [ ] 3. use pm2 ecosystem
 
-- [ ] remove bree
-- [ ] review extraction loop
-  - [ ] should use 2 cursors, one recent one historical
-  - [ ] should have several modes:
-    - retry everything
-    - retry failure(s)
-    - check http status
-    - check hash values
 
 ** Tasks
-- [ ] Delete downloaded htmls/artifacts when done
 - [ ] Delete /tmp files created by chrome
 - [ ] Reap dead chrome instances
-- [ ] Option to start extractor from last successful URL (to start with most recently added)
 - [ ] Fix documentation (some sidebar links don't work)
 - [ ] Bug: when fetch service finishes, it loops around and causes key error on save note
 - [ ] system crashes when openreview rest api fails (e.g., during server restarts)
-
+- [ ] Add cli switch to save artifacts after spidering/extraction (for use when writing new rules)
 
 - better parameterization of mocktimestamps on testing
 ** Ideas
-- keep track of slow extraction ids
-- Fetch should only hit openreview api 1 time.
-  - keep track of hash of extracted fields, make note of
-    when they change
-  - re-extracting from the beginning is a local-only operation,
-- use PM2 hooks to autodeploy
 - [TaskScheduler] allow multiple extraction workers when responseUrl is known and hosts can be spread out over time
-- Make spider not write body/header files (use cli option to control behavior)
 
 
 ** Error when running fetch service off the edge of the cliff
