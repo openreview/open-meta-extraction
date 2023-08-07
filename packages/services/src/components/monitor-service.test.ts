@@ -1,5 +1,5 @@
 import _ from 'lodash';
-import { asyncEachOfSeries, asyncEachSeries, putStrLn, setLogEnvLevel } from '@watr/commonlib';
+import { asyncEachOfSeries, setLogEnvLevel } from '@watr/commonlib';
 import { useMonitorService } from './monitor-service';
 import { createFakeNoteList } from '~/db/mock-data';
 import { useShadowDB } from './shadow-db';
@@ -28,7 +28,15 @@ describe('Monitor Service', () => {
       });
 
       const sendNotifications = false;
-      for await (const { monitorService } of useMonitorService({ mongoose, sendNotifications })) {
+      const monitorUpdateInterval = 0;
+      const monitorNotificationInterval = 0;
+
+      for await (const { monitorService } of useMonitorService({
+        mongoose,
+        sendNotifications,
+        monitorNotificationInterval,
+        monitorUpdateInterval
+      })) {
         await monitorService.notify();
       }
     }

@@ -1,6 +1,6 @@
 import _ from 'lodash';
 
-import { arglib, initConfig, putStrLn } from '@watr/commonlib';
+import { arglib, initConfig, oneHour, putStrLn } from '@watr/commonlib';
 import { formatStatusMessages, showStatusSummary } from '~/db/extraction-summary';
 import { connectToMongoDB, mongoConnectionString, resetMongoDB, useMongoose } from '~/db/mongodb';
 import { useFetchService } from '~/components/fetch-service';
@@ -137,12 +137,22 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
       opt.flag('send-notifications: if true, post notification back to the Openreview API'),
       opt.flag('start-server: if true, start a server, otherwise just print a monitor summary'),
       opt.num('port: port for the server', 0),
+      opt.num('update-interval: how frequently to run update queries', 0),
+      opt.num('notify-interval: how frequently to send out notifications', 0),
     )
   )(async (args: any) => {
     const { sendNotifications, startServer, port } = args;
+    const { updateInterval, notifyInterval } = args;
 
+    const monitorUpdateInterval = updateInterval > 0 ? updateInterval : oneHour;
+    const monitorNotificationInterval = notifyInterval > 0 ? notifyInterval : oneHour * 12;
     for await (const { mongoose } of useMongoose({})) {
-      for await (const { monitorService } of useMonitorService({mongoose, sendNotifications})) {
+      for await (const { monitorService } of useMonitorService({
+        mongoose,
+        sendNotifications,
+        monitorNotificationInterval,
+        monitorUpdateInterval
+      })) {
         if (startServer) {
           await monitorService.runServer(port);
         } else {

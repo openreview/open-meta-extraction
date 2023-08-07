@@ -94,11 +94,11 @@ export class OpenReviewExchange {
     return this.configAxios()
       .post('/login', { id: this.user, password: this.password })
       .then(r => r.data)
-      .catch(error => displayRestError(this.log, error));
+      .catch(error => displayRestError(error));
   }
 
   async apiGET<R>(url: string, query: Record<string, string | number>): Promise<R | undefined> {
-    const run = () => {
+    const run = async () => {
       const start = Date.now();
       return this.configAxios()
         .get(url, { params: query })
@@ -114,7 +114,7 @@ export class OpenReviewExchange {
   }
 
   async apiPOST<PD extends object, R>(url: string, postData: PD): Promise<R | undefined> {
-    const run = () => {
+    const run = async () => {
       const start = Date.now();
       return this.configAxios()
         .post(url, postData)
@@ -150,7 +150,7 @@ export class OpenReviewExchange {
       });
     return apiCall()
       .catch(error => {
-        displayRestError(this.log, error);
+        displayRestError(error);
         this.credentials = undefined;
         this.log.warn(`API Error ${error}: attempt#=${attemptNumber} `);
         return this.apiAttempt(apiCall, attemptNumber + 1);
