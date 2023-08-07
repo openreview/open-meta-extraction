@@ -3,30 +3,21 @@
 
 ** Next Actions
 
+- [ ] Catch sigkill to properly cleanup/shutdown async generators
+- [ ] Save full abs/pdflink in shadow
+- [ ] Add more stats to monitor (total found, %done)
 
 
 ** Tasks
-- [ ] Delete /tmp files created by chrome
-- [ ] Reap dead chrome instances
+- [ ] Send notify message when there are critical errors, or on certain events
+- [ ] Reap dead chrome instances, cleanup /tmp files
 - [ ] Fix documentation (some sidebar links don't work)
 - [ ] Bug: when fetch service finishes, it loops around and causes key error on save note
-- [ ] system crashes when openreview rest api fails (e.g., during server restarts)
 - [ ] Add cli switch to save artifacts after spidering/extraction (for use when writing new rules)
+- [ ] [TaskScheduler] allow multiple extraction workers when responseUrl is known and hosts can be spread out over time
+** Ideas
 
 - better parameterization of mocktimestamps on testing
-** Ideas
-- [TaskScheduler] allow multiple extraction workers when responseUrl is known and hosts can be spread out over time
 
-
-** Error when running fetch service off the edge of the cliff
-18:35:29:2929 info [OpenReviewExchange] Logged in as saunders@cs.umass.edu
-18:35:31:3131 debug [OpenReviewExchange] perf: 2710ms - GET /notes
-18:35:31:3131 debug [FetchService] Fetched 1000 /notes after:xjyyrCA3OL (of 871416 total)
-18:35:31:3131 info [ShadowDB] SaveNote: creating new Note<id:YJ1Lu9q1fd1, #847635>
-18:35:31:3131 info [ShadowDB] SaveNote: creating new Note<id:IsJio4hlY0_, #847635>
-Error:
-      null
-
-        Error was: MongoServerError: Plan executor error during findAndModify :: caused by :: E11000 duplicate key error collection: meta-extraction-prod.note_status index: number_1 dup key: { number: 847635 }
-
-cli run-fetch-service
+** Complete
+- [X] system crashes when openreview rest api fails (e.g., during server restarts)
