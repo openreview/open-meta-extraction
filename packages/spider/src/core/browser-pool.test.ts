@@ -9,7 +9,7 @@ import {
 import {
   createBrowserPool,
   withBrowserInstance,
-  withBrowserPool,
+  useBrowserPool,
   WithPageInstance,
   withPageInstance
 } from './browser-pool';
@@ -23,7 +23,7 @@ describe('browser pooling', () => {
   it('generators properly yield/close, own or share components', async () => {
     try {
 
-      for await (const l1Components of withBrowserPool()) {
+      for await (const l1Components of useBrowserPool()) {
         expect(_.keys(l1Components)).toStrictEqual(['browserPool']);
 
         for await (const l2Components of withBrowserInstance(l1Components.browserPool)) {
@@ -100,7 +100,7 @@ describe('browser pooling', () => {
       }
       try {
 
-        for await (const l1Components of withBrowserPool()) {
+        for await (const l1Components of useBrowserPool()) {
 
           failPoint(l1Components);
 

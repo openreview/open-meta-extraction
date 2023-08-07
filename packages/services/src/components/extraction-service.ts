@@ -10,7 +10,7 @@ import {
 } from '@watr/commonlib';
 
 
-import { BrowserPool, createSpiderEnv, UrlFetchData, withBrowserPool } from '@watr/spider';
+import { BrowserPool, createSpiderEnv, UrlFetchData, useBrowserPool } from '@watr/spider';
 
 import { CanonicalFieldRecords, ExtractionEnv, getEnvCanonicalFields, SpiderAndExtractionTransform } from '@watr/field-extractors';
 
@@ -54,7 +54,7 @@ export async function* withExtractionService(args: WithExtractionServiceArgs): A
   for await (const components of withTaskScheduler(args)) {
     const { taskScheduler, shadowDB } = components;
 
-    for await (const { browserPool } of withBrowserPool()) {
+    for await (const { browserPool } of useBrowserPool()) {
       const extractionService = await createExtractionService(shadowDB, browserPool, taskScheduler, postResultsToOpenReview);
       yield _.merge({}, components, { extractionService });
     }

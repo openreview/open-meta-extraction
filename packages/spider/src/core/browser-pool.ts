@@ -16,9 +16,10 @@ export type WithBrowserPool = {
   browserPool: BrowserPool
 };
 
-export async function* withBrowserPool(): AsyncGenerator<WithBrowserPool, void, any> {
+export async function* useBrowserPool(): AsyncGenerator<WithBrowserPool, void, any> {
   const browserPool = createBrowserPool();
   const pool = browserPool.pool;
+  // register ending hooks here:
   try {
     yield { browserPool };
   } finally {
@@ -56,7 +57,7 @@ export async function* withBrowserInstance(
     }
     return;
   }
-  for await (const { browserPool } of withBrowserPool()) {
+  for await (const { browserPool } of useBrowserPool()) {
     try {
       browserInstance = await browserPool.acquire();
       yield { browserPool, browserInstance };
