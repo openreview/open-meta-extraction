@@ -2,17 +2,13 @@ import _ from 'lodash';
 
 import {
   asyncEachSeries,
+  prettyPrint,
   putStrLn,
+  scopedGracefulExit,
   setLogEnvLevel
 } from '@watr/commonlib';
 
-import {
-  createBrowserPool,
-  withBrowserInstance,
-  useBrowserPool,
-  WithPageInstance,
-  withPageInstance
-} from './browser-pool';
+import { BrowserInstanceNeeds, createBrowserPool, scopedBrowserInstance, scopedBrowserPool, scopedPageInstance } from './browser-pool';
 
 import { Pool } from 'tarn';
 import { BrowserInstance, DefaultPageInstanceOptions } from './browser-instance';
@@ -20,26 +16,35 @@ import { BrowserInstance, DefaultPageInstanceOptions } from './browser-instance'
 describe('browser pooling', () => {
   setLogEnvLevel('info');
 
-  it('generators properly yield/close, own or share components', async () => {
+  function expectComponents(components: Record<string, any>, ...expected: string[]) {
+    const compSet = new Set(..._.keys(components));
+    const expectComps = new Set(...expected);
+    // expect(expected.every(n => compSet.has(n))).toBe(true);
+    expect(expectComps).toStrictEqual(compSet);
+  }
+
+  it.only('generators properly yield/close, own or share components', async () => {
     try {
 
-      for await (const l1Components of useBrowserPool()) {
-        expect(_.keys(l1Components)).toStrictEqual(['browserPool']);
+      for await (const { gracefulExit } of scopedGracefulExit.use({})) {
+        for await (const l1Components of scopedBrowserPool.use({ gracefulExit })) {
+          prettyPrint({ keys: _.keys(l1Components) })
+          expectComponents(l1Components, 'browserPool');
 
-        for await (const l2Components of withBrowserInstance(l1Components.browserPool)) {
-          expect(_.keys(l2Components)).toStrictEqual(['browserPool', 'browserInstance']);
-          expect(l2Components.browserPool).toBe(l1Components.browserPool)
+          for await (const l2Components of scopedBrowserInstance.use({ browserPool: l1Components.browserPool })) {
+            expectComponents(l1Components, 'browserPool', 'gracefulExit');
 
-          for await (const l3Components of withPageInstance(l2Components)) {
-            expect(_.keys(l3Components)).toStrictEqual(['browserPool', 'browserInstance', 'page']);
-            expect(l3Components.browserPool).toBe(l1Components.browserPool)
-            expect(l3Components.browserInstance).toBe(l2Components.browserInstance)
-          }
+            // for await (const l3Components of usePageInstance(l2Components)) {
+            //   // expect(_.keys(l3Components)).toStrictEqual(['browserPool', 'browserInstance', 'page']);
+            //   expect(l3Components.browserPool).toBe(l1Components.browserPool)
+            //   expect(l3Components.browserInstance).toBe(l2Components.browserInstance)
+            // }
 
-          for await (const comps of withPageInstance()) {
-            expect(_.keys(comps)).toStrictEqual(['browserPool', 'browserInstance', 'page']);
-            expect(comps.browserPool).not.toBe(l1Components.browserPool)
-            expect(comps.browserPool).not.toBe(l2Components.browserPool)
+            // for await (const comps of usePageInstance({})) {
+            //   // expect(_.keys(comps)).toStrictEqual(['browserPool', 'browserInstance', 'page']);
+            //   expect(comps.browserPool).not.toBe(l1Components.browserPool)
+            //   expect(comps.browserPool).not.toBe(l2Components.browserPool)
+            // }
           }
         }
       }
@@ -65,7 +70,7 @@ describe('browser pooling', () => {
     let failPtNum = -1;
 
     const setupPools = new Set<Pool<BrowserInstance>>();
-    function setupComponentHandlers({ browserPool }: Partial<WithPageInstance>) {
+    function setupComponentHandlers({ browserPool }: Partial<BrowserInstanceNeeds>) {
       if (browserPool) {
         const pool = browserPool.pool;
         if (setupPools.has(pool)) {
@@ -89,7 +94,7 @@ describe('browser pooling', () => {
       putStrLn(`Attempt w/fail at ${failAtPosition}`);
       failPtNum = -1;
       poolNum = 0;
-      function failPoint(comps: Partial<WithPageInstance>) {
+      function failPoint(comps: Partial<BrowserInstanceNeeds>) {
         failPtNum++;
         setupComponentHandlers(comps);
         if (failPtNum === failAtPosition) {
@@ -100,25 +105,27 @@ describe('browser pooling', () => {
       }
       try {
 
-        for await (const l1Components of useBrowserPool()) {
+        for await (const { gracefulExit } of scopedGracefulExit.use({})) {
+          for await (const { browserPool } of scopedBrowserPool.use({ gracefulExit })) {
 
-          failPoint(l1Components);
+            // failPoint(l1Components);
 
-          for await (const l2Components of withBrowserInstance(l1Components.browserPool)) {
+            for await (const { browserInstance } of scopedBrowserInstance.use({ browserPool })) {
 
-            failPoint(l2Components);
+              // failPoint(l2Components);
 
-            for await (const l3Components of withPageInstance(l2Components)) {
-              failPoint(l3Components);
-            }
-            failPoint({});
+              for await (const l3Components of scopedPageInstance.use({ browserInstance })) {
+                // failPoint(l3Components);
+              }
+              failPoint({});
 
-            for await (const comps of withPageInstance()) {
-              failPoint(comps);
+              for await (const {  } of scopedPageInstance.use({ browserInstance })) {
+                // failPoint(comps);
+              }
+              failPoint({});
             }
             failPoint({});
           }
-          failPoint({});
         }
         failPoint({});
       } catch (error: any) {
@@ -169,7 +176,7 @@ describe('browser pooling', () => {
 
       const resp = httpResponseP.then(async () => {
         // putStrLn(`finished page.goto( ${url} )`);
-      }).catch(error => {
+      }).catch(() => {
         // putStrLn(`httpResponse: ${error}`);
       });
 

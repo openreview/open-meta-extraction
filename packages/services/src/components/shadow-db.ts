@@ -1,6 +1,6 @@
 import _ from 'lodash';
 
-import { getServiceLogger, shaEncodeAsHex } from '@watr/commonlib';
+import { getServiceLogger, makeScopedResource, shaEncodeAsHex } from '@watr/commonlib';
 
 import { Logger } from 'winston';
 import { FetchCursor, NoteStatus, WorkflowStatus } from '~/db/schemas';
@@ -8,28 +8,44 @@ import { FetchCursor, NoteStatus, WorkflowStatus } from '~/db/schemas';
 import {
   MongoQueries,
   UrlStatusDocument,
-  WithMongoQueries,
-  useMongoQueries,
 } from '~/db/query-api';
 
 import { Note, OpenReviewGateway, UpdatableField } from './openreview-gateway';
-import { UseMongooseArgs } from '~/db/mongodb';
 
 
-export type WithShadowDB = WithMongoQueries & {
-  shadowDB: ShadowDB;
+// export type WithShadowDB = WithMongoQueries & {
+//   shadowDB: ShadowDB;
+// };
+
+// interface UseShadowDBArgs extends UseMongooseArgs {
+// };
+
+// export async function* useShadowDB(args: UseShadowDBArgs): AsyncGenerator<WithShadowDB, void, any> {
+//   for await (const { mongoose, mdb } of useMongoQueries(args)) {
+//     const shadowDB = new ShadowDB(mdb);
+//     await shadowDB.connect();
+//     yield { mongoose, mdb, shadowDB };
+//   }
+// }
+
+
+type ShadowDBNeeds = {
+  mongoQueries: MongoQueries
 };
 
-interface UseShadowDBArgs extends UseMongooseArgs {
-};
-
-export async function* useShadowDB(args: UseShadowDBArgs): AsyncGenerator<WithShadowDB, void, any> {
-  for await (const { mongoose, mdb } of useMongoQueries(args)) {
-    const shadowDB = new ShadowDB(mdb);
-    await shadowDB.connect();
-    yield { mongoose, mdb, shadowDB };
-  }
-}
+export const scopedShadowDB = makeScopedResource<
+  ShadowDB,
+  'shadowDB',
+  ShadowDBNeeds
+>(
+  'shadowDB',
+  async function init({ mongoQueries }) {
+    const shadowDB = new ShadowDB(mongoQueries);
+    return { shadowDB };
+  },
+  async function destroy() {
+  },
+);
 
 export class ShadowDB {
   log: Logger;
@@ -38,21 +54,14 @@ export class ShadowDB {
   writeChangesToOpenReview: boolean;
 
   constructor(
-    mdb?: MongoQueries,
+    mdb: MongoQueries,
   ) {
     this.log = getServiceLogger('ShadowDB');
     this.gate = new OpenReviewGateway();
-    this.mdb = mdb || new MongoQueries();
+    this.mdb = mdb;
     this.writeChangesToOpenReview = true;
   }
 
-  async connect() {
-    await this.mdb.connect();
-  }
-
-  async close() {
-    await this.mdb.close();
-  }
 
   async updateFieldStatus(
     noteId: string,

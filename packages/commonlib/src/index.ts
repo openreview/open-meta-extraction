@@ -10,6 +10,8 @@ export * from './util/shell-commands';
 export * from './util/async-plus';
 export * from './prelude/config';
 export * from './util/url-utils';
+export * from './util/shutdown';
+export * from './util/scoped-usage';
 
 export * as arglib from './cli/arglib';
 export * as streamUtils from './util/stream-utils';

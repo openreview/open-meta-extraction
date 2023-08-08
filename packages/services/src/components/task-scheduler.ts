@@ -1,47 +1,57 @@
 import _ from 'lodash';
 import { Logger } from 'winston';
-import { delay, getServiceLogger, putStrLn } from '@watr/commonlib';
+import { delay, getServiceLogger, makeScopedResource, putStrLn } from '@watr/commonlib';
 import { NoteStatus, UrlStatus } from '~/db/schemas';
 import { CursorRole, MongoQueries } from '~/db/query-api';
 import differenceInMilliseconds from 'date-fns/differenceInMilliseconds';
-import { UseMongooseArgs } from '~/db/mongodb';
-import { WithShadowDB, useShadowDB } from './shadow-db';
 
-async function createTaskScheduler(
-  mdb?: MongoQueries
-): Promise<TaskScheduler> {
-  const s = new TaskScheduler(mdb);
-  await s.connect();
-  return s;
+// async function createTaskScheduler(
+//   mdb?: MongoQueries
+// ): Promise<TaskScheduler> {
+//   const s = new TaskScheduler(mdb);
+//   await s.connect();
+//   return s;
+// }
+
+// export type WithTaskScheduler = WithShadowDB & {
+//   taskScheduler: TaskScheduler;
+// };
+
+// export async function* withTaskScheduler(args: UseMongooseArgs): AsyncGenerator<WithTaskScheduler, void, any> {
+//   for await (const { mongoose, mdb, shadowDB } of useShadowDB(args)) {
+//     const taskScheduler = await createTaskScheduler(mdb);
+//     yield { mongoose, mdb, shadowDB, taskScheduler };
+//   }
+// }
+
+
+type TaskSchedulerNeeds = {
+  mongoQueries: MongoQueries;
 }
 
-export type WithTaskScheduler = WithShadowDB & {
-  taskScheduler: TaskScheduler;
-};
-
-export async function* withTaskScheduler(args: UseMongooseArgs): AsyncGenerator<WithTaskScheduler, void, any> {
-  for await (const { mongoose, mdb, shadowDB } of useShadowDB(args)) {
-    const taskScheduler = await createTaskScheduler(mdb);
-    yield { mongoose, mdb, shadowDB, taskScheduler };
-  }
-}
+export const scopedTaskScheduler = makeScopedResource<
+  TaskScheduler,
+  'taskScheduler',
+  TaskSchedulerNeeds
+>(
+  'taskScheduler',
+  async function init({ mongoQueries }) {
+    const taskScheduler = new TaskScheduler(mongoQueries);
+    return { taskScheduler };
+  },
+  async function destroy() {
+  },
+);
 
 export class TaskScheduler {
   log: Logger;
   mdb: MongoQueries;
 
-  constructor(mdb?: MongoQueries) {
+  constructor(mdb: MongoQueries) {
     this.log = getServiceLogger('TaskScheduler');
-    this.mdb = mdb || new MongoQueries();
+    this.mdb = mdb;
   }
 
-  async connect() {
-    await this.mdb.connect();
-  }
-
-  async close() {
-    await this.mdb.close();
-  }
 
   async* genUrlStream(): AsyncGenerator<UrlStatus, void, void> {
     let done = false

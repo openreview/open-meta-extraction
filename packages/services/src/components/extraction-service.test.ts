@@ -1,13 +1,16 @@
 import _ from 'lodash';
 
-import { asyncEachOfSeries, prettyPrint, setLogEnvLevel } from '@watr/commonlib';
-import { useFetchService } from './fetch-service';
+import { asyncEachOfSeries, scopedGracefulExit, setLogEnvLevel } from '@watr/commonlib';
+import { scopedFetchService } from './fetch-service';
 import { createFakeNoteList } from '~/db/mock-data';
 import { fakeNoteIds, listNoteStatusIds, openreviewAPIForNotes, spiderableRoutes } from './testing-utils';
-import { extractionServiceMonitor, withExtractionService } from './extraction-service';
-import { CursorRole, MongoQueries } from '~/db/query-api';
-import { useShadowDB } from './shadow-db';
-import { useHttpServer } from '@watr/spider/src/http-server/http-service';
+import { extractionServiceMonitor, scopedExtractionService } from './extraction-service';
+import { CursorRole, MongoQueries, scopedMongoQueries } from '~/db/query-api';
+import { scopedShadowDB } from './shadow-db';
+import { scopedHttpServer } from '@watr/spider/src/http-server/http-service';
+import { scopedMongoose } from '~/db/mongodb';
+import { scopedTaskScheduler } from './task-scheduler';
+import { scopedBrowserPool } from '@watr/spider';
 
 describe('Extraction Service', () => {
 
@@ -30,40 +33,54 @@ describe('Extraction Service', () => {
       }
       expect(c1.noteId).toBe(noteId)
     }
+    const port = 9100;
 
-    for await (const __ of useHttpServer({ port: 9100, setup: r => { routes(r); spiderRoutes(r); } })) {
-      for await (const { fetchService, mongoose, mdb } of useFetchService({ uniqDB: true, retainDB: false })) {
-        // Init the shadow db
-        await fetchService.runFetchLoop(100);
-        const noteStatusIds = await listNoteStatusIds();
-        expect(noteStatusIds).toMatchObject(fakeNoteIds(startingId, startingId + noteCount - 1));
+    for await (const { gracefulExit } of scopedGracefulExit.use({})) {
+      for await (const {} of scopedHttpServer.use({ gracefulExit, port, routerSetup: (r) => { routes(r); spiderRoutes(r) } })) {
+        for await (const { mongoose } of scopedMongoose.use({ uniqDB: true })) {
+          for await (const { mongoQueries } of scopedMongoQueries.use({ mongoose })) {
+            for await (const { shadowDB } of scopedShadowDB.use({ mongoQueries })) {
+              for await (const { fetchService } of scopedFetchService.use({ shadowDB })) {
+                for await (const { taskScheduler } of scopedTaskScheduler.use({ mongoQueries })) {
+                  // Init the shadow db
+                  await fetchService.runFetchLoop(100);
+                  const noteStatusIds = await listNoteStatusIds();
+                  expect(noteStatusIds).toMatchObject(fakeNoteIds(startingId, startingId + noteCount - 1));
 
-        for await (const { extractionService, taskScheduler, shadowDB } of withExtractionService({ mongoose, postResultsToOpenReview })) {
-          // Start from beginning
-          await taskScheduler.createUrlCursor('extract-fields/all');
-          await checkCursor(mdb, 'extract-fields/all', 'note#1');
+                  for await (const { browserPool } of scopedBrowserPool.use({ gracefulExit })) {
 
-          await extractionService.runExtractionLoop(2, false);
+                    for await (const { extractionService } of scopedExtractionService.use({ shadowDB, taskScheduler, browserPool, postResultsToOpenReview })) {
+                      // Start from beginning
+                      await taskScheduler.createUrlCursor('extract-fields/all');
+                      await checkCursor(mongoQueries, 'extract-fields/all', 'note#1');
 
-          // Next note should be note#3
-          await checkCursor(mdb, 'extract-fields/all', 'note#3');
+                      await extractionService.runExtractionLoop(2, false);
 
-
-          // Reset to beginning
-          await taskScheduler.deleteUrlCursor('extract-fields/all');
-          await taskScheduler.createUrlCursor('extract-fields/all');
-          await checkCursor(mdb, 'extract-fields/all', 'note#1');
+                      // Next note should be note#3
+                      await checkCursor(mongoQueries, 'extract-fields/all', 'note#3');
 
 
-          // Fake a successful extraction
-          await shadowDB.updateFieldStatus('note#2', 'abstract', "Ipsem...");
-          mdb.updateUrlStatus('note#2', { hasAbstract: true })
+                      // Reset to beginning
+                      await taskScheduler.deleteUrlCursor('extract-fields/all');
+                      await taskScheduler.createUrlCursor('extract-fields/all');
+                      await checkCursor(mongoQueries, 'extract-fields/all', 'note#1');
 
-          await taskScheduler.createUrlCursor('extract-fields/newest');
-          await checkCursor(mdb, 'extract-fields/newest', 'note#3');
 
-          await extractionService.runExtractionLoop(2, false);
-          // await checkCursor(mdb, 'extract-fields/newest', 'note#5');
+                      // Fake a successful extraction
+                      await shadowDB.updateFieldStatus('note#2', 'abstract', "Ipsem...");
+                      mongoQueries.updateUrlStatus('note#2', { hasAbstract: true })
+
+                      await taskScheduler.createUrlCursor('extract-fields/newest');
+                      await checkCursor(mongoQueries, 'extract-fields/newest', 'note#3');
+
+                      await extractionService.runExtractionLoop(2, false);
+                      // await checkCursor(mongoQueries, 'extract-fields/newest', 'note#5');
+                    }
+                  }
+                }
+              }
+            }
+          }
         }
       }
     }
@@ -71,21 +88,26 @@ describe('Extraction Service', () => {
   });
 
   it('should monitor newly extracted fields', async () => {
-    for await (const { shadowDB } of useShadowDB({ uniqDB: true })) {
-      shadowDB.writeChangesToOpenReview = false;
+    for await (const { mongoose } of scopedMongoose.use({ uniqDB: true })) {
+      for await (const { mongoQueries } of scopedMongoQueries.use({ mongoose })) {
+        for await (const { shadowDB } of scopedShadowDB.use({ mongoQueries })) {
 
-      const noteIds = fakeNoteIds(1, 100);
-      await asyncEachOfSeries(noteIds, async (noteId, i) => {
-        const theAbstract = 'Ipsem..'
-        const pdf = 'http://some/paper.pdf';
-        if (i % 2 === 0) {
-          await shadowDB.updateFieldStatus(noteId, 'abstract', theAbstract);
+          shadowDB.writeChangesToOpenReview = false;
+
+          const noteIds = fakeNoteIds(1, 100);
+          await asyncEachOfSeries(noteIds, async (noteId, i) => {
+            const theAbstract = 'Ipsem..'
+            const pdf = 'http://some/paper.pdf';
+            if (i % 2 === 0) {
+              await shadowDB.updateFieldStatus(noteId, 'abstract', theAbstract);
+            }
+            if (i % 3 === 0) {
+              await shadowDB.updateFieldStatus(noteId, 'pdf', pdf);
+            }
+          });
+          await extractionServiceMonitor();
         }
-        if (i % 3 === 0) {
-          await shadowDB.updateFieldStatus(noteId, 'pdf', pdf);
-        }
-      });
-      await extractionServiceMonitor();
+      }
     }
   });
 });

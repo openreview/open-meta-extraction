@@ -1,14 +1,16 @@
 import _ from 'lodash';
 
-import { arglib, initConfig, oneHour, putStrLn } from '@watr/commonlib';
+import { arglib, initConfig, oneHour, putStrLn, scopedGracefulExit } from '@watr/commonlib';
 import { formatStatusMessages, showStatusSummary } from '~/db/extraction-summary';
-import { connectToMongoDB, mongoConnectionString, resetMongoDB, useMongoose } from '~/db/mongodb';
-import { useFetchService } from '~/components/fetch-service';
-import { withExtractionService } from '~/components/extraction-service';
+import { connectToMongoDB, mongoConnectionString, resetMongoDB, scopedMongoose } from '~/db/mongodb';
+import { scopedFetchService } from '~/components/fetch-service';
+import { scopedExtractionService } from '~/components/extraction-service';
 import { OpenReviewGateway } from '~/components/openreview-gateway';
-import { useMonitorService } from '~/components/monitor-service';
-import { CursorRoles, createMongoQueries, isCursorRole } from '~/db/query-api';
-import { withTaskScheduler } from '~/components/task-scheduler';
+import { scopedMonitorService } from '~/components/monitor-service';
+import { CursorRoles, isCursorRole, scopedMongoQueries } from '~/db/query-api';
+import { scopedTaskScheduler } from '~/components/task-scheduler';
+import { scopedShadowDB } from '~/components/shadow-db';
+import { scopedBrowserPool } from '@watr/spider';
 
 const { opt, config, registerCmd } = arglib;
 
@@ -38,8 +40,14 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
   )(async (args: any) => {
     const { limit, pauseBeforeExit } = args;
 
-    for await (const { fetchService } of useFetchService({})) {
-      await fetchService.runFetchLoop(limit, pauseBeforeExit);
+    for await (const { mongoose } of scopedMongoose.use({ uniqDB: true })) {
+      for await (const { mongoQueries } of scopedMongoQueries.use({ mongoose })) {
+        for await (const { shadowDB } of scopedShadowDB.use({ mongoQueries })) {
+          for await (const { fetchService } of scopedFetchService.use({ shadowDB })) {
+            await fetchService.runFetchLoop(limit, pauseBeforeExit);
+          }
+        }
+      }
     }
   });
 
@@ -52,24 +60,18 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
     )
   )(async (args: any) => {
     const del = args.delete;
+    for await (const { mongoose } of scopedMongoose.use({ uniqDB: true })) {
+      for await (const { mongoQueries } of scopedMongoQueries.use({ mongoose })) {
+        const cursors = await mongoQueries.getCursors()
+        cursors.forEach(c => {
+          putStrLn(`> ${c.role} = id:${c.noteId} number:${c.noteNumber} created:${c.createdAt}`);
+        });
 
-    const mdb = await createMongoQueries();
-
-    try {
-      const cursors = await mdb.getCursors()
-      cursors.forEach(c => {
-        putStrLn(`> ${c.role} = id:${c.noteId} number:${c.noteNumber} created:${c.createdAt}`);
-      });
-
-      if (_.isBoolean(del) && del) {
-        await mdb.deleteCursors();
+        if (_.isBoolean(del) && del) {
+          await mongoQueries.deleteCursors();
+        }
       }
-
-    } finally {
-      putStrLn('Closing DB');
-      await mdb.close();
     }
-
   });
 
 
@@ -96,37 +98,42 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
       return;
     }
 
+    for await (const { mongoose } of scopedMongoose.use({ uniqDB: true })) {
+      for await (const { mongoQueries } of scopedMongoQueries.use({ mongoose })) {
+        for await (const { taskScheduler } of scopedTaskScheduler.use({ mongoQueries })) {
 
-    for await (const { taskScheduler, mdb } of withTaskScheduler({})) {
-      if (_.isNumber(move) && move !== 0) {
-        putStrLn(`Moving cursor w/role ${role}`);
-        const cursor = await mdb.getCursor(role);
-        if (cursor) {
-          putStrLn(`Moving cursor ${cursor.noteId}`);
-          const movedCursor = await mdb.moveCursor(cursor._id, move);
-          if (_.isString(movedCursor)) {
-            putStrLn(`Did Not move cursor: ${movedCursor}`);
+          if (_.isNumber(move) && move !== 0) {
+            putStrLn(`Moving cursor w/role ${role}`);
+            const cursor = await mongoQueries.getCursor(role);
+            if (cursor) {
+              putStrLn(`Moving cursor ${cursor.noteId}`);
+              const movedCursor = await mongoQueries.moveCursor(cursor._id, move);
+              if (_.isString(movedCursor)) {
+                putStrLn(`Did Not move cursor: ${movedCursor}`);
+                return;
+              }
+              putStrLn(`Moved cursor ${cursor.noteId} to ${movedCursor.noteId}`);
+            } else {
+              putStrLn(`No cursor with role ${role}`);
+            }
             return;
           }
-          putStrLn(`Moved cursor ${cursor.noteId} to ${movedCursor.noteId}`);
-        } else {
-          putStrLn(`No cursor with role ${role}`);
+
+          if (_.isBoolean(del) && del) {
+            await taskScheduler.deleteUrlCursor(role);
+            return;
+          }
+
+          if (_.isBoolean(create) && create) {
+            await taskScheduler.createUrlCursor(role);
+            return;
+          }
+
+          putStrLn('No operation specifed...');
         }
-        return;
       }
-
-      if (_.isBoolean(del) && del) {
-        await taskScheduler.deleteUrlCursor(role);
-        return;
-      }
-
-      if (_.isBoolean(create) && create) {
-        await taskScheduler.createUrlCursor(role);
-        return;
-      }
-
-      putStrLn('No operation specifed...');
     }
+
   });
 
   registerCmd(
@@ -146,8 +153,8 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
 
     const monitorUpdateInterval = updateInterval > 0 ? updateInterval : oneHour;
     const monitorNotificationInterval = notifyInterval > 0 ? notifyInterval : oneHour * 12;
-    for await (const { mongoose } of useMongoose({})) {
-      for await (const { monitorService } of useMonitorService({
+    for await (const { mongoose } of scopedMongoose.use({})) {
+      for await (const { monitorService } of scopedMonitorService.use({
         mongoose,
         sendNotifications,
         monitorNotificationInterval,
@@ -172,10 +179,26 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
     const postResultsToOpenReview: boolean = args.postResults;
     const limit: number = args.limit;
 
-    for await (const { extractionService } of withExtractionService({ postResultsToOpenReview })) {
-      await extractionService.runExtractionLoop(limit, true);
+    for await (const { gracefulExit } of scopedGracefulExit.use({})) {
+      for await (const { mongoose } of scopedMongoose.use({ uniqDB: true })) {
+        for await (const { mongoQueries } of scopedMongoQueries.use({ mongoose })) {
+          for await (const { shadowDB } of scopedShadowDB.use({ mongoQueries })) {
+            for await (const { taskScheduler } of scopedTaskScheduler.use({ mongoQueries })) {
+              for await (const { browserPool } of scopedBrowserPool.use({ gracefulExit })) {
+                for await (const { extractionService } of scopedExtractionService.use({ shadowDB, taskScheduler, browserPool, postResultsToOpenReview })) {
+
+                  await extractionService.runExtractionLoop(limit, true);
+
+                }
+              }
+            }
+          }
+        }
+      }
     }
+
   });
+
   registerCmd(
     yargv,
     'extract-url',
@@ -184,11 +207,26 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
   )(async (args: any) => {
     const postResultsToOpenReview: boolean = args.postResults;
     const urlstr: string = args.url;
-
     const url = new URL(urlstr);
-    for await (const { extractionService } of withExtractionService({ postResultsToOpenReview })) {
-      await extractionService.extractUrl(url);
+
+    for await (const { gracefulExit } of scopedGracefulExit.use({})) {
+      for await (const { mongoose } of scopedMongoose.use({ uniqDB: true })) {
+        for await (const { mongoQueries } of scopedMongoQueries.use({ mongoose })) {
+          for await (const { shadowDB } of scopedShadowDB.use({ mongoQueries })) {
+            for await (const { taskScheduler } of scopedTaskScheduler.use({ mongoQueries })) {
+              for await (const { browserPool } of scopedBrowserPool.use({ gracefulExit })) {
+                for await (const { extractionService } of scopedExtractionService.use({ shadowDB, taskScheduler, browserPool, postResultsToOpenReview })) {
+
+                  await extractionService.extractUrl(url);
+
+                }
+              }
+            }
+          }
+        }
+      }
     }
+
   });
 
   registerCmd(

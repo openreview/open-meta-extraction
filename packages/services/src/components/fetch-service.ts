@@ -3,6 +3,7 @@ import _ from 'lodash';
 import {
   delay,
   getServiceLogger,
+  makeScopedResource,
 } from '@watr/commonlib';
 
 import { Logger } from 'winston';
@@ -12,24 +13,41 @@ import {
 } from './openreview-gateway';
 
 import { generateFromBatch } from '~/util/generators';
-import { ShadowDB, WithShadowDB, useShadowDB } from './shadow-db';
-import { UseMongooseArgs } from '~/db/mongodb';
+import { ShadowDB } from './shadow-db';
 
 
 
-export type WithFetchService = WithShadowDB & {
-  fetchService: FetchService
+// export type WithFetchService = WithShadowDB & {
+//   fetchService: FetchService
+// };
+
+// type UseFetchServiceArgs = UseMongooseArgs;
+
+// export async function* useFetchService(args: UseFetchServiceArgs): AsyncGenerator<WithFetchService, void, any> {
+//   for await (const components of useShadowDB(args)) {
+//     const { shadowDB } = components;
+//     const fetchService = new FetchService(shadowDB);
+//     yield _.merge({}, components, { fetchService });
+//   }
+// }
+
+type FetchServiceNeeds = {
+  shadowDB: ShadowDB,
 };
 
-type UseFetchServiceArgs = UseMongooseArgs;
-
-export async function* useFetchService(args: UseFetchServiceArgs): AsyncGenerator<WithFetchService, void, any> {
-  for await (const components of useShadowDB(args)) {
-    const { shadowDB } = components;
+export const scopedFetchService = makeScopedResource<
+  FetchService,
+  'fetchService',
+  FetchServiceNeeds
+>(
+  'fetchService',
+  async function init({ shadowDB }) {
     const fetchService = new FetchService(shadowDB);
-    yield _.merge({}, components, { fetchService });
-  }
-}
+    return { fetchService };
+  },
+  async function destroy() {
+  },
+);
 
 /**
  * Fetch  Notes  from  Openreview  and  store  them  in  a  local  database  for

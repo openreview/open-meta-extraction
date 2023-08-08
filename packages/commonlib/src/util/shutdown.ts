@@ -1,31 +1,68 @@
-import { asyncEachOfSeries, getServiceLogger, putStrLn } from '@watr/commonlib';
 import { Logger } from 'winston';
 import _ from 'lodash';
 
 import { onExit, Handler } from 'signal-exit';
+import { putStrLn } from './pretty-print';
+import { getServiceLogger } from './basic-logging';
+import { asyncEachOfSeries } from './async-plus';
+import { makeScopedResource } from './scoped-usage';
 
 export type ExitHandler = (code: Parameters<Handler>[0], signal: Parameters<Handler>[1]) => void | Promise<void>;
 
-export type WithGracefulExit = {
-  gracefulExit: GracefulExit;
+// export type WithGracefulExit = {
+//   gracefulExit: GracefulExit;
+// };
+
+// export type UseGracefulExitArgs = {
+//   gracefulExit?: GracefulExit;
+// }
+// export async function* useGracefulExit({
+//   gracefulExit
+// }: UseGracefulExitArgs): AsyncGenerator<WithGracefulExit, void, any> {
+//   if (gracefulExit) {
+//     yield { gracefulExit }
+//     return;
+//   }
+
+//   const newGracefulExit = new GracefulExit();
+//   let didOnExit = false;
+
+//   onExit((code, signal) => {
+//     didOnExit = true;
+//     newGracefulExit.runHandlers(code, signal);
+//   });
+
+//   yield { gracefulExit: newGracefulExit };
+
+//   if (didOnExit) return;
+
+//   await newGracefulExit.runHandlers(0, null)
+
+// }
+
+type GracefulExitNeeds = {
 };
 
-export async function* useGracefulExit(): AsyncGenerator<WithGracefulExit, void, any> {
-  const gracefulExit = new GracefulExit();
+export const scopedGracefulExit = makeScopedResource<
+  GracefulExit,
+  'gracefulExit',
+  GracefulExitNeeds
+>(
+  'gracefulExit',
+  async function init({}) {
+    const gracefulExit = new GracefulExit();
 
-    // const exitCB = _.bind(gracefulExit.runHandlers, gracefulExit);
-  onExit((code, signal) => {
-    gracefulExit.runHandlers(code, signal);
+    let didOnExit = false;
 
-  });
-
-  putStrLn('Before GE')
-  yield { gracefulExit };
-  putStrLn('After GE: pre close')
-  // await gracefulExit.awaitClose();
-  // putStrLn('After GE: post close')
-
-}
+    onExit((code, signal) => {
+      didOnExit = true;
+      gracefulExit.runHandlers(code, signal);
+    });
+    return { gracefulExit };
+  },
+  async function destroy() {
+  },
+);
 
 export class GracefulExit {
   log: Logger;
@@ -40,13 +77,10 @@ export class GracefulExit {
   }
 
   async runHandlers(code: Parameters<Handler>[0], signal: Parameters<Handler>[1]) {
-    putStrLn('Gracefully Exiting');
     this.log.info('Gracefully Exiting');
     await asyncEachOfSeries(this.handlers, async (handler, i) => {
-      await Promise.resolve(handler(code, signal))
-
+      await Promise.resolve(handler(code, signal));
     })
-    this.log.debug('/Graceful Exit');
   }
 
   async awaitClose() {

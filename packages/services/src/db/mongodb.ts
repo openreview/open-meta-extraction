@@ -1,4 +1,4 @@
-import { getServiceLogger, initConfig, isTestingEnv, prettyFormat, putStrLn } from '@watr/commonlib';
+import { getServiceLogger, initConfig, isTestingEnv, makeScopedResource, prettyFormat, putStrLn } from '@watr/commonlib';
 import mongoose, { Mongoose } from 'mongoose';
 import { createCollections } from '~/db/schemas';
 import { randomBytes } from 'crypto';
@@ -57,79 +57,139 @@ export type UseMongooseArgs = {
   emptyDB?: boolean;
   uniqDB?: boolean;
   retainDB?: boolean;
-  mongoose?: Mongoose
+  // mongoose?: Mongoose
 }
 
-export type WithMongoose = {
-  mongoose: Mongoose
+// export type WithMongoose = {
+//   mongoose: Mongoose
+// }
+
+function makeRndStr(len: number): string {
+  return randomBytes(len).toString('hex').slice(0, len);
 }
 
-export async function* useMongoose({
-  emptyDB,
-  uniqDB,
-  retainDB,
-  mongoose
-}: UseMongooseArgs): AsyncGenerator<WithMongoose, void, any> {
-  const log = getServiceLogger('useMongoose');
-  if (mongoose) {
-    let dbName = mongoose.connection.name;
-    log.info(`Using supplied mongo connection to ${dbName}`);
-    yield { mongoose };
-    return;
-  }
+export const scopedMongoose = makeScopedResource<
+  Mongoose,
+  'mongoose',
+  UseMongooseArgs
+>(
+  'mongoose',
+  async function init({ emptyDB, uniqDB, retainDB }) {
+    const log = getServiceLogger('useMongoose');
 
-  const config = initConfig();
-  const testingOnlyOptions = emptyDB || uniqDB || retainDB;
-  const MongoDBName = config.get('mongodb:dbName');
-  const isTestDB = /.+test.*/.test(MongoDBName);
-  if (isTestingEnv()) {
-    log.info(`MongoDB Testing Environ`);
-    if (!isTestDB) {
-      // throw new Error(`Mongo connection options for ${MongoDBName} incompatible w/non-testing environment; mongo db name must match /.*test.*/`);
-      throw new Error(`Mongo db name incompatible w/testing environment; mongo db name must match /.*test.*/`);
-    }
-    const randomString = randomBytes(3).toString('hex').slice(0, 3);
-    const dbSuffix = uniqDB ? '-' + randomString : undefined;
-    const mongooseConn = await connectToMongoDB(dbSuffix);
-    const dbName = mongooseConn.connection.name;
-    log.debug(`mongo db ${dbName} connected...`);
-    if (uniqDB) {
-      await createCollections();
-    } else if (emptyDB) {
-      log.debug(`mongo db ${dbName} resetting...`);
-      await resetMongoDB();
-    }
-
-    try {
-      log.debug(`mongo db ${dbName} running client...`);
-      yield { mongoose: mongooseConn };
-    } finally {
-
-      if (!retainDB) {
-        log.debug(`mongo dropping db ${dbName}...`);
-        await mongooseConn.connection.dropDatabase()
+    const config = initConfig();
+    const testingOnlyOptions = emptyDB || uniqDB || retainDB;
+    const MongoDBName = config.get('mongodb:dbName');
+    const isTestDB = /.+test.*/.test(MongoDBName);
+    if (isTestingEnv()) {
+      log.info(`MongoDB Testing Environ`);
+      if (!isTestDB) {
+        // throw new Error(`Mongo connection options for ${MongoDBName} incompatible w/non-testing environment; mongo db name must match /.*test.*/`);
+        throw new Error(`Mongo db name incompatible w/testing environment; mongo db name must match /.*test.*/`);
       }
-      log.debug(`mongo closing db ${dbName}...`);
-      await mongooseConn.connection.close();
+      const dbSuffix = uniqDB ? '-' + makeRndStr(3) : undefined;
+      const mongooseConn = await connectToMongoDB(dbSuffix);
+      const dbName = mongooseConn.connection.name;
+      log.debug(`mongo db ${dbName} connected...`);
+      if (uniqDB) {
+        await createCollections();
+      } else if (emptyDB) {
+        log.debug(`mongo db ${dbName} resetting...`);
+        await resetMongoDB();
+      }
+
+      return { mongoose: mongooseConn };
     }
-    return;
-  }
 
-  log.info(`MongoDB Production Environ`);
-  if (isTestDB) {
-    throw new Error(`Mongo db name incompatible w/production environment; mongo db name must not match /.*test.*/`);
+    log.info(`MongoDB Production Environ`);
+    if (isTestDB) {
+      throw new Error(`Mongo db name incompatible w/production environment; mongo db name must not match /.*test.*/`);
+    }
+    if (testingOnlyOptions) {
+      throw new Error(`Mongo options are incompatible w/production environment: ${prettyFormat({ emptyDB, uniqDB, retainDB })}`);
+    }
+    const mongooseConn = await connectToMongoDB();
+
+    return { mongoose: mongooseConn };
+
+  },
+  async function destroy({ mongoose, retainDB }) {
+    const dbName = mongoose.connection.name;
+    if (!retainDB) {
+      putStrLn(`mongo dropping db ${dbName}...`);
+      await mongoose.connection.dropDatabase()
+    }
+    putStrLn(`mongo closing db ${dbName}...`);
+    await mongoose.connection.close();
   }
-  if (testingOnlyOptions) {
-    throw new Error(`Mongo options are incompatible w/production environment: ${prettyFormat({ emptyDB, uniqDB, retainDB })}`);
-  }
-  const mongooseConn = await connectToMongoDB();
-  try {
-    const dbName = mongooseConn.connection.name;
-    log.debug(`Yielding mongo db ${dbName}...`);
-    yield { mongoose: mongooseConn };
-  } finally {
-    await mongooseConn.connection.close();
-  }
+)
+
+// export async function* useMongooseX({
+//   emptyDB,
+//   uniqDB,
+//   retainDB,
+//   mongoose
+// }: UseMongooseArgs): AsyncGenerator<WithMongoose, void, any> {
+//   const log = getServiceLogger('useMongoose');
+//   if (mongoose) {
+//     let dbName = mongoose.connection.name;
+//     log.info(`Using supplied mongo connection to ${dbName}`);
+//     yield { mongoose };
+//     return;
+//   }
+
+//   const config = initConfig();
+//   const testingOnlyOptions = emptyDB || uniqDB || retainDB;
+//   const MongoDBName = config.get('mongodb:dbName');
+//   const isTestDB = /.+test.*/.test(MongoDBName);
+//   if (isTestingEnv()) {
+//     log.info(`MongoDB Testing Environ`);
+//     if (!isTestDB) {
+//       // throw new Error(`Mongo connection options for ${MongoDBName} incompatible w/non-testing environment; mongo db name must match /.*test.*/`);
+//       throw new Error(`Mongo db name incompatible w/testing environment; mongo db name must match /.*test.*/`);
+//     }
+//     const randomString = randomBytes(3).toString('hex').slice(0, 3);
+//     const dbSuffix = uniqDB ? '-' + randomString : undefined;
+//     const mongooseConn = await connectToMongoDB(dbSuffix);
+//     const dbName = mongooseConn.connection.name;
+//     log.debug(`mongo db ${dbName} connected...`);
+//     if (uniqDB) {
+//       await createCollections();
+//     } else if (emptyDB) {
+//       log.debug(`mongo db ${dbName} resetting...`);
+//       await resetMongoDB();
+//     }
+
+//     try {
+//       log.debug(`mongo db ${dbName} running client...`);
+//       yield { mongoose: mongooseConn };
+//     } finally {
+
+//       if (!retainDB) {
+//         log.debug(`mongo dropping db ${dbName}...`);
+//         await mongooseConn.connection.dropDatabase()
+//       }
+//       log.debug(`mongo closing db ${dbName}...`);
+//       await mongooseConn.connection.close();
+//     }
+//     return;
+//   }
+
+//   log.info(`MongoDB Production Environ`);
+//   if (isTestDB) {
+//     throw new Error(`Mongo db name incompatible w/production environment; mongo db name must not match /.*test.*/`);
+//   }
+//   if (testingOnlyOptions) {
+//     throw new Error(`Mongo options are incompatible w/production environment: ${prettyFormat({ emptyDB, uniqDB, retainDB })}`);
+//   }
+//   const mongooseConn = await connectToMongoDB();
+//   try {
+//     const dbName = mongooseConn.connection.name;
+//     log.debug(`Yielding mongo db ${dbName}...`);
+//     yield { mongoose: mongooseConn };
+//   } finally {
+//     await mongooseConn.connection.close();
+//   }
 
 
-}
+// }

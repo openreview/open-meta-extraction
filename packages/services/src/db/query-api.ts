@@ -1,10 +1,10 @@
 import _ from 'lodash';
 import * as E from 'fp-ts/Either';
 import { Document, Mongoose, Types } from 'mongoose';
-import { asyncMapSeries, getServiceLogger, initConfig, shaEncodeAsHex, validateUrl } from '@watr/commonlib';
+import { asyncMapSeries, getServiceLogger, initConfig, makeScopedResource, shaEncodeAsHex, validateUrl } from '@watr/commonlib';
 import { Logger } from 'winston';
 import { FetchCursor, FieldStatus, UrlStatus, UrlStatusUpdateFields, NoteStatus, WorkflowStatus, createCollections } from './schemas';
-import { UseMongooseArgs, WithMongoose, connectToMongoDB, useMongoose } from './mongodb';
+import { UseMongooseArgs, connectToMongoDB, scopedMongoose } from './mongodb';
 import { UpdatableField } from '~/components/openreview-gateway';
 
 export type CursorID = Types.ObjectId;
@@ -18,22 +18,40 @@ type upsertNoteStatusArgs = {
   number?: number,
 };
 
-export async function createMongoQueries(mongoose?: Mongoose): Promise<MongoQueries> {
-  const s = new MongoQueries(mongoose);
-  await s.connect();
-  return s;
+// export async function createMongoQueries(mongoose?: Mongoose): Promise<MongoQueries> {
+//   const s = new MongoQueries(mongoose);
+//   await s.connect();
+//   return s;
+// }
+
+// export type WithMongoQueries = WithMongoose & {
+//   mdb: MongoQueries
+// };
+
+// export async function* useMongoQueries(args: UseMongooseArgs): AsyncGenerator<WithMongoQueries, void, any> {
+//   for await (const { mongoose } of scopedMongoose.use(args)) {
+//     const mdb = await createMongoQueries(mongoose);
+//     yield { mongoose, mdb };
+//   }
+// }
+
+type MongoQueriesNeeds = {
+  mongoose: Mongoose;
 }
 
-export type WithMongoQueries = WithMongoose & {
-  mdb: MongoQueries
-};
-
-export async function* useMongoQueries(args: UseMongooseArgs): AsyncGenerator<WithMongoQueries, void, any> {
-  for await (const { mongoose } of useMongoose(args)) {
-    const mdb = await createMongoQueries(mongoose);
-    yield { mongoose, mdb };
-  }
-}
+export const scopedMongoQueries = makeScopedResource<
+  MongoQueries,
+  'mongoQueries',
+  MongoQueriesNeeds
+>(
+  'mongoQueries',
+  async function init({ mongoose }) {
+    const mongoQueries = new MongoQueries(mongoose);
+    return { mongoQueries };
+  },
+  async function destroy() {
+  },
+);
 
 export class MongoQueries {
   log: Logger;

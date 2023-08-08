@@ -4,12 +4,11 @@ import { isLeft, isRight } from 'fp-ts/Either';
 import * as TE from 'fp-ts/TaskEither';
 import * as E from 'fp-ts/Either';
 import { pipe } from 'fp-ts/function';
-import { asyncEachOfSeries, prettyPrint, putStrLn, setLogEnvLevel, stripMargin } from '@watr/commonlib';
-import { withPageInstance } from '@watr/spider';
+import { asyncEachOfSeries, prettyPrint, putStrLn, scopedGracefulExit, setLogEnvLevel, stripMargin } from '@watr/commonlib';
+import { scopedBrowserInstance, scopedBrowserPool, scopedPageInstance } from '@watr/spider';
 
 import {
   AttrSelection,
-  BrowserPage,
   Elem,
   evalElemAttr,
   expandCaseVariations,
@@ -71,15 +70,22 @@ function genHtml(head: string, body: string): string {
 |</html>
 `);
 }
+type WithPageInstance = Parameters<typeof scopedPageInstance.destroy>[0]
+async function* withPageContent(htmlContent: string): AsyncGenerator<WithPageInstance, void, void> {
 
-async function* withPageContent(htmlContent: string): AsyncGenerator<BrowserPage, void, void> {
-  for await (const { page: pageInstance } of withPageInstance()) {
-    const page = pageInstance.page;
-    await page.setContent(htmlContent, {
-      timeout: 8000,
-      waitUntil: 'domcontentloaded',
-    });
-    yield page;
+  for await (const { gracefulExit } of scopedGracefulExit.use({})) {
+    for await (const { browserPool } of scopedBrowserPool.use({ gracefulExit })) {
+      for await (const { browserInstance } of scopedBrowserInstance.use({ browserPool })) {
+        for await (const wpi of scopedPageInstance.use({ browserInstance })) {
+          const page = wpi.pageInstance.page;
+          await page.setContent(htmlContent, {
+            timeout: 8000,
+            waitUntil: 'domcontentloaded',
+          });
+          yield wpi;
+        }
+      }
+    }
   }
 }
 
@@ -88,7 +94,8 @@ describe('HTML jquery-like css queries', () => {
   setLogEnvLevel('info');
 
   it('smokescreen', async () => {
-    for await (const page of withPageContent(tmpHtml)) {
+    for await (const { pageInstance } of withPageContent(tmpHtml)) {
+      const page = pageInstance.page;
       const attr0 = await selectElementAttrP(page, 'meta[name=citation_title]', 'content');
       const attr1 = await selectElementAttrP(page, 'meta[name=citation_title]', 'content_');
       expect(isRight(attr0)).toEqual(true);
@@ -103,9 +110,9 @@ describe('HTML jquery-like css queries', () => {
 |       </div>
 `);
     const htmlContent = genHtml('', outerInner);
-    for await (const page of withPageContent(htmlContent)) {
+    for await (const { pageInstance } of withPageContent(htmlContent)) {
       await pipe(
-        TE.right({ page }),
+        TE.right({ page: pageInstance.page }),
         TE.bind('outer', ({ page }) => () => queryOnePage(page, '.outer')),
         TE.bind('inner', ({ outer }) => () => queryOneElem(outer, '.inner')),
         TE.bind('outerId', ({ outer }) => () => evalElemAttr(outer, 'id')),
@@ -128,9 +135,9 @@ describe('HTML jquery-like css queries', () => {
 |    </div>'
 `);
     const htmlContent = genHtml('', body);
-    for await (const page of withPageContent(htmlContent)) {
+    for await (const { pageInstance } of withPageContent(htmlContent)) {
       await pipe(
-        TE.right({ page }),
+        TE.right({ page: pageInstance.page }),
         TE.bind('div1', ({ page }) => () => queryOnePage(page, '#div1')),
         TE.bind('attr', ({ div1 }) => () => getElemAttrText(div1, 'attr-one')),
         TE.map(({ attr }) => {
@@ -141,7 +148,7 @@ describe('HTML jquery-like css queries', () => {
         })
       )();
       await pipe(
-        TE.right({ page }),
+        TE.right({ page: pageInstance.page }),
         TE.bind('divs', ({ page }) => () => queryAllPage(page, '.c0')),
         TE.bind('attrs', ({ divs }) => async () => {
           const maybeAttrs = divs.map(div => getElemAttrText(div, 'attr-one'));
@@ -170,9 +177,9 @@ describe('HTML jquery-like css queries', () => {
 |    </div>'
 `);
     const htmlContent = genHtml('', body);
-    for await (const page of withPageContent(htmlContent)) {
+    for await (const { pageInstance } of withPageContent(htmlContent)) {
       await pipe(
-        TE.right({ page }),
+        TE.right({ page: pageInstance.page }),
         TE.bind('div1', ({ page }) => () => queryOnePage(page, '[mdata]')),
         TE.bind('attr', ({ div1 }) => () => getElemAttrText(div1, 'mdata')),
         TE.map(({ attr }) => {
@@ -184,7 +191,7 @@ describe('HTML jquery-like css queries', () => {
       )();
 
       await pipe(
-        TE.right({ page }),
+        TE.right({ page: pageInstance.page }),
         TE.bind('div1', ({ page }) => () => queryOnePage(page, '[mdata=two]')),
         TE.bind('attr', ({ div1 }) => () => getElemAttrText(div1, 'mdata')),
         TE.map(({ attr }) => {
@@ -221,12 +228,10 @@ describe('HTML jquery-like css queries', () => {
       ['meta[property="og:description"]', /success:/],
       ['a.show-pdf', /success:pdf/],
     ];
-    for await (const { page: pageInstance } of withPageInstance()) {
+
+    for await (const { pageInstance } of withPageContent(tmpHtml)) {
       const page = pageInstance.page;
-      await page.setContent(tmpHtml, {
-        timeout: 8000,
-        waitUntil: 'domcontentloaded',
-      });
+
       await asyncEachOfSeries(examples, async (ex: ExampleType) => {
         const [query, regexTest] = ex;
         const maybeResult = await queryOnePage(page, query);
@@ -252,12 +257,9 @@ describe('HTML jquery-like css queries', () => {
       ['meta[name~="dc.creator"],meta[name~="dc.Creator"]', [/Adam/, /adam/]],
     ];
 
-    for await (const { page: pageInstance } of withPageInstance()) {
+    // for await (const { page: pageInstance } of usePageInstance({})) {
+    for await (const { pageInstance } of withPageContent(tmpHtml)) {
       const page = pageInstance.page;
-      await page.setContent(tmpHtml, {
-        timeout: 8000,
-        waitUntil: 'domcontentloaded',
-      });
       await asyncEachOfSeries(examples, async (ex, exampleNum: number) => {
         const [query, regexTest] = ex;
         const maybeResult = await queryAllPage(page, query);
@@ -287,13 +289,8 @@ describe('HTML jquery-like css queries', () => {
       ['meta[name="dc.creator"]', [/adam/]],
       ['meta[name~="dc.creator"],meta[name~="dc.Creator"]', [/Adam/, /adam/]],
     ];
-    for await (const { page: pageInstance } of withPageInstance()) {
+    for await (const { pageInstance } of withPageContent(tmpHtml)) {
       const page = pageInstance.page;
-      await page.setContent(tmpHtml, {
-        timeout: 8000,
-        waitUntil: 'domcontentloaded',
-      });
-
       await asyncEachOfSeries(examples, async (ex, exampleNum: number) => {
         const [query, regexTest] = ex;
         const maybeResult = await queryAllPage(page, query);

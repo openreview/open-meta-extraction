@@ -3,7 +3,12 @@
 
 ** Next Actions
 
-- [ ] Catch sigkill to properly cleanup/shutdown async generators
+- [-] Catch sigkill to properly cleanup/shutdown async generators
+  - [X] HttpServer
+  - [ ] BrowserPool
+  - [ ] Fetch
+  - [X] Monitor
+  - [ ] Mongo
 - [ ] Save full abs/pdflink in shadow
 - [ ] Add more stats to monitor (total found, %done)
 

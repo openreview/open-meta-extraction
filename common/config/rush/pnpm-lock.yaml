@@ -7419,7 +7419,7 @@ packages:
     dev: false
 
   file:projects/commonlib.tgz:
-    resolution: {integrity: sha512-igIcWviIGDduhq4hRbgPVjlKcKq9sBTBfAAoAIfITl/81GpJuRAO2JsmTRSRuzpNn4E5U/hH0ozFFCJlZr1/tQ==, tarball: file:projects/commonlib.tgz}
+    resolution: {integrity: sha512-HmJ4TnfmxMMwo2H6K5Q8J4mcIdroqkus5kvNkUL4vUmUqubzFS6rVKHRNqctGZTN6/APwI7we8Pz4Qw8kChqBA==, tarball: file:projects/commonlib.tgz}
     name: '@rush-temp/commonlib'
     version: 0.0.0
     dependencies:
@@ -7446,6 +7446,7 @@ packages:
       logform: 2.5.1
       nconf: 0.12.0
       pumpify: 2.0.1
+      signal-exit: 4.1.0
       split: 1.0.1
       through2: 4.0.2
       tslib: 2.6.1
@@ -7532,7 +7533,7 @@ packages:
     dev: false
 
   file:projects/services.tgz:
-    resolution: {integrity: sha512-wWwX980N062VSYwX3uYmZMJRl4aDPeucOFeCB3d4L0POGOrq5ubh8QPbEjQEBk/gVF3isDkRDqw3oDDIz2g0fw==, tarball: file:projects/services.tgz}
+    resolution: {integrity: sha512-cX8pJjc8j8peGxaAP7KLW6biVqqfJilON/BE8vY09OuR2PL4BTxSpXmV8+QkQdsgBgXModa0tXDc47FjdD6YQQ==, tarball: file:projects/services.tgz}
     name: '@rush-temp/services'
     version: 0.0.0
     dependencies:

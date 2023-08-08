@@ -7,59 +7,88 @@ import {
   getServiceLogger,
   getCorpusRootDir,
   prettyFormat,
+  makeScopedResource,
 } from '@watr/commonlib';
 
 
-import { BrowserPool, createSpiderEnv, UrlFetchData, useBrowserPool } from '@watr/spider';
+import { BrowserPool, createSpiderEnv, UrlFetchData } from '@watr/spider';
 
 import { CanonicalFieldRecords, ExtractionEnv, getEnvCanonicalFields, SpiderAndExtractionTransform } from '@watr/field-extractors';
 
 import { Logger } from 'winston';
 import { ShadowDB } from './shadow-db';
 import { FieldStatus, UrlStatus, WorkflowStatus } from '~/db/schemas';
-import { TaskScheduler, withTaskScheduler, WithTaskScheduler } from './task-scheduler';
+import { TaskScheduler } from './task-scheduler';
 import { parseIntOrElse } from '~/util/misc';
-import { UseMongooseArgs } from '~/db/mongodb';
 import * as mh from '~/db/mongo-helpers';
 
-async function createExtractionService(
+// async function createExtractionService(
+//   shadowDB: ShadowDB,
+//   browserPool: BrowserPool,
+//   taskScheduler: TaskScheduler,
+//   postResultsToOpenReview: boolean
+// ): Promise<ExtractionService> {
+//   const corpusRoot = getCorpusRootDir();
+
+//   const s = new ExtractionService(
+//     corpusRoot,
+//     shadowDB,
+//     taskScheduler,
+//     browserPool,
+//     postResultsToOpenReview
+//   );
+
+//   // await s.connect();
+//   return s;
+// }
+// export type WithExtractionService = WithTaskScheduler & {
+//   extractionService: ExtractionService
+// };
+
+// type WithExtractionServiceArgs = UseMongooseArgs & {
+//   postResultsToOpenReview: boolean;
+// }
+
+// export async function* withExtractionService(args: WithExtractionServiceArgs): AsyncGenerator<WithExtractionService, void, any> {
+//   const { postResultsToOpenReview } = args;
+//   for await (const components of withTaskScheduler(args)) {
+//     const { taskScheduler, shadowDB } = components;
+
+//     // TODO pull shutdown hooks higher than useBrowserPool
+//     for await (const { browserPool } of useBrowserPool({})) {
+//       const extractionService = await createExtractionService(shadowDB, browserPool, taskScheduler, postResultsToOpenReview);
+//       yield _.merge({}, components, { extractionService });
+//     }
+//   }
+// }
+
+type ExtractionServiceNeeds = {
   shadowDB: ShadowDB,
   browserPool: BrowserPool,
   taskScheduler: TaskScheduler,
   postResultsToOpenReview: boolean
-): Promise<ExtractionService> {
-  const corpusRoot = getCorpusRootDir();
-
-  const s = new ExtractionService(
-    corpusRoot,
-    shadowDB,
-    taskScheduler,
-    browserPool,
-    postResultsToOpenReview
-  );
-
-  await s.connect();
-  return s;
-}
-export type WithExtractionService = WithTaskScheduler & {
-  extractionService: ExtractionService
 };
 
-type WithExtractionServiceArgs = UseMongooseArgs & {
-  postResultsToOpenReview: boolean;
-}
-
-export async function* withExtractionService(args: WithExtractionServiceArgs): AsyncGenerator<WithExtractionService, void, any> {
-  const { postResultsToOpenReview } = args;
-  for await (const components of withTaskScheduler(args)) {
-    const { taskScheduler, shadowDB } = components;
-
-    for await (const { browserPool } of useBrowserPool()) {
-      const extractionService = await createExtractionService(shadowDB, browserPool, taskScheduler, postResultsToOpenReview);
-      yield _.merge({}, components, { extractionService });
-    }
-  }
-}
+export const scopedExtractionService = makeScopedResource<
+  ExtractionService,
+  'extractionService',
+  ExtractionServiceNeeds
+>(
+  'extractionService',
+  async function init({ shadowDB, taskScheduler, browserPool, postResultsToOpenReview }) {
+    const corpusRoot = getCorpusRootDir();
+    const extractionService = new ExtractionService(
+      corpusRoot,
+      shadowDB,
+      taskScheduler,
+      browserPool,
+      postResultsToOpenReview
+    );
+    return { extractionService };
+  },
+  async function destroy() {
+  },
+);
 
 export class ExtractionService {
   log: Logger;
@@ -85,14 +114,14 @@ export class ExtractionService {
   }
 
 
-  async connect() {
-    await this.shadowDB.connect();
-  }
+  // async connect() {
+  //   await this.shadowDB.connect();
+  // }
 
-  async close() {
-    await this.shadowDB.close();
-    await this.browserPool.shutdown();
-  }
+  // async close() {
+  //   await this.shadowDB.close();
+  //   await this.browserPool.shutdown();
+  // }
 
   // Main Extraction Loop
   async runExtractionLoop(limit: number, rateLimited: boolean) {

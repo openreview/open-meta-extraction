@@ -2,123 +2,69 @@ import _ from 'lodash';
 
 import { Logger } from 'winston';
 
-import { asyncEach, getServiceLogger, prettyPrint } from '@watr/commonlib';
+import { GracefulExit, asyncEach, getServiceLogger, makeScopedResource, prettyPrint } from '@watr/commonlib';
 import { PoolX, createUnderlyingPool } from './browser-pool-impl';
 import { BrowserInstance, DefaultPageInstanceOptions, PageInstance } from './browser-instance';
+type BrowserPoolNeeds = {
+  gracefulExit: GracefulExit;
+};
 
-export function createBrowserPool(): BrowserPool {
-  const pool = createUnderlyingPool();
-  const browserPool = new BrowserPool(pool);
-  return browserPool;
-}
+export const scopedBrowserPool = makeScopedResource<
+  BrowserPool,
+  'browserPool',
+  BrowserPoolNeeds
+>(
+  'browserPool',
+  async function init({ gracefulExit }) {
+    const pool = createUnderlyingPool();
+    const browserPool = new BrowserPool(pool);
+    gracefulExit.addHandler(async () => {
+      await browserPool.shutdown();
+    });
+    return { browserPool };
+  },
+  async function destroy() {
+  },
+);
 
-export type WithBrowserPool = {
+export type BrowserInstanceNeeds = {
   browserPool: BrowserPool
 };
 
-export async function* useBrowserPool(): AsyncGenerator<WithBrowserPool, void, any> {
-  const browserPool = createBrowserPool();
-  const pool = browserPool.pool;
-  // register ending hooks here:
-  try {
-    yield { browserPool };
-  } finally {
-    const destroyP = new Promise((resolve) => {
-      pool.on('poolDestroyRequest', () => {
-        // putStrLn(`Pool Destroyed (request)`);
-      });
-      pool.on('poolDestroySuccess', () => {
-        // putStrLn(`Pool Destroyed (sucess)`);
-        resolve(undefined);
-      });
+export const scopedBrowserInstance = makeScopedResource<
+  BrowserInstance,
+  'browserInstance',
+  BrowserInstanceNeeds
+>(
+  'browserInstance',
+  async function init({ browserPool }) {
+    const browserInstance = await browserPool.acquire();
+    return { browserInstance };
+  },
+  async function destroy({ browserInstance, browserPool }) {
+    await browserPool.release(browserInstance);
+  },
+);
 
-    });
-    const shutdownP = browserPool.shutdown();
-    await Promise.all([shutdownP, destroyP]);
-  }
-}
+type PageInstanceNeeds = {
+  browserInstance: BrowserInstance
+};
 
-export type WithBrowserInstance = WithBrowserPool & {
-  browserInstance: BrowserInstance;
-}
+export const scopedPageInstance = makeScopedResource<
+  PageInstance,
+  'pageInstance',
+  PageInstanceNeeds
+>(
+  'pageInstance',
+  async function init({ browserInstance }) {
+    const pageInstance = await browserInstance.newPage(DefaultPageInstanceOptions);
+    return { pageInstance };
+  },
+  async function destroy({ pageInstance }) {
+    await pageInstance.page.close();
+  },
+);
 
-export async function* withBrowserInstance(
-  providedBrowserPool?: BrowserPool
-): AsyncGenerator<WithBrowserInstance, void, any> {
-  let browserInstance: BrowserInstance | undefined;
-  if (providedBrowserPool) {
-    try {
-      browserInstance = await providedBrowserPool.acquire();
-      yield { browserPool: providedBrowserPool, browserInstance };
-    } finally {
-      if (browserInstance) {
-        await providedBrowserPool.release(browserInstance);
-      }
-    }
-    return;
-  }
-  for await (const { browserPool } of useBrowserPool()) {
-    try {
-      browserInstance = await browserPool.acquire();
-      yield { browserPool, browserInstance };
-    } finally {
-      if (browserInstance) {
-        await browserPool.release(browserInstance);
-      }
-    }
-  }
-}
-export type WithPageInstance = WithBrowserInstance & {
-  page: PageInstance;
-}
-
-export async function* withPageInstance(
-  provided?: WithBrowserPool | WithBrowserInstance | undefined
-): AsyncGenerator<WithPageInstance, void, any> {
-  if (!provided) {
-    for await (const { browserPool, browserInstance } of withBrowserInstance()) {
-      let pageInstance: PageInstance | undefined;
-      try {
-        pageInstance = await browserInstance.newPage(DefaultPageInstanceOptions);
-        yield { browserPool, browserInstance, page: pageInstance }
-      } finally {
-        if (pageInstance) {
-          await pageInstance.page.close();
-        }
-      }
-    }
-    return;
-  }
-
-  if ('browserInstance' in provided) {
-    const { browserInstance, browserPool } = provided;
-    let pageInstance: PageInstance | undefined;
-    try {
-      pageInstance = await browserInstance.newPage(DefaultPageInstanceOptions);
-      yield { browserPool, browserInstance, page: pageInstance }
-    } finally {
-      if (pageInstance) {
-        await pageInstance.page.close();
-      }
-    }
-    return;
-  }
-
-  // only browserPool is provided
-  const { browserPool } = provided;
-  for await (const { browserInstance } of withBrowserInstance(browserPool)) {
-    let pageInstance: PageInstance | undefined;
-    try {
-      pageInstance = await browserInstance.newPage(DefaultPageInstanceOptions);
-      yield { browserPool, browserInstance, page: pageInstance }
-    } finally {
-      if (pageInstance) {
-        await pageInstance.page.close();
-      }
-    }
-  }
-
-}
 
 
 export class BrowserPool {
@@ -222,3 +168,87 @@ export class BrowserPool {
     this.log.debug('Clear Cache (disabled)');
   }
 }
+
+
+export function createBrowserPool(): BrowserPool {
+  const pool = createUnderlyingPool();
+  const browserPool = new BrowserPool(pool);
+  return browserPool;
+}
+
+// export type UseBrowserPoolArgs = Partial<WithGracefulExit> & {
+//   browserPool?: BrowserPool
+// }
+
+// export type WithBrowserPool = WithGracefulExit & {
+//   browserPool: BrowserPool
+// };
+
+
+// export async function* useBrowserPool(args: UseBrowserPoolArgs): AsyncGenerator<WithBrowserPool, void, any> {
+//   for await (const ge of useGracefulExit(args)) {
+//     let browserPool = args.browserPool;
+//     const isLocal = args.browserPool === undefined;
+//     if (!browserPool) {
+//       const bp = browserPool = createBrowserPool();
+//       ge.gracefulExit.addHandler(async () => {
+//         await bp.shutdown();
+//       });
+//     }
+//     yield _.merge({ browserPool }, ge);
+//   }
+// }
+
+// export type UseBrowserInstance = Partial<WithBrowserPool> & {
+//   browserInstance?: BrowserInstance;
+// };
+
+// export type WithBrowserInstance = WithBrowserPool & {
+//   browserInstance: BrowserInstance;
+// }
+
+// export async function* useBrowserInstance(
+//   args: UseBrowserInstance
+// ): AsyncGenerator<WithBrowserInstance, void, any> {
+//   for await (const bp of useBrowserPool(args)) {
+//     const isLocal = args.browserInstance === undefined;
+//     let browserInstance = args.browserInstance;
+//     try {
+//       if (!browserInstance) {
+//         browserInstance = await bp.browserPool.acquire();
+//       }
+//       yield _.merge(bp, { browserInstance });
+//     } finally {
+//       if (isLocal && browserInstance) {
+//         await bp.browserPool.release(browserInstance);
+//       }
+//     }
+//   }
+// }
+
+// export type UsePageInstance = Partial<WithBrowserInstance> & {
+//   page?: PageInstance;
+// }
+// export type WithPageInstance = WithBrowserInstance & {
+//   page: PageInstance;
+// }
+
+// export async function* usePageInstance(
+//   args: UsePageInstance
+// ): AsyncGenerator<WithPageInstance, void, any> {
+//   for await (const bi of useBrowserInstance(args)) {
+//     const isLocal = args.page === undefined;
+//     let page = args.page;
+//     try {
+//       if (!page) {
+//         page = await bi.browserInstance.newPage(DefaultPageInstanceOptions);
+//       }
+//       yield _.merge({}, bi, { page });
+//     } finally {
+//       if (isLocal && page) {
+//         await page.page.close();
+//       }
+//     }
+//     return;
+//   }
+// }

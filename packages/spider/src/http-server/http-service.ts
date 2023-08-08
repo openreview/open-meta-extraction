@@ -5,54 +5,117 @@ import { koaBody } from 'koa-body';
 import json from 'koa-json';
 import { Server } from 'http';
 import Application from 'koa';
-import { prettyPrint, putStrLn } from '@watr/commonlib';
+import { prettyPrint, putStrLn, getServiceLogger, GracefulExit, makeScopedResource } from '@watr/commonlib';
 
 export type Router = KoaRouter;
 
-type UseHttpServerArgs = {
-  setup: (router: Router) => void,
-  port: number
+type HttpServerNeeds = {
+  gracefulExit: GracefulExit;
+  routerSetup: (router: Router) => void;
+  port: number;
 };
 
-type WithHttpServer = {
-  httpServer: Server,
-  keepAlive: Promise<void>
-}
 
-export async function* useHttpServer({
-  setup,
-  port
-}: UseHttpServerArgs): AsyncGenerator<WithHttpServer, void, any> {
-  const routes = new KoaRouter();
-  const app = new Koa();
-  app.use(koaBody());
-  app.use(json({ pretty: false }));
-
-  setup(routes);
-
-  app.use(routes.routes());
-  app.use(routes.allowedMethods());
-
-
-  const httpServer = await new Promise<Server>((resolve) => {
-    const server = app.listen(port, () => {
-      putStrLn(`Koa is listening to http://localhost:${port}`);
-      resolve(server);
-    });
-  });
-
-  const keepAlive = new Promise<void>((resolve) => {
-    httpServer.on('close', () => {
-      resolve();
-    });
-  });
-
-  try {
-    yield { httpServer, keepAlive };
-  } finally {
-    await closeServer(httpServer);
+class HttpServer {
+  server: Server;
+  onClosedPromise: Promise<void>
+  constructor(server: Server, onClosedPromise: Promise<void>) {
+    this.server = server
+    this.onClosedPromise = onClosedPromise;
+  }
+  async keepAlive(): Promise<void> {
+    return this.onClosedPromise;
   }
 }
+
+export const scopedHttpServer = makeScopedResource<
+  HttpServer,
+  'httpServer',
+  HttpServerNeeds
+>(
+  'httpServer',
+  async function init({ gracefulExit, routerSetup, port }) {
+    const log = getServiceLogger('HttpServer');
+    const routes = new KoaRouter();
+    const app = new Koa();
+    app.use(koaBody());
+    app.use(json({ pretty: false }));
+
+    routerSetup(routes);
+
+    app.use(routes.routes());
+    app.use(routes.allowedMethods());
+
+
+    const server = await new Promise<Server>((resolve) => {
+      const server = app.listen(port, () => {
+        log.info(`Koa is listening to http://localhost:${port}`);
+        resolve(server);
+      });
+    });
+
+    const closedP = onServerClosedP(server);
+    // const keepAlive = closedP;
+
+    gracefulExit.addHandler(async () => {
+      log.info('Closing Server');
+      server.close();
+      await closedP;
+    });
+
+    const httpServer = new HttpServer(server, closedP);
+    return { httpServer };
+  },
+  async function destroy({ httpServer }) {
+    httpServer.server.close();
+    await httpServer.onClosedPromise;
+  },
+);
+
+
+// type UseHttpServerArgs = Partial<WithGracefulExit> & {
+//   setup: (router: Router) => void,
+//   port: number,
+// };
+
+
+// export async function* useHttpServer({
+//   setup,
+//   port,
+//   gracefulExit
+// }: UseHttpServerArgs): AsyncGenerator<WithHttpServer, void, any> {
+//   const log = getServiceLogger('HttpServer');
+//   const routes = new KoaRouter();
+//   const app = new Koa();
+//   app.use(koaBody());
+//   app.use(json({ pretty: false }));
+
+//   setup(routes);
+
+//   app.use(routes.routes());
+//   app.use(routes.allowedMethods());
+
+
+//   for await (const comps of useGracefulExit({ gracefulExit })) {
+//     const httpServer = await new Promise<Server>((resolve) => {
+//       const server = app.listen(port, () => {
+//         log.info(`Koa is listening to http://localhost:${port}`);
+//         resolve(server);
+//       });
+//     });
+
+//     const closedP = onServerClosedP(httpServer);
+//     const keepAlive = closedP;
+
+//     comps.gracefulExit.addHandler(async () => {
+//       log.info('Closing Server');
+//       httpServer.close();
+//       await closedP;
+//     });
+//     yield { httpServer, keepAlive };
+//   }
+
+// }
 
 
 export function respondWithJson(
@@ -88,18 +151,23 @@ export function respondWithHtml(
   };
 }
 
-export async function closeServer(server: Server | undefined): Promise<void> {
-  if (server === undefined) return;
-  return new Promise((resolve) => {
-    server.on('close', () => {
-      putStrLn('test server closed.');
-    });
-    server.close((error?: Error) => {
-      putStrLn('test server close Callback.');
+export async function onServerClosedP(server: Server): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    server.on('close', (error?: Error) => {
+      putStrLn('Server event: closed.');
       if (error) {
         prettyPrint({ error })
+        reject(error);
+        return;
       }
-      resolve(undefined);
+      resolve();
     });
   });
+}
+
+export async function closeServer(server: Server | undefined): Promise<void> {
+  if (server === undefined) return;
+  const closedP = onServerClosedP(server);
+  server.close();
+  return closedP
 }

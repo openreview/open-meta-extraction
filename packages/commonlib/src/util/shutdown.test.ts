@@ -1,4 +1,4 @@
-import { prettyPrint, putStrLn } from "@watr/commonlib";
+import { prettyPrint, putStrLn } from "./pretty-print";
 import { useGracefulExit } from "./shutdown";
 
 describe('Graceful Exit', () => {
@@ -8,7 +8,7 @@ describe('Graceful Exit', () => {
     const echo = async () => { putStrLn('Async: Echo Handled!') };
     const echo2 = () => { putStrLn('Sync: Echo Handled!') };
 
-    for await (const { gracefulExit } of useGracefulExit()) {
+    for await (const { gracefulExit } of useGracefulExit({})) {
       gracefulExit.addHandler(echo);
       gracefulExit.addHandler(echo2);
       prettyPrint({
