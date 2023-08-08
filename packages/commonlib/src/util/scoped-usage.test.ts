@@ -1,18 +1,23 @@
 import _ from 'lodash';
 
 import { prettyPrint, putStrLn } from "./pretty-print";
-import { makeScopedResource } from "./scoped-usage";
+import { makeScopedResource, withScopedResource } from "./scoped-usage";
+import { newIdGenerator } from './utils';
 
 class PrimaryResource {
   isPrimary: boolean = true;
+  id: number;
+  constructor(id: number) {
+    putStrLn(`new PrimaryResource(#${id})`);
+    this.id = id;
+  }
 }
-
 
 const scopedPrimary = makeScopedResource<PrimaryResource, 'primaryResource', {}>(
   'primaryResource',
   () => {
-    putStrLn('primaryResource: init')
-    const primaryResource = new PrimaryResource();
+    putStrLn(`primaryResource: init`)
+    const primaryResource = new PrimaryResource(0);
     return { primaryResource }
   },
   (r) => {
@@ -62,7 +67,6 @@ const scopedDeferredDerived = makeScopedResource<
 );
 
 describe('Scoped Usage', () => {
-
   it('should be creatable through helper functions', async () => {
     for await (const pr of scopedPrimary.use({})) {
       for await (const dr of scopedDerived.use(pr)) {
@@ -77,6 +81,29 @@ describe('Scoped Usage', () => {
         // prettyPrint({ pr, dr })
       }
     }
+  });
+
+  it('should use with.. syntax', async () => {
+    const idGen = newIdGenerator(0);
+    const pScoped = withScopedResource<PrimaryResource, 'primaryResource'>(
+      'primaryResource',
+      () => {
+        const id = idGen();
+        putStrLn(`primaryResource#${id}: init`)
+        const primaryResource = new PrimaryResource(id);
+        return { primaryResource }
+      },
+      ({ primaryResource }) => {
+        const id = primaryResource.id;
+        putStrLn(`primaryResource${id}: destroy`)
+      }
+    );
+
+    for await (const { primaryResource } of pScoped({})) {
+      for await (const { primaryResource:p2 } of pScoped({})) {
+      }
+    }
+
   });
 });
 
