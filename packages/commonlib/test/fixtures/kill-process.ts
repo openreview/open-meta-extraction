@@ -4,15 +4,15 @@ const args = process.argv;
 const userArg1 = args[2];
 
 const arg1Num = Number.parseInt(userArg1, 10);
-putStrLn(`Passed in # ${arg1Num}`);
+putStrLn(`Will exit at pos #${arg1Num}`);
 
-function maybeExit(pos: number) {
+const exitPosGen = newIdGenerator(0);
+function maybeExit() {
+  const pos = exitPosGen();
   if (pos === arg1Num) {
     putStrLn(`Exiting at pos ${pos}`);
     process.exit(0);
   }
-}
-type PrimaryResourceNeeds = {
 }
 
 class PrimaryResource {
@@ -21,72 +21,71 @@ class PrimaryResource {
   constructor(id: number) {
     this.id = id;
     this.isClosed = false;
-    putStrLn(`new PrimaryResource(#${id})`);
+    putStrLn(`construct:${id}`);
   }
   async close() {
-    putStrLn('running close()')
+    putStrLn(`close:${this.id}`);
     if (this.isClosed) {
-      putStrLn('ERROR: already closed')
+      putStrLn(`close:${this.id} ERROR already closed`);
       return;
     }
-    putStrLn('OK: closed')
+    putStrLn(`closed:${this.id}`);
     this.isClosed = true;
   }
 }
-// class PrimaryResource {
-//   isClosed: boolean;
-//   constructor() {
-//     this.isClosed = false;
-//     putStrLn('new PrimaryResource()');
-//   }
-// }
-const scopedPrimary = makeScopedResource<PrimaryResource, 'primaryResource', PrimaryResourceNeeds>(
-  'primaryResource',
-  ({}) => {
-    const primaryResource = new PrimaryResource(0);
-    return { primaryResource }
-  },
-  async ({ primaryResource }) => {
-    await primaryResource.close();
-  }
-);
 
-const idGen = newIdGenerator(1);
+const idGen = newIdGenerator(0);
+
 const withPrimary = withScopedResource<PrimaryResource, 'primaryResource'>(
   'primaryResource',
   () => {
     const id = idGen();
-    putStrLn(`primaryResource#${id}: init`)
+    putStrLn(`init:${id}`)
     const primaryResource = new PrimaryResource(id);
     return { primaryResource }
   },
   ({ primaryResource }) => {
     const id = primaryResource.id;
-    putStrLn(`primaryResource${id}: destroy`)
+    putStrLn(`destroy:${id}`)
   }
 );
-async function run1() {
-  for await (const { gracefulExit } of scopedGracefulExit.use({})) {
-    maybeExit(0);
-    for await (const { primaryResource } of scopedPrimary.use({})) {
-      gracefulExit.addHandler(() => primaryResource.close());
-      maybeExit(1);
-    }
-    maybeExit(2);
-  }
-  maybeExit(3);
-}
 
 async function run() {
   for await (const { gracefulExit } of scopedGracefulExit.use({})) {
-    maybeExit(0);
+    maybeExit();
     for await (const { primaryResource } of withPrimary({})) {
       gracefulExit.addHandler(() => primaryResource.close());
-      maybeExit(1);
+      maybeExit();
     }
-    maybeExit(2);
+    maybeExit();
   }
-  maybeExit(3);
+  maybeExit();
 }
 
-run();
+async function runNested() {
+  for await (const { gracefulExit } of scopedGracefulExit.use({})) {
+    maybeExit();
+
+    for await (const { primaryResource: p1 } of withPrimary({})) {
+      gracefulExit.addHandler(() => p1.close());
+      maybeExit();
+
+      for await (const { primaryResource: p2 } of withPrimary({})) {
+        gracefulExit.addHandler(() => p2.close());
+        maybeExit();
+
+        for await (const { primaryResource: p3 } of withPrimary({})) {
+          gracefulExit.addHandler(() => p3.close());
+          maybeExit();
+        }
+        maybeExit();
+      }
+      maybeExit();
+    }
+    maybeExit();
+  }
+  maybeExit();
+}
+
+
+runNested();

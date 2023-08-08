@@ -33,7 +33,7 @@ export class ScopedResource<
   }
   async close(used: WithUsageT): Promise<void> {
     if (this.isClosed) {
-      putStrLn('Close: already closed')
+      putStrLn('ScopedResource.close(): already closed')
       return;
     }
     this.isClosed = true;

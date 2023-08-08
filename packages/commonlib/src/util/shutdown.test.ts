@@ -37,8 +37,6 @@ describe('Graceful Exit', () => {
 
   it('should run exit handlers when resource out of scope', async () => {
     const echo = (m: string) => async () => { putStrLn(`Echo: ${m}`) };
-    // const echo = async () => { putStrLn('Async: Echo Handled!') };
-    // const echo2 = () => { putStrLn('Sync: Echo Handled!') };
 
     for await (const { gracefulExit } of scopedGracefulExit.use({})) {
       gracefulExit.addHandler(echo('inside graceful'));
@@ -48,8 +46,9 @@ describe('Graceful Exit', () => {
       }
     }
   });
+
   it('should run exit handlers on process kill', async () => {
-    for (const i in _.range(4)) {
+    for (const i in _.range(10)) {
       exec(
         `node ./dist/test/fixtures/kill-process.js ${i}`,
         { shell: '/bin/bash' },
@@ -62,11 +61,11 @@ describe('Graceful Exit', () => {
             putStrLn('Error:');
             putStrLn(lines);
             putStrLn('\n\n');
-          } else {
-            putStrLn('Correct:');
-            putStrLn(lines);
-            putStrLn('\n\n');
           }
+          // const neverOpened =
+          // putStrLn('Correct:');
+          putStrLn(lines);
+          putStrLn('\n\n');
           // expect(isClosed && !hasError).toBeTruthy();
         }
       );
