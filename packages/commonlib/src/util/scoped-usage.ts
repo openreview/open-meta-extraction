@@ -47,21 +47,6 @@ export class ScopedResource<
   }
 }
 
-export function makeScopedResource<
-  UsageT,
-  NameT extends string,
-  NeedsT extends object = {},
-  ProductT extends Record<NameT, UsageT> = Record<NameT, UsageT>,
-  WithUsageT extends NeedsT & ProductT = NeedsT & ProductT
->(
-  name: NameT,
-  init: (n: NeedsT) => Eventual<ProductT>,
-  destroy: (used: WithUsageT) => Eventual<void>,
-): ScopedResource<UsageT, NameT, NeedsT, ProductT, WithUsageT> {
-  const sr = new ScopedResource<UsageT, NameT, NeedsT, ProductT, WithUsageT>(name, init, destroy);
-  return sr;
-}
-
 export function withScopedResource<
   UsageT,
   NameT extends string,
@@ -76,4 +61,31 @@ export function withScopedResource<
   const sr = new ScopedResource<UsageT, NameT, NeedsT, ProductT, WithUsageT>(name, init, destroy);
   const boundUse = _.bind(sr.use, sr);
   return boundUse;
+}
+
+export function combineScopedResources<
+  UsageT1,
+  UsageT2,
+  NameT1 extends string,
+  NameT2 extends string,
+  ProductT1 extends Record<NameT1, UsageT1> = Record<NameT1, UsageT1>,
+  ProductT2 extends Record<NameT2, UsageT2> = Record<NameT2, UsageT2>,
+  NeedsT1 extends Record<string, any> = {},
+  WithUsageT1 extends NeedsT1 & ProductT1 = NeedsT1 & ProductT1,
+  NeedsT2 extends Record<string, any> = {},
+  WithUsageT2 extends Record<string, any> & NeedsT2 & ProductT2 = {} & NeedsT2 & ProductT2
+>(
+  gen1: (needs: NeedsT1) => AsyncGenerator<WithUsageT1, void, any>,
+  gen2: (needs: NeedsT2) => AsyncGenerator<WithUsageT2, void, any>,
+): (needs: NeedsT1) => AsyncGenerator<WithUsageT1 & WithUsageT2, void, any> {
+
+  async function* composition(needs: NeedsT1): AsyncGenerator<WithUsageT1 & WithUsageT2, void, any> {
+    for await (const prod1 of gen1(needs)) {
+      const p2Needs: NeedsT2 = _.merge(needs, prod1) as any as NeedsT2;
+      for await (const prod2 of gen2(p2Needs)) {
+        yield _.merge({}, prod1, prod2);
+      }
+    }
+  };
+  return composition;
 }
