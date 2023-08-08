@@ -1,7 +1,7 @@
 import _ from 'lodash';
 import * as E from 'fp-ts/Either';
 import { Document, Mongoose, Types } from 'mongoose';
-import { asyncMapSeries, getServiceLogger, initConfig, makeScopedResource, shaEncodeAsHex, validateUrl } from '@watr/commonlib';
+import { asyncMapSeries, getServiceLogger, initConfig, withScopedResource, shaEncodeAsHex, validateUrl } from '@watr/commonlib';
 import { Logger } from 'winston';
 import { FetchCursor, FieldStatus, UrlStatus, UrlStatusUpdateFields, NoteStatus, WorkflowStatus, createCollections } from './schemas';
 import { UseMongooseArgs, connectToMongoDB, scopedMongoose } from './mongodb';
@@ -29,7 +29,7 @@ type upsertNoteStatusArgs = {
 // };
 
 // export async function* useMongoQueries(args: UseMongooseArgs): AsyncGenerator<WithMongoQueries, void, any> {
-//   for await (const { mongoose } of scopedMongoose.use(args)) {
+//   for await (const { mongoose } of scopedMongoose(args)) {
 //     const mdb = await createMongoQueries(mongoose);
 //     yield { mongoose, mdb };
 //   }
@@ -39,7 +39,7 @@ type MongoQueriesNeeds = {
   mongoose: Mongoose;
 }
 
-export const scopedMongoQueries = makeScopedResource<
+export const scopedMongoQueries = withScopedResource<
   MongoQueries,
   'mongoQueries',
   MongoQueriesNeeds

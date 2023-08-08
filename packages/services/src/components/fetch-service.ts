@@ -3,7 +3,7 @@ import _ from 'lodash';
 import {
   delay,
   getServiceLogger,
-  makeScopedResource,
+  withScopedResource,
 } from '@watr/commonlib';
 
 import { Logger } from 'winston';
@@ -35,7 +35,7 @@ type FetchServiceNeeds = {
   shadowDB: ShadowDB,
 };
 
-export const scopedFetchService = makeScopedResource<
+export const scopedFetchService = withScopedResource<
   FetchService,
   'fetchService',
   FetchServiceNeeds

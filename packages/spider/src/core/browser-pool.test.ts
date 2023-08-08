@@ -4,7 +4,7 @@ import {
   asyncEachSeries,
   prettyPrint,
   putStrLn,
-  scopedGracefulExit,
+  withGracefulExit,
   setLogEnvLevel
 } from '@watr/commonlib';
 
@@ -26,12 +26,12 @@ describe('browser pooling', () => {
   it.only('generators properly yield/close, own or share components', async () => {
     try {
 
-      for await (const { gracefulExit } of scopedGracefulExit.use({})) {
-        for await (const l1Components of scopedBrowserPool.use({ gracefulExit })) {
+      for await (const { gracefulExit } of withGracefulExit({})) {
+        for await (const l1Components of scopedBrowserPool({ gracefulExit })) {
           prettyPrint({ keys: _.keys(l1Components) })
           expectComponents(l1Components, 'browserPool');
 
-          for await (const l2Components of scopedBrowserInstance.use({ browserPool: l1Components.browserPool })) {
+          for await (const l2Components of scopedBrowserInstance({ browserPool: l1Components.browserPool })) {
             expectComponents(l1Components, 'browserPool', 'gracefulExit');
 
             // for await (const l3Components of usePageInstance(l2Components)) {
@@ -105,21 +105,21 @@ describe('browser pooling', () => {
       }
       try {
 
-        for await (const { gracefulExit } of scopedGracefulExit.use({})) {
-          for await (const { browserPool } of scopedBrowserPool.use({ gracefulExit })) {
+        for await (const { gracefulExit } of withGracefulExit({})) {
+          for await (const { browserPool } of scopedBrowserPool({ gracefulExit })) {
 
             // failPoint(l1Components);
 
-            for await (const { browserInstance } of scopedBrowserInstance.use({ browserPool })) {
+            for await (const { browserInstance } of scopedBrowserInstance({ browserPool })) {
 
               // failPoint(l2Components);
 
-              for await (const l3Components of scopedPageInstance.use({ browserInstance })) {
+              for await (const l3Components of scopedPageInstance({ browserInstance })) {
                 // failPoint(l3Components);
               }
               failPoint({});
 
-              for await (const {  } of scopedPageInstance.use({ browserInstance })) {
+              for await (const {  } of scopedPageInstance({ browserInstance })) {
                 // failPoint(comps);
               }
               failPoint({});

@@ -11,9 +11,9 @@ describe('Shadow DB', () => {
 
   it('should save note', async () => {
 
-    for await (const { mongoose } of scopedMongoose.use({ uniqDB: true })) {
-      for await (const { mongoQueries } of scopedMongoQueries.use({ mongoose })) {
-        for await (const { shadowDB } of scopedShadowDB.use({ mongoQueries })) {
+    for await (const { mongoose } of scopedMongoose({ uniqDB: true })) {
+      for await (const { mongoQueries } of scopedMongoQueries({ mongoose })) {
+        for await (const { shadowDB } of scopedShadowDB({ mongoQueries })) {
           const note1 = createFakeNote({ noteNumber: 1, hasAbstract: true, hasHTMLLink: true, hasPDFLink: false });
           expect(await shadowDB.findNote(note1.id)).toBeUndefined();
           await shadowDB.saveNote(note1, true);

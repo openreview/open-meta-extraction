@@ -1,6 +1,6 @@
 import _ from 'lodash';
 
-import { getServiceLogger, makeScopedResource, putStrLn, scopedGracefulExit } from '@watr/commonlib';
+import { getServiceLogger, withScopedResource, putStrLn, withGracefulExit } from '@watr/commonlib';
 import { OpenReviewGateway } from '~/components/openreview-gateway';
 import { ExtractionServiceMonitor, extractionServiceMonitor } from './extraction-service';
 import { FetchServiceMonitor, fetchServiceMonitor } from './fetch-service';
@@ -78,8 +78,8 @@ export class MonitorService {
       const summary = formatMonitorSummaries(self.lastSummary);
       r.get('/monitor/status', respondWithPlainText(summary));
     }
-    for await (const { gracefulExit } of scopedGracefulExit.use({})) {
-      for await (const {httpServer} of scopedHttpServer.use({ gracefulExit, port, routerSetup })) {
+    for await (const { gracefulExit } of withGracefulExit({})) {
+      for await (const {httpServer} of scopedHttpServer({ gracefulExit, port, routerSetup })) {
         this.log.info('Server is live');
         await httpServer.keepAlive();
       }
@@ -117,7 +117,7 @@ export class MonitorService {
 }
 
 
-export const scopedMonitorService = makeScopedResource<
+export const scopedMonitorService = withScopedResource<
   MonitorService,
   'monitorService',
   MonitorServiceArgs

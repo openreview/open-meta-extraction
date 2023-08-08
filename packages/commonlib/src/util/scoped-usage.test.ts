@@ -1,7 +1,7 @@
 import _ from 'lodash';
 
-import { prettyPrint, putStrLn } from "./pretty-print";
-import { makeScopedResource, withScopedResource } from "./scoped-usage";
+import { putStrLn } from "./pretty-print";
+import { withScopedResource } from "./scoped-usage";
 import { newIdGenerator } from './utils';
 
 class PrimaryResource {
@@ -13,7 +13,7 @@ class PrimaryResource {
   }
 }
 
-const scopedPrimary = makeScopedResource<PrimaryResource, 'primaryResource', {}>(
+const scopedPrimary = withScopedResource<PrimaryResource, 'primaryResource', {}>(
   'primaryResource',
   () => {
     putStrLn(`primaryResource: init`)
@@ -38,7 +38,7 @@ class DerivedResource {
 }
 
 
-const scopedDerived = makeScopedResource<
+const scopedDerived = withScopedResource<
   DerivedResource,
   'derivedResource',
   { primaryResource: PrimaryResource }
@@ -52,7 +52,7 @@ const scopedDerived = makeScopedResource<
   (r) => { putStrLn('derivedResource: destroy') }
 );
 
-const scopedDeferredDerived = makeScopedResource<
+const scopedDeferredDerived = withScopedResource<
   DerivedResource,
   'derivedResource',
   { primaryResource: PrimaryResource }
@@ -68,16 +68,16 @@ const scopedDeferredDerived = makeScopedResource<
 
 describe('Scoped Usage', () => {
   it('should be creatable through helper functions', async () => {
-    for await (const pr of scopedPrimary.use({})) {
-      for await (const dr of scopedDerived.use(pr)) {
+    for await (const pr of scopedPrimary({})) {
+      for await (const dr of scopedDerived(pr)) {
         // prettyPrint({ pr, dr })
       }
     }
   });
 
   it('should be handle async resources', async () => {
-    for await (const pr of scopedPrimary.use({})) {
-      for await (const dr of scopedDeferredDerived.use(pr)) {
+    for await (const pr of scopedPrimary({})) {
+      for await (const dr of scopedDeferredDerived(pr)) {
         // prettyPrint({ pr, dr })
       }
     }

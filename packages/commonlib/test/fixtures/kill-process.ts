@@ -1,4 +1,4 @@
-import { makeScopedResource, newIdGenerator, prettyPrint, putStrLn, scopedGracefulExit, withScopedResource } from "~/index";
+import { withScopedResource, newIdGenerator, putStrLn, withGracefulExit } from "~/index";
 
 const args = process.argv;
 const userArg1 = args[2];
@@ -51,7 +51,7 @@ const withPrimary = withScopedResource<PrimaryResource, 'primaryResource'>(
 );
 
 async function run() {
-  for await (const { gracefulExit } of scopedGracefulExit.use({})) {
+  for await (const { gracefulExit } of withGracefulExit({})) {
     maybeExit();
     for await (const { primaryResource } of withPrimary({})) {
       gracefulExit.addHandler(() => primaryResource.close());
@@ -63,7 +63,7 @@ async function run() {
 }
 
 async function runNested() {
-  for await (const { gracefulExit } of scopedGracefulExit.use({})) {
+  for await (const { gracefulExit } of withGracefulExit({})) {
     maybeExit();
 
     for await (const { primaryResource: p1 } of withPrimary({})) {

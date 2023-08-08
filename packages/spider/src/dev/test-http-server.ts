@@ -6,7 +6,7 @@ import {
   stripMargin,
   getServiceLogger,
   prettyPrint,
-  scopedGracefulExit
+  withGracefulExit
 } from '@watr/commonlib';
 
 import fs from 'fs-extra';
@@ -97,8 +97,8 @@ export function testHtmlRoutes(router: Router) {
 }
 
 export async function* useTestingHttpServer(workingDir?: string): AsyncGenerator<void, void, any> {
-  for await (const { gracefulExit } of scopedGracefulExit.use({})) {
-    for await (const {} of scopedHttpServer.use({ gracefulExit, port: 9100, routerSetup: testHtmlRoutes })) {
+  for await (const { gracefulExit } of withGracefulExit({})) {
+    for await (const {} of scopedHttpServer({ gracefulExit, port: 9100, routerSetup: testHtmlRoutes })) {
       if (workingDir) {
         fs.emptyDirSync(workingDir);
         fs.removeSync(workingDir);

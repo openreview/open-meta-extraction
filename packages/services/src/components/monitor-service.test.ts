@@ -13,9 +13,9 @@ describe('Monitor Service', () => {
 
   it('should gather and format extraction summary', async () => {
 
-    for await (const { mongoose } of scopedMongoose.use({ uniqDB: true })) {
-      for await (const { mongoQueries } of scopedMongoQueries.use({ mongoose })) {
-        for await (const { shadowDB } of scopedShadowDB.use({ mongoQueries })) {
+    for await (const { mongoose } of scopedMongoose({ uniqDB: true })) {
+      for await (const { mongoQueries } of scopedMongoQueries({ mongoose })) {
+        for await (const { shadowDB } of scopedShadowDB({ mongoQueries })) {
 
           const noteCount = 50;
           const notes = createFakeNoteList(noteCount, 1);
@@ -36,7 +36,7 @@ describe('Monitor Service', () => {
           const monitorUpdateInterval = 0;
           const monitorNotificationInterval = 0;
 
-          for await (const { monitorService } of scopedMonitorService.use({
+          for await (const { monitorService } of scopedMonitorService({
             mongoose,
             sendNotifications,
             monitorNotificationInterval,

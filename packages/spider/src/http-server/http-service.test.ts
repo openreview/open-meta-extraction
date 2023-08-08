@@ -1,7 +1,7 @@
 import _ from 'lodash';
 import { Router, respondWithJson, scopedHttpServer } from './http-service';
 import axios from 'axios';
-import { scopedGracefulExit } from '@watr/commonlib';
+import { withGracefulExit } from '@watr/commonlib';
 
 export async function expectGETEqual(url: string, data: any) {
   const resp = await axios.get(url);
@@ -25,8 +25,8 @@ describe('HTTP Service', () => {
     const port = 9100;
 
 
-    for await (const { gracefulExit } of scopedGracefulExit.use({})) {
-      for await (const {} of scopedHttpServer.use({ gracefulExit, port, routerSetup: setup })) {
+    for await (const { gracefulExit } of withGracefulExit({})) {
+      for await (const {} of scopedHttpServer({ gracefulExit, port, routerSetup: setup })) {
 
         await expectGETEqual('http://localhost:9100/foo', { foo: 'bar' })
         await expectGETEqual('http://localhost:9100/bar', { bar: 'foo' })

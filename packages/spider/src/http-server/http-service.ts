@@ -5,7 +5,7 @@ import { koaBody } from 'koa-body';
 import json from 'koa-json';
 import { Server } from 'http';
 import Application from 'koa';
-import { prettyPrint, putStrLn, getServiceLogger, GracefulExit, makeScopedResource } from '@watr/commonlib';
+import { prettyPrint, putStrLn, getServiceLogger, GracefulExit, withScopedResource } from '@watr/commonlib';
 
 export type Router = KoaRouter;
 
@@ -28,7 +28,7 @@ class HttpServer {
   }
 }
 
-export const scopedHttpServer = makeScopedResource<
+export const scopedHttpServer = withScopedResource<
   HttpServer,
   'httpServer',
   HttpServerNeeds

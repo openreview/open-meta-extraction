@@ -1,6 +1,6 @@
 import _ from 'lodash';
 
-import { getServiceLogger, makeScopedResource, shaEncodeAsHex } from '@watr/commonlib';
+import { getServiceLogger, withScopedResource, shaEncodeAsHex } from '@watr/commonlib';
 
 import { Logger } from 'winston';
 import { FetchCursor, NoteStatus, WorkflowStatus } from '~/db/schemas';
@@ -33,7 +33,7 @@ type ShadowDBNeeds = {
   mongoQueries: MongoQueries
 };
 
-export const scopedShadowDB = makeScopedResource<
+export const scopedShadowDB = withScopedResource<
   ShadowDB,
   'shadowDB',
   ShadowDBNeeds

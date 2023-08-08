@@ -1,6 +1,6 @@
 import _ from 'lodash';
 import { Logger } from 'winston';
-import { delay, getServiceLogger, makeScopedResource, putStrLn } from '@watr/commonlib';
+import { delay, getServiceLogger, withScopedResource, putStrLn } from '@watr/commonlib';
 import { NoteStatus, UrlStatus } from '~/db/schemas';
 import { CursorRole, MongoQueries } from '~/db/query-api';
 import differenceInMilliseconds from 'date-fns/differenceInMilliseconds';
@@ -29,7 +29,7 @@ type TaskSchedulerNeeds = {
   mongoQueries: MongoQueries;
 }
 
-export const scopedTaskScheduler = makeScopedResource<
+export const scopedTaskScheduler = withScopedResource<
   TaskScheduler,
   'taskScheduler',
   TaskSchedulerNeeds

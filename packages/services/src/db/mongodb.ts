@@ -1,4 +1,4 @@
-import { getServiceLogger, initConfig, isTestingEnv, makeScopedResource, prettyFormat, putStrLn } from '@watr/commonlib';
+import { getServiceLogger, initConfig, isTestingEnv, withScopedResource, prettyFormat, putStrLn } from '@watr/commonlib';
 import mongoose, { Mongoose } from 'mongoose';
 import { createCollections } from '~/db/schemas';
 import { randomBytes } from 'crypto';
@@ -68,7 +68,7 @@ function makeRndStr(len: number): string {
   return randomBytes(len).toString('hex').slice(0, len);
 }
 
-export const scopedMongoose = makeScopedResource<
+export const scopedMongoose = withScopedResource<
   Mongoose,
   'mongoose',
   UseMongooseArgs

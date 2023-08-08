@@ -7,7 +7,7 @@ import {
   getServiceLogger,
   getCorpusRootDir,
   prettyFormat,
-  makeScopedResource,
+  withScopedResource,
 } from '@watr/commonlib';
 
 
@@ -69,7 +69,7 @@ type ExtractionServiceNeeds = {
   postResultsToOpenReview: boolean
 };
 
-export const scopedExtractionService = makeScopedResource<
+export const scopedExtractionService = withScopedResource<
   ExtractionService,
   'extractionService',
   ExtractionServiceNeeds

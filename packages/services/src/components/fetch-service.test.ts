@@ -1,5 +1,5 @@
 import _ from 'lodash';
-import { asyncEachSeries, prettyPrint, scopedGracefulExit, setLogEnvLevel } from '@watr/commonlib';
+import { asyncEachSeries, prettyPrint, withGracefulExit, setLogEnvLevel } from '@watr/commonlib';
 
 import { scopedHttpServer } from '@watr/spider';
 import { fetchServiceMonitor, scopedFetchService } from './fetch-service';
@@ -30,12 +30,12 @@ describe('Fetch Service', () => {
     const routerSetup = openreviewAPIForNotes({ notes, batchSize })
 
     const port = 9100;
-    for await (const { gracefulExit } of scopedGracefulExit.use({})) {
-      for await (const {} of scopedHttpServer.use({ gracefulExit, port, routerSetup })) {
-        for await (const { mongoose } of scopedMongoose.use({ uniqDB: true })) {
-          for await (const { mongoQueries } of scopedMongoQueries.use({ mongoose })) {
-            for await (const { shadowDB } of scopedShadowDB.use({ mongoQueries })) {
-              for await (const { fetchService } of scopedFetchService.use({ shadowDB })) {
+    for await (const { gracefulExit } of withGracefulExit({})) {
+      for await (const {} of scopedHttpServer({ gracefulExit, port, routerSetup })) {
+        for await (const { mongoose } of scopedMongoose({ uniqDB: true })) {
+          for await (const { mongoQueries } of scopedMongoQueries({ mongoose })) {
+            for await (const { shadowDB } of scopedShadowDB({ mongoQueries })) {
+              for await (const { fetchService } of scopedFetchService({ shadowDB })) {
                 expect(await listNoteStatusIds()).toHaveLength(0);
                 // get 1
                 await fetchService.runFetchLoop(1);
@@ -64,9 +64,9 @@ describe('Fetch Service', () => {
     const noteCount = 50;
     const notes = createFakeNoteList(noteCount, 1);
 
-    for await (const { mongoose } of scopedMongoose.use({ uniqDB: true })) {
-      for await (const { mongoQueries } of scopedMongoQueries.use({ mongoose })) {
-        for await (const { shadowDB } of scopedShadowDB.use({ mongoQueries })) {
+    for await (const { mongoose } of scopedMongoose({ uniqDB: true })) {
+      for await (const { mongoQueries } of scopedMongoQueries({ mongoose })) {
+        for await (const { shadowDB } of scopedShadowDB({ mongoQueries })) {
           await asyncEachSeries(notes, n => shadowDB.saveNote(n, true))
           const summary = await fetchServiceMonitor();
           prettyPrint({ summary })

@@ -2,14 +2,14 @@ import _ from 'lodash';
 
 import { Logger } from 'winston';
 
-import { GracefulExit, asyncEach, getServiceLogger, makeScopedResource, prettyPrint } from '@watr/commonlib';
+import { GracefulExit, asyncEach, getServiceLogger, prettyPrint, withScopedResource } from '@watr/commonlib';
 import { PoolX, createUnderlyingPool } from './browser-pool-impl';
 import { BrowserInstance, DefaultPageInstanceOptions, PageInstance } from './browser-instance';
 type BrowserPoolNeeds = {
   gracefulExit: GracefulExit;
 };
 
-export const scopedBrowserPool = makeScopedResource<
+export const scopedBrowserPool = withScopedResource<
   BrowserPool,
   'browserPool',
   BrowserPoolNeeds
@@ -31,7 +31,7 @@ export type BrowserInstanceNeeds = {
   browserPool: BrowserPool
 };
 
-export const scopedBrowserInstance = makeScopedResource<
+export const scopedBrowserInstance = withScopedResource<
   BrowserInstance,
   'browserInstance',
   BrowserInstanceNeeds
@@ -50,7 +50,7 @@ type PageInstanceNeeds = {
   browserInstance: BrowserInstance
 };
 
-export const scopedPageInstance = makeScopedResource<
+export const scopedPageInstance = withScopedResource<
   PageInstance,
   'pageInstance',
   PageInstanceNeeds

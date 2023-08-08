@@ -4,8 +4,8 @@ import { isLeft, isRight } from 'fp-ts/Either';
 import * as TE from 'fp-ts/TaskEither';
 import * as E from 'fp-ts/Either';
 import { pipe } from 'fp-ts/function';
-import { asyncEachOfSeries, prettyPrint, putStrLn, scopedGracefulExit, setLogEnvLevel, stripMargin } from '@watr/commonlib';
-import { scopedBrowserInstance, scopedBrowserPool, scopedPageInstance } from '@watr/spider';
+import { asyncEachOfSeries, prettyPrint, putStrLn, setLogEnvLevel, stripMargin, withGracefulExit } from '@watr/commonlib';
+import { PageInstance, scopedBrowserInstance, scopedBrowserPool, scopedPageInstance } from '@watr/spider';
 
 import {
   AttrSelection,
@@ -70,13 +70,13 @@ function genHtml(head: string, body: string): string {
 |</html>
 `);
 }
-type WithPageInstance = Parameters<typeof scopedPageInstance.destroy>[0]
-async function* withPageContent(htmlContent: string): AsyncGenerator<WithPageInstance, void, void> {
 
-  for await (const { gracefulExit } of scopedGracefulExit.use({})) {
-    for await (const { browserPool } of scopedBrowserPool.use({ gracefulExit })) {
-      for await (const { browserInstance } of scopedBrowserInstance.use({ browserPool })) {
-        for await (const wpi of scopedPageInstance.use({ browserInstance })) {
+async function* withPageContent(htmlContent: string): AsyncGenerator<{ pageInstance: PageInstance }, void, void> {
+
+  for await (const { gracefulExit } of withGracefulExit({})) {
+    for await (const { browserPool } of scopedBrowserPool({ gracefulExit })) {
+      for await (const { browserInstance } of scopedBrowserInstance({ browserPool })) {
+        for await (const wpi of scopedPageInstance({ browserInstance })) {
           const page = wpi.pageInstance.page;
           await page.setContent(htmlContent, {
             timeout: 8000,
