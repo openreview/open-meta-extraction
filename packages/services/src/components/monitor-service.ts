@@ -1,13 +1,14 @@
 import _ from 'lodash';
 
-import { getServiceLogger, withScopedResource, putStrLn, withGracefulExit } from '@watr/commonlib';
+import { getServiceLogger, withScopedResource, putStrLn, combineScopedResources } from '@watr/commonlib';
 import { OpenReviewGateway } from '~/components/openreview-gateway';
 import { ExtractionServiceMonitor, extractionServiceMonitor } from './extraction-service';
 import { FetchServiceMonitor, fetchServiceMonitor } from './fetch-service';
-import { Router, respondWithPlainText, scopedHttpServer } from '@watr/spider';
+import { Router, respondWithPlainText, scopedHttpServerWithDeps } from '@watr/spider';
 import { Logger } from 'winston';
 import { CountPerDay } from '~/db/mongo-helpers';
 import { Mongoose } from 'mongoose';
+import { scopedMongooseWithDeps } from '~/db/mongodb';
 
 
 type MonitorSummaries = {
@@ -75,14 +76,15 @@ export class MonitorService {
     this.log.info('Update and Notification timers set');
 
     function routerSetup(r: Router) {
-      const summary = formatMonitorSummaries(self.lastSummary);
-      r.get('/monitor/status', respondWithPlainText(summary));
+      r.get('/monitor/status', (ctx) => {
+        const summary = formatMonitorSummaries(self.lastSummary);
+        respondWithPlainText(summary)(ctx);
+      });
     }
-    for await (const { gracefulExit } of withGracefulExit({})) {
-      for await (const {httpServer} of scopedHttpServer({ gracefulExit, port, routerSetup })) {
-        this.log.info('Server is live');
-        await httpServer.keepAlive();
-      }
+
+    for await (const { httpServer } of scopedHttpServerWithDeps({ port, routerSetup })) {
+      this.log.info('Server is live');
+      await httpServer.keepAlive();
     }
 
     this.log.info('Clearing update/notify timers');
@@ -132,6 +134,10 @@ export const scopedMonitorService = withScopedResource<
   },
 );
 
+export const scopedMonitorServiceWithDeps = combineScopedResources(
+  scopedMongooseWithDeps,
+  scopedMonitorService
+);
 
 function formatMonitorSummaries(summaries?: MonitorSummaries): string {
   if (!summaries) {

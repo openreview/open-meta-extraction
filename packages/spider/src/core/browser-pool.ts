@@ -169,86 +169,8 @@ export class BrowserPool {
   }
 }
 
-
 export function createBrowserPool(): BrowserPool {
   const pool = createUnderlyingPool();
   const browserPool = new BrowserPool(pool);
   return browserPool;
 }
-
-// export type UseBrowserPoolArgs = Partial<WithGracefulExit> & {
-//   browserPool?: BrowserPool
-// }
-
-// export type WithBrowserPool = WithGracefulExit & {
-//   browserPool: BrowserPool
-// };
-
-
-// export async function* useBrowserPool(args: UseBrowserPoolArgs): AsyncGenerator<WithBrowserPool, void, any> {
-//   for await (const ge of useGracefulExit(args)) {
-//     let browserPool = args.browserPool;
-//     const isLocal = args.browserPool === undefined;
-//     if (!browserPool) {
-//       const bp = browserPool = createBrowserPool();
-//       ge.gracefulExit.addHandler(async () => {
-//         await bp.shutdown();
-//       });
-//     }
-//     yield _.merge({ browserPool }, ge);
-//   }
-// }
-
-// export type UseBrowserInstance = Partial<WithBrowserPool> & {
-//   browserInstance?: BrowserInstance;
-// };
-
-// export type WithBrowserInstance = WithBrowserPool & {
-//   browserInstance: BrowserInstance;
-// }
-
-// export async function* useBrowserInstance(
-//   args: UseBrowserInstance
-// ): AsyncGenerator<WithBrowserInstance, void, any> {
-//   for await (const bp of useBrowserPool(args)) {
-//     const isLocal = args.browserInstance === undefined;
-//     let browserInstance = args.browserInstance;
-//     try {
-//       if (!browserInstance) {
-//         browserInstance = await bp.browserPool.acquire();
-//       }
-//       yield _.merge(bp, { browserInstance });
-//     } finally {
-//       if (isLocal && browserInstance) {
-//         await bp.browserPool.release(browserInstance);
-//       }
-//     }
-//   }
-// }
-
-// export type UsePageInstance = Partial<WithBrowserInstance> & {
-//   page?: PageInstance;
-// }
-// export type WithPageInstance = WithBrowserInstance & {
-//   page: PageInstance;
-// }
-
-// export async function* usePageInstance(
-//   args: UsePageInstance
-// ): AsyncGenerator<WithPageInstance, void, any> {
-//   for await (const bi of useBrowserInstance(args)) {
-//     const isLocal = args.page === undefined;
-//     let page = args.page;
-//     try {
-//       if (!page) {
-//         page = await bi.browserInstance.newPage(DefaultPageInstanceOptions);
-//       }
-//       yield _.merge({}, bi, { page });
-//     } finally {
-//       if (isLocal && page) {
-//         await page.page.close();
-//       }
-//     }
-//     return;
-//   }
-// }

@@ -6,7 +6,7 @@ import { connectToMongoDB, mongoConnectionString, resetMongoDB, scopedMongoose }
 import { scopedFetchService } from '~/components/fetch-service';
 import { scopedExtractionService, scopedExtractionServiceWithDeps } from '~/components/extraction-service';
 import { OpenReviewGateway } from '~/components/openreview-gateway';
-import { scopedMonitorService } from '~/components/monitor-service';
+import { scopedMonitorService, scopedMonitorServiceWithDeps } from '~/components/monitor-service';
 import { CursorRoles, isCursorRole, scopedMongoQueries } from '~/db/query-api';
 import { scopedTaskScheduler, scopedTaskSchedulerWithDeps } from '~/components/task-scheduler';
 import { scopedShadowDB } from '~/components/shadow-db';
@@ -149,18 +149,15 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
 
     const monitorUpdateInterval = updateInterval > 0 ? updateInterval : oneHour;
     const monitorNotificationInterval = notifyInterval > 0 ? notifyInterval : oneHour * 12;
-    for await (const { mongoose } of scopedMongoose({})) {
-      for await (const { monitorService } of scopedMonitorService({
-        mongoose,
-        sendNotifications,
-        monitorNotificationInterval,
-        monitorUpdateInterval
-      })) {
-        if (startServer) {
-          await monitorService.runServer(port);
-        } else {
-          await monitorService.notify();
-        }
+    for await (const { monitorService } of scopedMonitorServiceWithDeps({
+      sendNotifications,
+      monitorNotificationInterval,
+      monitorUpdateInterval
+    })) {
+      if (startServer) {
+        await monitorService.runServer(port);
+      } else {
+        await monitorService.notify();
       }
     }
   });

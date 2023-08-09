@@ -5,7 +5,15 @@ import { koaBody } from 'koa-body';
 import json from 'koa-json';
 import { Server } from 'http';
 import Application from 'koa';
-import { prettyPrint, putStrLn, getServiceLogger, GracefulExit, withScopedResource } from '@watr/commonlib';
+import {
+  prettyPrint,
+  putStrLn,
+  getServiceLogger,
+  GracefulExit,
+  withScopedResource,
+  combineScopedResources,
+  withGracefulExit
+} from '@watr/commonlib';
 
 export type Router = KoaRouter;
 
@@ -14,7 +22,6 @@ type HttpServerNeeds = {
   routerSetup: (router: Router) => void;
   port: number;
 };
-
 
 class HttpServer {
   server: Server;
@@ -73,49 +80,10 @@ export const scopedHttpServer = withScopedResource<
 );
 
 
-// type UseHttpServerArgs = Partial<WithGracefulExit> & {
-//   setup: (router: Router) => void,
-//   port: number,
-// };
-
-
-// export async function* useHttpServer({
-//   setup,
-//   port,
-//   gracefulExit
-// }: UseHttpServerArgs): AsyncGenerator<WithHttpServer, void, any> {
-//   const log = getServiceLogger('HttpServer');
-//   const routes = new KoaRouter();
-//   const app = new Koa();
-//   app.use(koaBody());
-//   app.use(json({ pretty: false }));
-
-//   setup(routes);
-
-//   app.use(routes.routes());
-//   app.use(routes.allowedMethods());
-
-
-//   for await (const comps of useGracefulExit({ gracefulExit })) {
-//     const httpServer = await new Promise<Server>((resolve) => {
-//       const server = app.listen(port, () => {
-//         log.info(`Koa is listening to http://localhost:${port}`);
-//         resolve(server);
-//       });
-//     });
-
-//     const closedP = onServerClosedP(httpServer);
-//     const keepAlive = closedP;
-
-//     comps.gracefulExit.addHandler(async () => {
-//       log.info('Closing Server');
-//       httpServer.close();
-//       await closedP;
-//     });
-//     yield { httpServer, keepAlive };
-//   }
-
-// }
+export const scopedHttpServerWithDeps = combineScopedResources(
+  withGracefulExit,
+  scopedHttpServer
+);
 
 
 export function respondWithJson(
