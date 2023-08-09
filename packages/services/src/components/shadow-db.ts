@@ -1,6 +1,6 @@
 import _ from 'lodash';
 
-import { getServiceLogger, withScopedResource, shaEncodeAsHex } from '@watr/commonlib';
+import { getServiceLogger, withScopedResource, shaEncodeAsHex, combineScopedResources } from '@watr/commonlib';
 
 import { Logger } from 'winston';
 import { FetchCursor, NoteStatus, WorkflowStatus } from '~/db/schemas';
@@ -8,6 +8,7 @@ import { FetchCursor, NoteStatus, WorkflowStatus } from '~/db/schemas';
 import {
   MongoQueries,
   UrlStatusDocument,
+  scopedMongoQueriesWithDeps,
 } from '~/db/query-api';
 
 import { Note, OpenReviewGateway, UpdatableField } from './openreview-gateway';
@@ -30,6 +31,12 @@ export const scopedShadowDB = withScopedResource<
   async function destroy() {
   },
 );
+
+export const scopedShadowDBWithDeps = combineScopedResources(
+  scopedMongoQueriesWithDeps,
+  scopedShadowDB
+);
+
 
 export class ShadowDB {
   log: Logger;

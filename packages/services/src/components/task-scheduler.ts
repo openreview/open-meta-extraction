@@ -1,8 +1,8 @@
 import _ from 'lodash';
 import { Logger } from 'winston';
-import { delay, getServiceLogger, withScopedResource, putStrLn, prettyPrint } from '@watr/commonlib';
+import { combineScopedResources, delay, getServiceLogger, withScopedResource } from '@watr/commonlib';
 import { NoteStatus, UrlStatus } from '~/db/schemas';
-import { CursorRole, MongoQueries } from '~/db/query-api';
+import { CursorRole, MongoQueries, scopedMongoQueriesWithDeps } from '~/db/query-api';
 import differenceInMilliseconds from 'date-fns/differenceInMilliseconds';
 
 
@@ -22,6 +22,11 @@ export const scopedTaskScheduler = withScopedResource<
   },
   async function destroy() {
   },
+);
+
+export const scopedTaskSchedulerWithDeps = combineScopedResources(
+  scopedMongoQueriesWithDeps,
+  scopedTaskScheduler
 );
 
 export class TaskScheduler {
@@ -74,11 +79,9 @@ export class TaskScheduler {
 
   async* urlStatusGenerator(role: CursorRole): AsyncGenerator<UrlStatus, string, void> {
     let current = await this.mdb.getCursor(role);
-    prettyPrint({ current })
 
     while (current) {
       const urlStatus = await this.mdb.findUrlStatusById(current.noteId);
-      prettyPrint({ urlStatus })
       if (!urlStatus) {
         return 'error:inconsistent-state';
       }

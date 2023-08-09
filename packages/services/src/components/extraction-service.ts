@@ -8,6 +8,7 @@ import {
   getCorpusRootDir,
   prettyFormat,
   withScopedResource,
+  combineScopedResources,
 } from '@watr/commonlib';
 
 
@@ -18,7 +19,7 @@ import { CanonicalFieldRecords, ExtractionEnv, getEnvCanonicalFields, SpiderAndE
 import { Logger } from 'winston';
 import { ShadowDB } from './shadow-db';
 import { FieldStatus, UrlStatus, WorkflowStatus } from '~/db/schemas';
-import { TaskScheduler } from './task-scheduler';
+import { scopedTaskSchedulerWithDeps, TaskScheduler } from './task-scheduler';
 import { parseIntOrElse } from '~/util/misc';
 import * as mh from '~/db/mongo-helpers';
 
@@ -50,6 +51,11 @@ export const scopedExtractionService = withScopedResource<
   },
 );
 
+export const scopedExtractionServiceWithDeps = combineScopedResources(
+  scopedTaskSchedulerWithDeps,
+  scopedExtractionService
+);
+
 export class ExtractionService {
   log: Logger;
   shadowDB: ShadowDB;
@@ -76,7 +82,7 @@ export class ExtractionService {
   // Main Extraction Loop
   async runExtractionLoop(limit: number, rateLimited: boolean) {
     const runForever = limit === 0;
-    this.log.info(`Starting extraction loop, runForever=${runForever}`);
+    this.log.info(`Starting extraction loop, runForever=${runForever} postResultsToOpenReview: ${this.postResultsToOpenReview}`);
     const maxRateMS = rateLimited ? 5000 : 0;
     const generator = this.taskScheduler.genUrlStreamRateLimited(maxRateMS)
 

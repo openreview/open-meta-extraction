@@ -1,14 +1,12 @@
 import _ from 'lodash';
-import { asyncEachSeries, prettyPrint, withGracefulExit, setLogEnvLevel } from '@watr/commonlib';
+import { asyncEachSeries, prettyPrint, setLogEnvLevel } from '@watr/commonlib';
 
 import { scopedHttpServer } from '@watr/spider';
-import { fetchServiceMonitor, scopedFetchService } from './fetch-service';
+import { fetchServiceMonitor, scopedFetchServiceWithDeps } from './fetch-service';
 
 import { createFakeNoteList, createFakeNotes } from '~/db/mock-data';
 import { fakeNoteIds, listNoteStatusIds, openreviewAPIForNotes } from './testing-utils';
-import { scopedShadowDB } from './shadow-db';
-import { scopedMongoose } from '~/db/mongodb';
-import { scopedMongoQueries } from '~/db/query-api';
+import { scopedShadowDBWithDeps } from './shadow-db';
 
 describe('Fetch Service', () => {
 
@@ -30,32 +28,25 @@ describe('Fetch Service', () => {
     const routerSetup = openreviewAPIForNotes({ notes, batchSize })
 
     const port = 9100;
-    for await (const { gracefulExit } of withGracefulExit({})) {
+
+    for await (const { fetchService, gracefulExit } of scopedFetchServiceWithDeps({})) {
       for await (const {} of scopedHttpServer({ gracefulExit, port, routerSetup })) {
-        for await (const { mongoose } of scopedMongoose({ useUniqTestDB: true })) {
-          for await (const { mongoQueries } of scopedMongoQueries({ mongoose })) {
-            for await (const { shadowDB } of scopedShadowDB({ mongoQueries })) {
-              for await (const { fetchService } of scopedFetchService({ shadowDB })) {
-                expect(await listNoteStatusIds()).toHaveLength(0);
-                // get 1
-                await fetchService.runFetchLoop(1);
-                expect(await listNoteStatusIds()).toMatchObject(fakeNoteIds(1, 1));
+        expect(await listNoteStatusIds()).toHaveLength(0);
+        // get 1
+        await fetchService.runFetchLoop(1);
+        expect(await listNoteStatusIds()).toMatchObject(fakeNoteIds(1, 1));
 
-                // get 2
-                await fetchService.runFetchLoop(1);
-                expect(await listNoteStatusIds()).toMatchObject(fakeNoteIds(1, 2));
+        // get 2
+        await fetchService.runFetchLoop(1);
+        expect(await listNoteStatusIds()).toMatchObject(fakeNoteIds(1, 2));
 
-                // get 3-5
-                await fetchService.runFetchLoop(3);
-                expect(await listNoteStatusIds()).toMatchObject(fakeNoteIds(1, 5));
+        // get 3-5
+        await fetchService.runFetchLoop(3);
+        expect(await listNoteStatusIds()).toMatchObject(fakeNoteIds(1, 5));
 
-                // get w/none left
-                await fetchService.runFetchLoop(3);
-                expect(await listNoteStatusIds()).toMatchObject(fakeNoteIds(1, 5));
-              }
-            }
-          }
-        }
+        // get w/none left
+        await fetchService.runFetchLoop(3);
+        expect(await listNoteStatusIds()).toMatchObject(fakeNoteIds(1, 5));
       }
     }
   });
@@ -64,14 +55,10 @@ describe('Fetch Service', () => {
     const noteCount = 50;
     const notes = createFakeNoteList(noteCount, 1);
 
-    for await (const { mongoose } of scopedMongoose({ useUniqTestDB: true })) {
-      for await (const { mongoQueries } of scopedMongoQueries({ mongoose })) {
-        for await (const { shadowDB } of scopedShadowDB({ mongoQueries })) {
-          await asyncEachSeries(notes, n => shadowDB.saveNote(n, true))
-          const summary = await fetchServiceMonitor();
-          prettyPrint({ summary })
-        }
-      }
+    for await (const { shadowDB } of scopedShadowDBWithDeps({})) {
+      await asyncEachSeries(notes, n => shadowDB.saveNote(n, true))
+      const summary = await fetchServiceMonitor();
+      prettyPrint({ summary })
     }
   });
 

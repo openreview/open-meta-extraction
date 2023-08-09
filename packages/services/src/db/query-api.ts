@@ -1,10 +1,10 @@
 import _ from 'lodash';
 import * as E from 'fp-ts/Either';
 import { Document, Mongoose, Types } from 'mongoose';
-import { asyncMapSeries, getServiceLogger, initConfig, withScopedResource, shaEncodeAsHex, validateUrl } from '@watr/commonlib';
+import { asyncMapSeries, getServiceLogger, initConfig, withScopedResource, shaEncodeAsHex, validateUrl, combineScopedResources } from '@watr/commonlib';
 import { Logger } from 'winston';
 import { FetchCursor, FieldStatus, UrlStatus, UrlStatusUpdateFields, NoteStatus, WorkflowStatus, createCollections } from './schemas';
-import { connectToMongoDB } from './mongodb';
+import { connectToMongoDB, scopedMongooseWithDeps } from './mongodb';
 import { UpdatableField } from '~/components/openreview-gateway';
 
 export type CursorID = Types.ObjectId;
@@ -34,6 +34,11 @@ export const scopedMongoQueries = withScopedResource<
   },
   async function destroy() {
   },
+);
+
+export const scopedMongoQueriesWithDeps = combineScopedResources(
+  scopedMongooseWithDeps,
+  scopedMongoQueries
 );
 
 export class MongoQueries {

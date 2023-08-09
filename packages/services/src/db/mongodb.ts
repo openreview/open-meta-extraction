@@ -1,4 +1,4 @@
-import { getServiceLogger, initConfig, isTestingEnv, withScopedResource, prettyFormat, putStrLn, isEnvMode } from '@watr/commonlib';
+import { getServiceLogger, initConfig, isTestingEnv, withScopedResource, prettyFormat, putStrLn, isEnvMode, combineScopedResources, withGracefulExit } from '@watr/commonlib';
 import mongoose, { Mongoose } from 'mongoose';
 import { createCollections } from '~/db/schemas';
 import { randomBytes } from 'crypto';
@@ -125,3 +125,5 @@ export const scopedMongoose = withScopedResource<
     await mongoose.connection.close();
   }
 )
+
+export const scopedMongooseWithDeps = combineScopedResources(withGracefulExit, scopedMongoose);

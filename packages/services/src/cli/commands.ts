@@ -4,11 +4,11 @@ import { arglib, combineScopedResources, initConfig, oneHour, putStrLn, withGrac
 import { formatStatusMessages, showStatusSummary } from '~/db/extraction-summary';
 import { connectToMongoDB, mongoConnectionString, resetMongoDB, scopedMongoose } from '~/db/mongodb';
 import { scopedFetchService } from '~/components/fetch-service';
-import { scopedExtractionService } from '~/components/extraction-service';
+import { scopedExtractionService, scopedExtractionServiceWithDeps } from '~/components/extraction-service';
 import { OpenReviewGateway } from '~/components/openreview-gateway';
 import { scopedMonitorService } from '~/components/monitor-service';
 import { CursorRoles, isCursorRole, scopedMongoQueries } from '~/db/query-api';
-import { scopedTaskScheduler } from '~/components/task-scheduler';
+import { scopedTaskScheduler, scopedTaskSchedulerWithDeps } from '~/components/task-scheduler';
 import { scopedShadowDB } from '~/components/shadow-db';
 import { scopedBrowserPool } from '@watr/spider';
 
@@ -98,40 +98,36 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
       return;
     }
 
-    for await (const { mongoose } of scopedMongoose({ useUniqTestDB: true })) {
-      for await (const { mongoQueries } of scopedMongoQueries({ mongoose })) {
-        for await (const { taskScheduler } of scopedTaskScheduler({ mongoQueries })) {
+    for await (const { taskScheduler, mongoQueries } of scopedTaskSchedulerWithDeps({})) {
 
-          if (_.isNumber(move) && move !== 0) {
-            putStrLn(`Moving cursor w/role ${role}`);
-            const cursor = await mongoQueries.getCursor(role);
-            if (cursor) {
-              putStrLn(`Moving cursor ${cursor.noteId}`);
-              const movedCursor = await mongoQueries.moveCursor(cursor._id, move);
-              if (_.isString(movedCursor)) {
-                putStrLn(`Did Not move cursor: ${movedCursor}`);
-                return;
-              }
-              putStrLn(`Moved cursor ${cursor.noteId} to ${movedCursor.noteId}`);
-            } else {
-              putStrLn(`No cursor with role ${role}`);
-            }
+      if (_.isNumber(move) && move !== 0) {
+        putStrLn(`Moving cursor w/role ${role}`);
+        const cursor = await mongoQueries.getCursor(role);
+        if (cursor) {
+          putStrLn(`Moving cursor ${cursor.noteId}`);
+          const movedCursor = await mongoQueries.moveCursor(cursor._id, move);
+          if (_.isString(movedCursor)) {
+            putStrLn(`Did Not move cursor: ${movedCursor}`);
             return;
           }
-
-          if (_.isBoolean(del) && del) {
-            await taskScheduler.deleteUrlCursor(role);
-            return;
-          }
-
-          if (_.isBoolean(create) && create) {
-            await taskScheduler.createUrlCursor(role);
-            return;
-          }
-
-          putStrLn('No operation specifed...');
+          putStrLn(`Moved cursor ${cursor.noteId} to ${movedCursor.noteId}`);
+        } else {
+          putStrLn(`No cursor with role ${role}`);
         }
+        return;
       }
+
+      if (_.isBoolean(del) && del) {
+        await taskScheduler.deleteUrlCursor(role);
+        return;
+      }
+
+      if (_.isBoolean(create) && create) {
+        await taskScheduler.createUrlCursor(role);
+        return;
+      }
+
+      putStrLn('No operation specifed...');
     }
 
   });
@@ -179,19 +175,20 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
     const postResultsToOpenReview: boolean = args.postResults;
     const limit: number = args.limit;
 
-
+    // const composition = combineScopedResources(
+    //   scopedBrowserPool,
+    //   scopedExtractionServiceWithDeps
+    // )
     const composition = combineScopedResources(
       combineScopedResources(
-        combineScopedResources(
-          combineScopedResources(withGracefulExit, scopedMongoose),
-          combineScopedResources(scopedMongoQueries, scopedShadowDB)
-        ),
-        combineScopedResources(scopedTaskScheduler, scopedBrowserPool)
+        scopedTaskSchedulerWithDeps,
+        scopedBrowserPool
       ),
       scopedExtractionService
-    )
+    );
 
-    for await (const { extractionService } of composition({})) {
+
+    for await (const { extractionService } of composition({ postResultsToOpenReview })) {
       await extractionService.runExtractionLoop(limit, true);
     }
   });
@@ -206,22 +203,16 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
     const urlstr: string = args.url;
     const url = new URL(urlstr);
 
-    for await (const { gracefulExit } of withGracefulExit({})) {
-      for await (const { mongoose } of scopedMongoose({ useUniqTestDB: true })) {
-        for await (const { mongoQueries } of scopedMongoQueries({ mongoose })) {
-          for await (const { shadowDB } of scopedShadowDB({ mongoQueries })) {
-            for await (const { taskScheduler } of scopedTaskScheduler({ mongoQueries })) {
-              for await (const { browserPool } of scopedBrowserPool({ gracefulExit })) {
-                for await (const { extractionService } of scopedExtractionService({ shadowDB, taskScheduler, browserPool, postResultsToOpenReview })) {
+    const composition = combineScopedResources(
+      combineScopedResources(
+        scopedTaskSchedulerWithDeps,
+        scopedBrowserPool
+      ),
+      scopedExtractionService
+    );
 
-                  await extractionService.extractUrl(url);
-
-                }
-              }
-            }
-          }
-        }
-      }
+    for await (const { extractionService } of composition({ postResultsToOpenReview })) {
+      await extractionService.extractUrl(url);
     }
 
   });

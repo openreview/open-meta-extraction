@@ -88,6 +88,9 @@ export function combineScopedResources<
   gen1: (needs: NeedsT1) => AsyncGenerator<WithUsageT1, void, any>,
   gen2: (needs: NeedsT2) => AsyncGenerator<WithUsageT2, void, any>,
 ): (needs: NeedsT1) => AsyncGenerator<WithUsageT1 & WithUsageT2, void, any> {
+  // TODO (needs: NeedsT1) => AsyncGenerator<WithUsageT1 & WithUsageT2, void, any>
+  //  should be (needs: NeedsT1 + (NeedsT2 - WithUsageT1)
+  //  This provides everything for Usage2 other than what WithUsage1 will provide
 
   async function* composition(needs: NeedsT1): AsyncGenerator<WithUsageT1 & WithUsageT2, void, any> {
     for await (const prod1 of gen1(needs)) {

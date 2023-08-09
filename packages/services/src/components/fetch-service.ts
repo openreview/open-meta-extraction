@@ -1,6 +1,7 @@
 import _ from 'lodash';
 
 import {
+  combineScopedResources,
   delay,
   getServiceLogger,
   withScopedResource,
@@ -13,7 +14,7 @@ import {
 } from './openreview-gateway';
 
 import { generateFromBatch } from '~/util/generators';
-import { ShadowDB } from './shadow-db';
+import { ShadowDB, scopedShadowDBWithDeps } from './shadow-db';
 
 type FetchServiceNeeds = {
   shadowDB: ShadowDB,
@@ -31,6 +32,11 @@ export const scopedFetchService = withScopedResource<
   },
   async function destroy() {
   },
+);
+
+export const scopedFetchServiceWithDeps = combineScopedResources(
+  scopedShadowDBWithDeps,
+  scopedFetchService
 );
 
 /**
