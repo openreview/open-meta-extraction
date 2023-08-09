@@ -132,19 +132,6 @@ export const scopedMonitorService = withScopedResource<
   },
 );
 
-// export type WithMonitorService = WithMongoose & {
-//   monitorService: MonitorService
-// }
-
-// type UseMonitorServiceArgs = UseMongooseArgs & MonitorServiceArgs;
-
-// export async function* useMonitorService(args: UseMonitorServiceArgs): AsyncGenerator<WithMonitorService, void, any> {
-//   const { mongoose } = args;
-//   const monitorService = new MonitorService(_.merge({}, args, { mongoose }));
-//   const toYield = _.merge({}, { monitorService }, args);
-//   yield toYield;
-// }
-
 
 function formatMonitorSummaries(summaries?: MonitorSummaries): string {
   if (!summaries) {

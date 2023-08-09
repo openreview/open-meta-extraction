@@ -15,22 +15,6 @@ import {
 import { generateFromBatch } from '~/util/generators';
 import { ShadowDB } from './shadow-db';
 
-
-
-// export type WithFetchService = WithShadowDB & {
-//   fetchService: FetchService
-// };
-
-// type UseFetchServiceArgs = UseMongooseArgs;
-
-// export async function* useFetchService(args: UseFetchServiceArgs): AsyncGenerator<WithFetchService, void, any> {
-//   for await (const components of useShadowDB(args)) {
-//     const { shadowDB } = components;
-//     const fetchService = new FetchService(shadowDB);
-//     yield _.merge({}, components, { fetchService });
-//   }
-// }
-
 type FetchServiceNeeds = {
   shadowDB: ShadowDB,
 };

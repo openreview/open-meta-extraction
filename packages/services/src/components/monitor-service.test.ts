@@ -13,7 +13,7 @@ describe('Monitor Service', () => {
 
   it('should gather and format extraction summary', async () => {
 
-    for await (const { mongoose } of scopedMongoose({ uniqDB: true })) {
+    for await (const { mongoose } of scopedMongoose({ useUniqTestDB: true })) {
       for await (const { mongoQueries } of scopedMongoQueries({ mongoose })) {
         for await (const { shadowDB } of scopedShadowDB({ mongoQueries })) {
 

@@ -22,46 +22,6 @@ import { TaskScheduler } from './task-scheduler';
 import { parseIntOrElse } from '~/util/misc';
 import * as mh from '~/db/mongo-helpers';
 
-// async function createExtractionService(
-//   shadowDB: ShadowDB,
-//   browserPool: BrowserPool,
-//   taskScheduler: TaskScheduler,
-//   postResultsToOpenReview: boolean
-// ): Promise<ExtractionService> {
-//   const corpusRoot = getCorpusRootDir();
-
-//   const s = new ExtractionService(
-//     corpusRoot,
-//     shadowDB,
-//     taskScheduler,
-//     browserPool,
-//     postResultsToOpenReview
-//   );
-
-//   // await s.connect();
-//   return s;
-// }
-// export type WithExtractionService = WithTaskScheduler & {
-//   extractionService: ExtractionService
-// };
-
-// type WithExtractionServiceArgs = UseMongooseArgs & {
-//   postResultsToOpenReview: boolean;
-// }
-
-// export async function* withExtractionService(args: WithExtractionServiceArgs): AsyncGenerator<WithExtractionService, void, any> {
-//   const { postResultsToOpenReview } = args;
-//   for await (const components of withTaskScheduler(args)) {
-//     const { taskScheduler, shadowDB } = components;
-
-//     // TODO pull shutdown hooks higher than useBrowserPool
-//     for await (const { browserPool } of useBrowserPool({})) {
-//       const extractionService = await createExtractionService(shadowDB, browserPool, taskScheduler, postResultsToOpenReview);
-//       yield _.merge({}, components, { extractionService });
-//     }
-//   }
-// }
-
 type ExtractionServiceNeeds = {
   shadowDB: ShadowDB,
   browserPool: BrowserPool,
@@ -112,16 +72,6 @@ export class ExtractionService {
     this.corpusRoot = corpusRoot;
     this.browserPool = browserPool;
   }
-
-
-  // async connect() {
-  //   await this.shadowDB.connect();
-  // }
-
-  // async close() {
-  //   await this.shadowDB.close();
-  //   await this.browserPool.shutdown();
-  // }
 
   // Main Extraction Loop
   async runExtractionLoop(limit: number, rateLimited: boolean) {

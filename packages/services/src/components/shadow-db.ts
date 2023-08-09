@@ -13,22 +13,6 @@ import {
 import { Note, OpenReviewGateway, UpdatableField } from './openreview-gateway';
 
 
-// export type WithShadowDB = WithMongoQueries & {
-//   shadowDB: ShadowDB;
-// };
-
-// interface UseShadowDBArgs extends UseMongooseArgs {
-// };
-
-// export async function* useShadowDB(args: UseShadowDBArgs): AsyncGenerator<WithShadowDB, void, any> {
-//   for await (const { mongoose, mdb } of useMongoQueries(args)) {
-//     const shadowDB = new ShadowDB(mdb);
-//     await shadowDB.connect();
-//     yield { mongoose, mdb, shadowDB };
-//   }
-// }
-
-
 type ShadowDBNeeds = {
   mongoQueries: MongoQueries
 };

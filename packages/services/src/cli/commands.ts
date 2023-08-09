@@ -1,6 +1,6 @@
 import _ from 'lodash';
 
-import { arglib, initConfig, oneHour, putStrLn, withGracefulExit } from '@watr/commonlib';
+import { arglib, combineScopedResources, initConfig, oneHour, putStrLn, withGracefulExit } from '@watr/commonlib';
 import { formatStatusMessages, showStatusSummary } from '~/db/extraction-summary';
 import { connectToMongoDB, mongoConnectionString, resetMongoDB, scopedMongoose } from '~/db/mongodb';
 import { scopedFetchService } from '~/components/fetch-service';
@@ -40,7 +40,7 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
   )(async (args: any) => {
     const { limit, pauseBeforeExit } = args;
 
-    for await (const { mongoose } of scopedMongoose({ uniqDB: true })) {
+    for await (const { mongoose } of scopedMongoose({ useUniqTestDB: true })) {
       for await (const { mongoQueries } of scopedMongoQueries({ mongoose })) {
         for await (const { shadowDB } of scopedShadowDB({ mongoQueries })) {
           for await (const { fetchService } of scopedFetchService({ shadowDB })) {
@@ -60,7 +60,7 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
     )
   )(async (args: any) => {
     const del = args.delete;
-    for await (const { mongoose } of scopedMongoose({ uniqDB: true })) {
+    for await (const { mongoose } of scopedMongoose({ useUniqTestDB: true })) {
       for await (const { mongoQueries } of scopedMongoQueries({ mongoose })) {
         const cursors = await mongoQueries.getCursors()
         cursors.forEach(c => {
@@ -98,7 +98,7 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
       return;
     }
 
-    for await (const { mongoose } of scopedMongoose({ uniqDB: true })) {
+    for await (const { mongoose } of scopedMongoose({ useUniqTestDB: true })) {
       for await (const { mongoQueries } of scopedMongoQueries({ mongoose })) {
         for await (const { taskScheduler } of scopedTaskScheduler({ mongoQueries })) {
 
@@ -179,24 +179,21 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
     const postResultsToOpenReview: boolean = args.postResults;
     const limit: number = args.limit;
 
-    for await (const { gracefulExit } of withGracefulExit({})) {
-      for await (const { mongoose } of scopedMongoose({ uniqDB: true })) {
-        for await (const { mongoQueries } of scopedMongoQueries({ mongoose })) {
-          for await (const { shadowDB } of scopedShadowDB({ mongoQueries })) {
-            for await (const { taskScheduler } of scopedTaskScheduler({ mongoQueries })) {
-              for await (const { browserPool } of scopedBrowserPool({ gracefulExit })) {
-                for await (const { extractionService } of scopedExtractionService({ shadowDB, taskScheduler, browserPool, postResultsToOpenReview })) {
 
-                  await extractionService.runExtractionLoop(limit, true);
+    const composition = combineScopedResources(
+      combineScopedResources(
+        combineScopedResources(
+          combineScopedResources(withGracefulExit, scopedMongoose),
+          combineScopedResources(scopedMongoQueries, scopedShadowDB)
+        ),
+        combineScopedResources(scopedTaskScheduler, scopedBrowserPool)
+      ),
+      scopedExtractionService
+    )
 
-                }
-              }
-            }
-          }
-        }
-      }
+    for await (const { extractionService } of composition({})) {
+      await extractionService.runExtractionLoop(limit, true);
     }
-
   });
 
   registerCmd(
@@ -210,7 +207,7 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
     const url = new URL(urlstr);
 
     for await (const { gracefulExit } of withGracefulExit({})) {
-      for await (const { mongoose } of scopedMongoose({ uniqDB: true })) {
+      for await (const { mongoose } of scopedMongoose({ useUniqTestDB: true })) {
         for await (const { mongoQueries } of scopedMongoQueries({ mongoose })) {
           for await (const { shadowDB } of scopedShadowDB({ mongoQueries })) {
             for await (const { taskScheduler } of scopedTaskScheduler({ mongoQueries })) {

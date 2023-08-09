@@ -37,7 +37,7 @@ describe('Extraction Service', () => {
 
     for await (const { gracefulExit } of withGracefulExit({})) {
       for await (const {} of scopedHttpServer({ gracefulExit, port, routerSetup: (r) => { routes(r); spiderRoutes(r) } })) {
-        for await (const { mongoose } of scopedMongoose({ uniqDB: true })) {
+        for await (const { mongoose } of scopedMongoose({ useUniqTestDB: true })) {
           for await (const { mongoQueries } of scopedMongoQueries({ mongoose })) {
             for await (const { shadowDB } of scopedShadowDB({ mongoQueries })) {
               for await (const { fetchService } of scopedFetchService({ shadowDB })) {
@@ -88,7 +88,7 @@ describe('Extraction Service', () => {
   });
 
   it('should monitor newly extracted fields', async () => {
-    for await (const { mongoose } of scopedMongoose({ uniqDB: true })) {
+    for await (const { mongoose } of scopedMongoose({ useUniqTestDB: true })) {
       for await (const { mongoQueries } of scopedMongoQueries({ mongoose })) {
         for await (const { shadowDB } of scopedShadowDB({ mongoQueries })) {
 

@@ -5,7 +5,8 @@ import {
   prettyPrint,
   putStrLn,
   withGracefulExit,
-  setLogEnvLevel
+  setLogEnvLevel,
+  combineScopedResources
 } from '@watr/commonlib';
 
 import { BrowserInstanceNeeds, createBrowserPool, scopedBrowserInstance, scopedBrowserPool, scopedPageInstance } from './browser-pool';
@@ -104,7 +105,6 @@ describe('browser pooling', () => {
         putStrLn(`Passed p ${failPtNum}`);
       }
       try {
-
         for await (const { gracefulExit } of withGracefulExit({})) {
           for await (const { browserPool } of scopedBrowserPool({ gracefulExit })) {
 
@@ -119,7 +119,7 @@ describe('browser pooling', () => {
               }
               failPoint({});
 
-              for await (const {  } of scopedPageInstance({ browserInstance })) {
+              for await (const {} of scopedPageInstance({ browserInstance })) {
                 // failPoint(comps);
               }
               failPoint({});

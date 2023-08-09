@@ -1,9 +1,19 @@
 import _ from 'lodash';
 import { putStrLn } from './pretty-print';
 
+/**
+ * Provides  composable  manage  execution  scopes, within  which  services  are
+ * available, and cleanup/shutdown is guaranteed when the scope is exited
+ */
 
 type Eventual<T> = T | Promise<T>;
 
+// Naming Conventions:
+// UsageT: the type of the resource which will be available in scope
+// NameT: the key under which the resource will be available, e.g. myServer in { myServer: serverInstance }
+// NeedsT: the requirements to instantiate resource UsageT
+// ProductT: the record shape in which UsageT is provided, i.e., { [n: NameT]: UsageT }
+// WithUsageT: The full record provided to the user in scope, which is the merged value of ProductT and NeedsT
 export class ScopedResource<
   UsageT,
   NameT extends string,
@@ -81,6 +91,7 @@ export function combineScopedResources<
 
   async function* composition(needs: NeedsT1): AsyncGenerator<WithUsageT1 & WithUsageT2, void, any> {
     for await (const prod1 of gen1(needs)) {
+      // TODO figure out typing such that 'as any as' is not needed
       const p2Needs: NeedsT2 = _.merge(needs, prod1) as any as NeedsT2;
       for await (const prod2 of gen2(p2Needs)) {
         yield _.merge({}, prod1, prod2);

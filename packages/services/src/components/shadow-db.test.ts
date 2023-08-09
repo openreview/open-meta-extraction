@@ -11,7 +11,7 @@ describe('Shadow DB', () => {
 
   it('should save note', async () => {
 
-    for await (const { mongoose } of scopedMongoose({ uniqDB: true })) {
+    for await (const { mongoose } of scopedMongoose({ useUniqTestDB: true })) {
       for await (const { mongoQueries } of scopedMongoQueries({ mongoose })) {
         for await (const { shadowDB } of scopedShadowDB({ mongoQueries })) {
           const note1 = createFakeNote({ noteNumber: 1, hasAbstract: true, hasHTMLLink: true, hasPDFLink: false });

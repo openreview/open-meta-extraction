@@ -85,12 +85,20 @@ export function getEnvMode(): string {
   const env = getEnv('NODE_ENV');
   return `${env}`;
 }
+
+export function isEnvMode(s: ENV_MODE):boolean {
+  return getEnv('NODE_ENV') === s;
+}
 export function isTestingEnv(): boolean {
-  return getEnv('NODE_ENV') === 'test';
+  return isEnvMode('test');
 }
 
 export function isDevEnv(): boolean {
-  return getEnv('NODE_ENV') === 'dev';
+  return isEnvMode('dev');
+}
+
+export function isProdEnv(): boolean {
+  return isEnvMode('prod');
 }
 
 function getEnv(key: EnvKey): string | undefined {

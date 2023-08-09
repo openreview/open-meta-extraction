@@ -32,7 +32,7 @@ describe('Fetch Service', () => {
     const port = 9100;
     for await (const { gracefulExit } of withGracefulExit({})) {
       for await (const {} of scopedHttpServer({ gracefulExit, port, routerSetup })) {
-        for await (const { mongoose } of scopedMongoose({ uniqDB: true })) {
+        for await (const { mongoose } of scopedMongoose({ useUniqTestDB: true })) {
           for await (const { mongoQueries } of scopedMongoQueries({ mongoose })) {
             for await (const { shadowDB } of scopedShadowDB({ mongoQueries })) {
               for await (const { fetchService } of scopedFetchService({ shadowDB })) {
@@ -64,7 +64,7 @@ describe('Fetch Service', () => {
     const noteCount = 50;
     const notes = createFakeNoteList(noteCount, 1);
 
-    for await (const { mongoose } of scopedMongoose({ uniqDB: true })) {
+    for await (const { mongoose } of scopedMongoose({ useUniqTestDB: true })) {
       for await (const { mongoQueries } of scopedMongoQueries({ mongoose })) {
         for await (const { shadowDB } of scopedShadowDB({ mongoQueries })) {
           await asyncEachSeries(notes, n => shadowDB.saveNote(n, true))
