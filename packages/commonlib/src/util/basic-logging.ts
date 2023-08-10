@@ -25,7 +25,7 @@ export const AllLogLevels = [
 
 // import * as Transport from 'winston-transport';
 
-import { parentPort, isMainThread, workerData, threadId } from 'worker_threads';
+import { parentPort, threadId } from 'worker_threads';
 import { putStrLn } from './pretty-print';
 
 export class ParentPortTransport2 extends transports.Console {

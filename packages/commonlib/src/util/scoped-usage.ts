@@ -19,6 +19,21 @@ function resourceId(name: string): string {
 }
 
 type Eventual<T> = T | Promise<T>;
+interface Logging {
+  info(s: string): void;
+  warn(s: string): void;
+  debug(s: string): void;
+  error(s: string): void;
+  trace(s: string): void;
+}
+class NullLogging implements Logging {
+  info(): void {}
+  warn(): void {}
+  debug(): void {}
+  error(): void {}
+  trace(): void {}
+
+}
 
 // Naming Conventions:
 // UsageT: the type of the resource which will be available in scope
@@ -38,16 +53,19 @@ export class ScopedResource<
   init: (args: NeedsT) => Eventual<ProductT>;
   destroy: (used: WithUsageT) => Eventual<void>;
   isClosed: boolean = false;
+  log: Logging;
 
   constructor(
     name: NameT,
     init: (args: NeedsT) => Eventual<ProductT>,
     destroy: (used: WithUsageT) => Eventual<void>,
+    log?: Logging
   ) {
     this.name = name;
     this.init = init;
     this.destroy = destroy;
     this.id = resourceId(name);
+    this.log = log || new NullLogging();
   }
 
   async getOrInit(useArgs: NeedsT): Promise<WithUsageT> {
@@ -56,21 +74,21 @@ export class ScopedResource<
     return withU;
   }
   async close(used: WithUsageT): Promise<void> {
-    putStrLn(`${this.id}:close`)
+    this.log.debug(`${this.id}:close`)
     if (this.isClosed) {
-      putStrLn(`${this.id}.close(): already closed`)
+      this.log.debug(`${this.id}.close(): already closed`)
       return;
     }
     this.isClosed = true;
-    putStrLn(`${this.id}:close.destroy()`)
+    this.log.debug(`${this.id}:close.destroy()`)
     await Promise.resolve(this.destroy(used));
   }
 
   async* use(args: NeedsT): AsyncGenerator<WithUsageT, void, any> {
     let resource: WithUsageT = await this.getOrInit(args);
-    putStrLn(`${this.id}:yielding`)
+    this.log.debug(`${this.id}:yielding`)
     yield resource;
-    putStrLn(`${this.id}:yielded`)
+    this.log.debug(`${this.id}:yielded`)
     this.close(resource);
   }
 }
@@ -85,8 +103,9 @@ export function withScopedResource<
   name: NameT,
   init: (n: NeedsT) => Eventual<ProductT>,
   destroy: (used: WithUsageT) => Eventual<void>,
+  log?: Logging
 ): (needs: NeedsT) => AsyncGenerator<WithUsageT, void, any> {
-  const sr = new ScopedResource<UsageT, NameT, NeedsT, ProductT, WithUsageT>(name, init, destroy);
+  const sr = new ScopedResource<UsageT, NameT, NeedsT, ProductT, WithUsageT>(name, init, destroy, log);
   const boundUse = _.bind(sr.use, sr);
   return boundUse;
 }
