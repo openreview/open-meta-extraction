@@ -29,8 +29,8 @@ describe('Fetch Service', () => {
 
     const port = 9100;
 
-    for await (const { fetchService, gracefulExit } of scopedFetchServiceWithDeps({})) {
-      for await (const {} of scopedHttpServer({ gracefulExit, port, routerSetup })) {
+    for await (const { fetchService, gracefulExit } of scopedFetchServiceWithDeps()({})) {
+      for await (const {} of scopedHttpServer()({ gracefulExit, port, routerSetup })) {
         expect(await listNoteStatusIds()).toHaveLength(0);
         // get 1
         await fetchService.runFetchLoop(1);
@@ -55,7 +55,7 @@ describe('Fetch Service', () => {
     const noteCount = 50;
     const notes = createFakeNoteList(noteCount, 1);
 
-    for await (const { shadowDB } of scopedShadowDBWithDeps({})) {
+    for await (const { shadowDB } of scopedShadowDBWithDeps()({})) {
       await asyncEachSeries(notes, n => shadowDB.saveNote(n, true))
       const summary = await fetchServiceMonitor();
       prettyPrint({ summary })

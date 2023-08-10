@@ -10,7 +10,7 @@ type TaskSchedulerNeeds = {
   mongoQueries: MongoQueries;
 }
 
-export const scopedTaskScheduler = withScopedResource<
+export const scopedTaskScheduler = () => withScopedResource<
   TaskScheduler,
   'taskScheduler',
   TaskSchedulerNeeds
@@ -24,9 +24,9 @@ export const scopedTaskScheduler = withScopedResource<
   },
 );
 
-export const scopedTaskSchedulerWithDeps = combineScopedResources(
-  scopedMongoQueriesWithDeps,
-  scopedTaskScheduler
+export const scopedTaskSchedulerWithDeps = () => combineScopedResources(
+  scopedMongoQueriesWithDeps(),
+  scopedTaskScheduler()
 );
 
 export class TaskScheduler {

@@ -20,7 +20,7 @@ type FetchServiceNeeds = {
   shadowDB: ShadowDB,
 };
 
-export const scopedFetchService = withScopedResource<
+export const scopedFetchService = () => withScopedResource<
   FetchService,
   'fetchService',
   FetchServiceNeeds
@@ -34,9 +34,9 @@ export const scopedFetchService = withScopedResource<
   },
 );
 
-export const scopedFetchServiceWithDeps = combineScopedResources(
-  scopedShadowDBWithDeps,
-  scopedFetchService
+export const scopedFetchServiceWithDeps = () => combineScopedResources(
+  scopedShadowDBWithDeps(),
+  scopedFetchService()
 );
 
 /**

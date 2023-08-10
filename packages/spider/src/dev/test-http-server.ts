@@ -10,7 +10,7 @@ import {
 } from '@watr/commonlib';
 
 import fs from 'fs-extra';
-import { scopedHttpServer } from '~/http-server/http-service';
+import { scopedHttpServer, scopedHttpServerWithDeps } from '~/http-server/http-service';
 
 const withFields = stripMargin(`
 |<html>
@@ -96,15 +96,17 @@ export function testHtmlRoutes(router: Router) {
   });
 }
 
-export async function* useTestingHttpServer(workingDir?: string): AsyncGenerator<void, void, any> {
-  for await (const { gracefulExit } of withGracefulExit({})) {
-    for await (const {} of scopedHttpServer({ gracefulExit, port: 9100, routerSetup: testHtmlRoutes })) {
-      if (workingDir) {
-        fs.emptyDirSync(workingDir);
-        fs.removeSync(workingDir);
-        fs.mkdirSync(workingDir);
-      }
-      yield;
+type Args = {
+  port: number,
+  workingDir?: string
+}
+export async function* useTestingHttpServer({ port, workingDir }: Args): AsyncGenerator<void, void, any> {
+  for await (const {} of scopedHttpServerWithDeps()({ port, routerSetup: testHtmlRoutes })) {
+    if (workingDir) {
+      fs.emptyDirSync(workingDir);
+      fs.removeSync(workingDir);
+      fs.mkdirSync(workingDir);
     }
+    yield;
   }
 }

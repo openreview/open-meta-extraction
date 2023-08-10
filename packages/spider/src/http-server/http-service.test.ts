@@ -25,8 +25,8 @@ describe('HTTP Service', () => {
     const port = 9100;
 
 
-    for await (const { gracefulExit } of withGracefulExit({})) {
-      for await (const {} of scopedHttpServer({ gracefulExit, port, routerSetup: setup })) {
+    for await (const { gracefulExit } of withGracefulExit()({})) {
+      for await (const {} of scopedHttpServer()({ gracefulExit, port, routerSetup: setup })) {
 
         await expectGETEqual('http://localhost:9100/foo', { foo: 'bar' })
         await expectGETEqual('http://localhost:9100/bar', { bar: 'foo' })

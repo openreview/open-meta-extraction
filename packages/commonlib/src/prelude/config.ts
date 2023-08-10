@@ -1,6 +1,5 @@
 import path from 'path';
 import _ from 'lodash';
-import { makeHashEncodedPath, HashEncodedPath } from '~/util/hash-encoded-paths';
 import nconf from 'nconf';
 import fs from 'fs';
 
@@ -105,6 +104,7 @@ function getEnv(key: EnvKey): string | undefined {
   return process.env[key];
 }
 
+// TODO get rid of everything below this
 // Root directory for storing application data
 export function getAppSharedDir(): string {
   return 'app-share.d';
@@ -117,14 +117,3 @@ export function getCorpusRootDir(): string {
   return path.resolve(corpusRoot);
 }
 
-export function getHashEncodedPath(url: string): HashEncodedPath {
-  return makeHashEncodedPath(url, 3);
-}
-
-// TODO get rid of this, as it uses global corpus root defs
-export function getCorpusEntryDirForUrl(url: string): string {
-  const corpusRoot = getCorpusRootDir();
-  const entryEncPath = getHashEncodedPath(url);
-  const entryPath = path.resolve(corpusRoot, entryEncPath.toPath());
-  return entryPath;
-}

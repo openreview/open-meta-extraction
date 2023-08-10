@@ -9,7 +9,7 @@ export interface HashEncodedPath {
   toPath(): string;
 }
 
-export function makeHashEncodedPath(source: string, depth: number): HashEncodedPath {
+export function makeHashEncodedPath(source: string, depth: number = 3): HashEncodedPath {
   const hashedSource = shaEncodeAsHex(source);
   const leadingSegments = hashedSource
     .slice(0, depth)

@@ -89,7 +89,7 @@ describe('Scoped Usage', () => {
 
   it('should use with.. syntax', async () => {
     const idGen = newIdGenerator(0);
-    const pScoped = withScopedResource<PrimaryResource, 'primaryResource'>(
+    const pScoped = () => withScopedResource<PrimaryResource, 'primaryResource'>(
       'primaryResource',
       () => {
         const id = idGen();
@@ -103,8 +103,8 @@ describe('Scoped Usage', () => {
       }
     );
 
-    for await (const { primaryResource } of pScoped({})) {
-      for await (const { primaryResource: p2 } of pScoped({})) {
+    for await (const { primaryResource } of pScoped()({})) {
+      for await (const { primaryResource: p2 } of pScoped()({})) {
       }
     }
   });

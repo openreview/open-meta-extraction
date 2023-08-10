@@ -1,5 +1,6 @@
 import _ from 'lodash';
-import { findAncestorFile } from './config';
+import { findAncestorFile, initConfig } from './config';
+import { prettyFormat, prettyPrint } from '..';
 
 describe('Configuration Management', () => {
   type ExampleT = Parameters<typeof findAncestorFile>;
@@ -35,4 +36,14 @@ describe('Configuration Management', () => {
     // prettyPrint({ api, pass });
   });
 
+  it('should allow overrides at runtime', () => {
+    const conf = initConfig();
+    const conf0Port = conf.get('openreview:port');
+    conf.set('openreview:port', 0);
+    const conf1Port = conf.get('openreview:port');
+    const conf2 = initConfig();
+    const conf12Port = conf.get('openreview:port');
+    const conf2Port = conf2.get('openreview:port');
+    prettyPrint({ conf0Port, conf1Port, conf2Port, conf12Port })
+  });
 });

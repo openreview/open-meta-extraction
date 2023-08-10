@@ -64,7 +64,7 @@ function makeRndStr(len: number): string {
   return randomBytes(len).toString('hex').slice(0, len);
 }
 
-export const scopedMongoose = withScopedResource<
+export const scopedMongoose = () => withScopedResource<
   Mongoose,
   'mongoose',
   UseMongooseArgs
@@ -126,4 +126,7 @@ export const scopedMongoose = withScopedResource<
   }
 )
 
-export const scopedMongooseWithDeps = combineScopedResources(withGracefulExit, scopedMongoose);
+export const scopedMongooseWithDeps = () => combineScopedResources(
+  withGracefulExit(),
+  scopedMongoose()
+);

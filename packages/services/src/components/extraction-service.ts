@@ -30,7 +30,7 @@ type ExtractionServiceNeeds = {
   postResultsToOpenReview: boolean
 };
 
-export const scopedExtractionService = withScopedResource<
+export const scopedExtractionService = () => withScopedResource<
   ExtractionService,
   'extractionService',
   ExtractionServiceNeeds
@@ -51,9 +51,9 @@ export const scopedExtractionService = withScopedResource<
   },
 );
 
-export const scopedExtractionServiceWithDeps = combineScopedResources(
-  scopedTaskSchedulerWithDeps,
-  scopedExtractionService
+export const scopedExtractionServiceWithDeps = () => combineScopedResources(
+  scopedTaskSchedulerWithDeps(),
+  scopedExtractionService()
 );
 
 export class ExtractionService {

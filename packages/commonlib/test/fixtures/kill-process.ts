@@ -36,7 +36,7 @@ class PrimaryResource {
 
 const idGen = newIdGenerator(0);
 
-const withPrimary = withScopedResource<PrimaryResource, 'primaryResource'>(
+const withPrimary = () => withScopedResource<PrimaryResource, 'primaryResource'>(
   'primaryResource',
   () => {
     const id = idGen();
@@ -50,31 +50,19 @@ const withPrimary = withScopedResource<PrimaryResource, 'primaryResource'>(
   }
 );
 
-async function run() {
-  for await (const { gracefulExit } of withGracefulExit({})) {
-    maybeExit();
-    for await (const { primaryResource } of withPrimary({})) {
-      gracefulExit.addHandler(() => primaryResource.close());
-      maybeExit();
-    }
-    maybeExit();
-  }
-  maybeExit();
-}
-
 async function runNested() {
-  for await (const { gracefulExit } of withGracefulExit({})) {
+  for await (const { gracefulExit } of withGracefulExit()({})) {
     maybeExit();
 
-    for await (const { primaryResource: p1 } of withPrimary({})) {
+    for await (const { primaryResource: p1 } of withPrimary()({})) {
       gracefulExit.addHandler(() => p1.close());
       maybeExit();
 
-      for await (const { primaryResource: p2 } of withPrimary({})) {
+      for await (const { primaryResource: p2 } of withPrimary()({})) {
         gracefulExit.addHandler(() => p2.close());
         maybeExit();
 
-        for await (const { primaryResource: p3 } of withPrimary({})) {
+        for await (const { primaryResource: p3 } of withPrimary()({})) {
           gracefulExit.addHandler(() => p3.close());
           maybeExit();
         }

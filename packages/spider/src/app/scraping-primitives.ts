@@ -37,7 +37,7 @@ import {
 
 import { UrlFetchData, getFetchDataFromResponse } from '~/core/url-fetch-chains';
 import { Logger } from 'winston';
-import { cleanArtifactDir, getHashEncodedPath, purgeArtifactDirs, taskflow } from '@watr/commonlib';
+import { cleanArtifactDir, makeHashEncodedPath, purgeArtifactDirs, taskflow } from '@watr/commonlib';
 import { DefaultPageInstanceOptions, PageInstance, PageInstanceOptions } from '~/core/browser-instance';
 
 // Initialize SpiderEnv
@@ -49,7 +49,7 @@ export async function createSpiderEnv(
 ): Promise<SpiderEnv> {
   const initialUrl = url.toString();
   const browserInstance = await browserPool.acquire();
-  const entryEncPath = getHashEncodedPath(initialUrl);
+  const entryEncPath = makeHashEncodedPath(initialUrl);
 
   const entryPath = () => path.resolve(corpusRoot, entryEncPath.toPath());
   const baseEnv = taskflow.initBaseEnv(log);

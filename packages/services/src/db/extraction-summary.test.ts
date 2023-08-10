@@ -9,8 +9,8 @@ describe('Create Extraction Status Summary', () => {
   setLogEnvLevel('debug');
 
   it('should create status summary', async () => {
-    for await (const { mongoose } of scopedMongoose({ useUniqTestDB: true })) {
-      for await (const { mongoQueries } of scopedMongoQueries({ mongoose })) {
+    for await (const { mongoose } of scopedMongoose()({ useUniqTestDB: true })) {
+      for await (const { mongoQueries } of scopedMongoQueries()({ mongoose })) {
         await populateDBHostNoteStatus(mongoQueries, 200);
         const summaryMessages = await showStatusSummary();
         const formatted = formatStatusMessages(summaryMessages);

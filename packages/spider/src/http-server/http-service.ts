@@ -35,7 +35,7 @@ class HttpServer {
   }
 }
 
-export const scopedHttpServer = withScopedResource<
+export const scopedHttpServer = () => withScopedResource<
   HttpServer,
   'httpServer',
   HttpServerNeeds
@@ -62,7 +62,6 @@ export const scopedHttpServer = withScopedResource<
     });
 
     const closedP = onServerClosedP(server);
-    // const keepAlive = closedP;
 
     gracefulExit.addHandler(async () => {
       log.info('Closing Server');
@@ -80,9 +79,9 @@ export const scopedHttpServer = withScopedResource<
 );
 
 
-export const scopedHttpServerWithDeps = combineScopedResources(
-  withGracefulExit,
-  scopedHttpServer
+export const scopedHttpServerWithDeps = () => combineScopedResources(
+  withGracefulExit(),
+  scopedHttpServer()
 );
 
 
@@ -131,11 +130,4 @@ export async function onServerClosedP(server: Server): Promise<void> {
       resolve();
     });
   });
-}
-
-export async function closeServer(server: Server | undefined): Promise<void> {
-  if (server === undefined) return;
-  const closedP = onServerClosedP(server);
-  server.close();
-  return closedP
 }

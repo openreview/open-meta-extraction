@@ -35,21 +35,21 @@ describe('Extraction Service', () => {
     }
     const port = 9100;
 
-    for await (const { gracefulExit } of withGracefulExit({})) {
-      for await (const {} of scopedHttpServer({ gracefulExit, port, routerSetup: (r) => { routes(r); spiderRoutes(r) } })) {
-        for await (const { mongoose } of scopedMongoose({ useUniqTestDB: true })) {
-          for await (const { mongoQueries } of scopedMongoQueries({ mongoose })) {
-            for await (const { shadowDB } of scopedShadowDB({ mongoQueries })) {
-              for await (const { fetchService } of scopedFetchService({ shadowDB })) {
-                for await (const { taskScheduler } of scopedTaskScheduler({ mongoQueries })) {
+    for await (const { gracefulExit } of withGracefulExit()({})) {
+      for await (const {} of scopedHttpServer()({ gracefulExit, port, routerSetup: (r) => { routes(r); spiderRoutes(r) } })) {
+        for await (const { mongoose } of scopedMongoose()({ useUniqTestDB: true })) {
+          for await (const { mongoQueries } of scopedMongoQueries()({ mongoose })) {
+            for await (const { shadowDB } of scopedShadowDB()({ mongoQueries })) {
+              for await (const { fetchService } of scopedFetchService()({ shadowDB })) {
+                for await (const { taskScheduler } of scopedTaskScheduler()({ mongoQueries })) {
                   // Init the shadow db
                   await fetchService.runFetchLoop(100);
                   const noteStatusIds = await listNoteStatusIds();
                   expect(noteStatusIds).toMatchObject(fakeNoteIds(startingId, startingId + noteCount - 1));
 
-                  for await (const { browserPool } of scopedBrowserPool({ gracefulExit })) {
+                  for await (const { browserPool } of scopedBrowserPool()({ gracefulExit })) {
 
-                    for await (const { extractionService } of scopedExtractionService({ shadowDB, taskScheduler, browserPool, postResultsToOpenReview })) {
+                    for await (const { extractionService } of scopedExtractionService()({ shadowDB, taskScheduler, browserPool, postResultsToOpenReview })) {
                       // Start from beginning
                       await taskScheduler.createUrlCursor('extract-fields/all');
                       await checkCursor(mongoQueries, 'extract-fields/all', 'note#1');
@@ -88,9 +88,9 @@ describe('Extraction Service', () => {
   });
 
   it('should monitor newly extracted fields', async () => {
-    for await (const { mongoose } of scopedMongoose({ useUniqTestDB: true })) {
-      for await (const { mongoQueries } of scopedMongoQueries({ mongoose })) {
-        for await (const { shadowDB } of scopedShadowDB({ mongoQueries })) {
+    for await (const { mongoose } of scopedMongoose()({ useUniqTestDB: true })) {
+      for await (const { mongoQueries } of scopedMongoQueries()({ mongoose })) {
+        for await (const { shadowDB } of scopedShadowDB()({ mongoQueries })) {
 
           shadowDB.writeChangesToOpenReview = false;
 

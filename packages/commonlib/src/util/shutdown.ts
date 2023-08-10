@@ -9,7 +9,7 @@ import { withScopedResource } from './scoped-usage';
 
 export type ExitHandler = (code: Parameters<Handler>[0], signal: Parameters<Handler>[1]) => void | Promise<void>;
 
-export const withGracefulExit = withScopedResource<
+export const withGracefulExit = () => withScopedResource<
   GracefulExit,
   'gracefulExit'
 >(
@@ -19,6 +19,7 @@ export const withGracefulExit = withScopedResource<
 
     onExit((code, signal) => {
       gracefulExit.runHandlers(code, signal);
+      return true;
     });
     return { gracefulExit };
   },

@@ -8,7 +8,7 @@ import { FetchCursor, NoteStatus, WorkflowStatus } from '~/db/schemas';
 import {
   MongoQueries,
   UrlStatusDocument,
-  scopedMongoQueriesWithDeps,
+  scopedMongoQueriesWithDeps
 } from '~/db/query-api';
 
 import { Note, OpenReviewGateway, UpdatableField } from './openreview-gateway';
@@ -18,7 +18,7 @@ type ShadowDBNeeds = {
   mongoQueries: MongoQueries
 };
 
-export const scopedShadowDB = withScopedResource<
+export const scopedShadowDB = () => withScopedResource<
   ShadowDB,
   'shadowDB',
   ShadowDBNeeds
@@ -32,9 +32,9 @@ export const scopedShadowDB = withScopedResource<
   },
 );
 
-export const scopedShadowDBWithDeps = combineScopedResources(
-  scopedMongoQueriesWithDeps,
-  scopedShadowDB
+export const scopedShadowDBWithDeps = () => combineScopedResources(
+  scopedMongoQueriesWithDeps(),
+  scopedShadowDB()
 );
 
 

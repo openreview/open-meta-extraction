@@ -22,7 +22,7 @@ type MongoQueriesNeeds = {
   mongoose: Mongoose;
 }
 
-export const scopedMongoQueries = withScopedResource<
+export const scopedMongoQueries = () => withScopedResource<
   MongoQueries,
   'mongoQueries',
   MongoQueriesNeeds
@@ -36,9 +36,9 @@ export const scopedMongoQueries = withScopedResource<
   },
 );
 
-export const scopedMongoQueriesWithDeps = combineScopedResources(
-  scopedMongooseWithDeps,
-  scopedMongoQueries
+export const scopedMongoQueriesWithDeps = () => combineScopedResources(
+  scopedMongooseWithDeps(),
+  scopedMongoQueries()
 );
 
 export class MongoQueries {

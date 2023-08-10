@@ -20,9 +20,10 @@ describe('Task Scheduling', () => {
 
   it('should schedule old and newly added Urls', async () => {
 
-    for await (const { mongoose } of scopedMongoose({ useUniqTestDB: true })) {for await (const { mongoQueries } of scopedMongoQueries({ mongoose })) {
-        for await (const { shadowDB } of scopedShadowDB({ mongoQueries })) {
-          for await (const { taskScheduler } of scopedTaskScheduler({ mongoQueries })) {
+    for await (const { mongoose } of scopedMongoose()({ useUniqTestDB: true })) {
+      for await (const { mongoQueries } of scopedMongoQueries()({ mongoose })) {
+        for await (const { shadowDB } of scopedShadowDB()({ mongoQueries })) {
+          for await (const { taskScheduler } of scopedTaskScheduler()({ mongoQueries })) {
 
             // Populate db
             await asyncEachOfSeries(_3Notes, async note => await shadowDB.saveNote(note, true));

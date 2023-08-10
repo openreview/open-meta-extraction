@@ -82,7 +82,7 @@ export class MonitorService {
       });
     }
 
-    for await (const { httpServer } of scopedHttpServerWithDeps({ port, routerSetup })) {
+    for await (const { httpServer } of scopedHttpServerWithDeps()({ port, routerSetup })) {
       this.log.info('Server is live');
       await httpServer.keepAlive();
     }
@@ -119,7 +119,7 @@ export class MonitorService {
 }
 
 
-export const scopedMonitorService = withScopedResource<
+export const scopedMonitorService = () => withScopedResource<
   MonitorService,
   'monitorService',
   MonitorServiceArgs
@@ -134,9 +134,9 @@ export const scopedMonitorService = withScopedResource<
   },
 );
 
-export const scopedMonitorServiceWithDeps = combineScopedResources(
-  scopedMongooseWithDeps,
-  scopedMonitorService
+export const scopedMonitorServiceWithDeps = () => combineScopedResources(
+  scopedMongooseWithDeps(),
+  scopedMonitorService()
 );
 
 function formatMonitorSummaries(summaries?: MonitorSummaries): string {

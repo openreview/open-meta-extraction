@@ -40,7 +40,10 @@ export class OpenReviewExchange {
   constructor() {
     const config = initConfig();
     this.log = getServiceLogger('OpenReviewExchange');
-    this.apiBaseURL = config.get('openreview:restApi');
+    const restApi = config.get('openreview:restApi');
+    const port = config.get('openreview:port');
+    this.apiBaseURL = `${restApi}:${port}`;
+
     this.user = config.get('openreview:restUser');
     this.password = config.get('openreview:restPassword');
   }

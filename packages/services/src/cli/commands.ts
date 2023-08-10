@@ -1,15 +1,14 @@
 import _ from 'lodash';
 
-import { arglib, combineScopedResources, initConfig, oneHour, putStrLn, withGracefulExit } from '@watr/commonlib';
+import { arglib, combineScopedResources, initConfig, oneHour, putStrLn } from '@watr/commonlib';
 import { formatStatusMessages, showStatusSummary } from '~/db/extraction-summary';
 import { connectToMongoDB, mongoConnectionString, resetMongoDB, scopedMongoose } from '~/db/mongodb';
-import { scopedFetchService } from '~/components/fetch-service';
-import { scopedExtractionService, scopedExtractionServiceWithDeps } from '~/components/extraction-service';
+import { scopedFetchServiceWithDeps } from '~/components/fetch-service';
+import { scopedExtractionService } from '~/components/extraction-service';
 import { OpenReviewGateway } from '~/components/openreview-gateway';
-import { scopedMonitorService, scopedMonitorServiceWithDeps } from '~/components/monitor-service';
+import { scopedMonitorServiceWithDeps } from '~/components/monitor-service';
 import { CursorRoles, isCursorRole, scopedMongoQueries } from '~/db/query-api';
-import { scopedTaskScheduler, scopedTaskSchedulerWithDeps } from '~/components/task-scheduler';
-import { scopedShadowDB } from '~/components/shadow-db';
+import { scopedTaskSchedulerWithDeps } from '~/components/task-scheduler';
 import { scopedBrowserPool } from '@watr/spider';
 
 const { opt, config, registerCmd } = arglib;
@@ -40,14 +39,8 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
   )(async (args: any) => {
     const { limit, pauseBeforeExit } = args;
 
-    for await (const { mongoose } of scopedMongoose({ useUniqTestDB: true })) {
-      for await (const { mongoQueries } of scopedMongoQueries({ mongoose })) {
-        for await (const { shadowDB } of scopedShadowDB({ mongoQueries })) {
-          for await (const { fetchService } of scopedFetchService({ shadowDB })) {
-            await fetchService.runFetchLoop(limit, pauseBeforeExit);
-          }
-        }
-      }
+    for await (const { fetchService } of scopedFetchServiceWithDeps()({})) {
+      await fetchService.runFetchLoop(limit, pauseBeforeExit);
     }
   });
 
@@ -60,8 +53,8 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
     )
   )(async (args: any) => {
     const del = args.delete;
-    for await (const { mongoose } of scopedMongoose({ useUniqTestDB: true })) {
-      for await (const { mongoQueries } of scopedMongoQueries({ mongoose })) {
+    for await (const { mongoose } of scopedMongoose()({ useUniqTestDB: true })) {
+      for await (const { mongoQueries } of scopedMongoQueries()({ mongoose })) {
         const cursors = await mongoQueries.getCursors()
         cursors.forEach(c => {
           putStrLn(`> ${c.role} = id:${c.noteId} number:${c.noteNumber} created:${c.createdAt}`);
@@ -98,7 +91,7 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
       return;
     }
 
-    for await (const { taskScheduler, mongoQueries } of scopedTaskSchedulerWithDeps({})) {
+    for await (const { taskScheduler, mongoQueries } of scopedTaskSchedulerWithDeps()({})) {
 
       if (_.isNumber(move) && move !== 0) {
         putStrLn(`Moving cursor w/role ${role}`);
@@ -149,7 +142,7 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
 
     const monitorUpdateInterval = updateInterval > 0 ? updateInterval : oneHour;
     const monitorNotificationInterval = notifyInterval > 0 ? notifyInterval : oneHour * 12;
-    for await (const { monitorService } of scopedMonitorServiceWithDeps({
+    for await (const { monitorService } of scopedMonitorServiceWithDeps()({
       sendNotifications,
       monitorNotificationInterval,
       monitorUpdateInterval
@@ -178,10 +171,10 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
     // )
     const composition = combineScopedResources(
       combineScopedResources(
-        scopedTaskSchedulerWithDeps,
-        scopedBrowserPool
+        scopedTaskSchedulerWithDeps(),
+        scopedBrowserPool()
       ),
-      scopedExtractionService
+      scopedExtractionService()
     );
 
 
@@ -202,10 +195,10 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
 
     const composition = combineScopedResources(
       combineScopedResources(
-        scopedTaskSchedulerWithDeps,
-        scopedBrowserPool
+        scopedTaskSchedulerWithDeps(),
+        scopedBrowserPool()
       ),
-      scopedExtractionService
+      scopedExtractionService()
     );
 
     for await (const { extractionService } of composition({ postResultsToOpenReview })) {

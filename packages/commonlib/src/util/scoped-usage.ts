@@ -1,10 +1,22 @@
 import _ from 'lodash';
 import { putStrLn } from './pretty-print';
+import { newIdGenerator } from './utils';
 
 /**
  * Provides  composable  manage  execution  scopes, within  which  services  are
  * available, and cleanup/shutdown is guaranteed when the scope is exited
  */
+
+const resourceIdSet = new Map<string, () => number>();
+function resourceId(name: string): string {
+  let nextId = resourceIdSet.get(name)
+  if (nextId) {
+    return `${name}${nextId()}`;
+  }
+  nextId = newIdGenerator(1);
+  resourceIdSet.set(name, nextId);
+  return `${name}${nextId()}`;
+}
 
 type Eventual<T> = T | Promise<T>;
 
@@ -22,6 +34,7 @@ export class ScopedResource<
   WithUsageT extends ProductT & NeedsT = ProductT & NeedsT
 > {
   name: NameT;
+  id: string;
   init: (args: NeedsT) => Eventual<ProductT>;
   destroy: (used: WithUsageT) => Eventual<void>;
   isClosed: boolean = false;
@@ -29,11 +42,12 @@ export class ScopedResource<
   constructor(
     name: NameT,
     init: (args: NeedsT) => Eventual<ProductT>,
-    destroy: (used: WithUsageT) => Eventual<void>
+    destroy: (used: WithUsageT) => Eventual<void>,
   ) {
     this.name = name;
     this.init = init;
     this.destroy = destroy;
+    this.id = resourceId(name);
   }
 
   async getOrInit(useArgs: NeedsT): Promise<WithUsageT> {
@@ -42,17 +56,21 @@ export class ScopedResource<
     return withU;
   }
   async close(used: WithUsageT): Promise<void> {
+    putStrLn(`${this.id}:close`)
     if (this.isClosed) {
-      putStrLn('ScopedResource.close(): already closed')
+      putStrLn(`${this.id}.close(): already closed`)
       return;
     }
     this.isClosed = true;
+    putStrLn(`${this.id}:close.destroy()`)
     await Promise.resolve(this.destroy(used));
   }
 
   async* use(args: NeedsT): AsyncGenerator<WithUsageT, void, any> {
     let resource: WithUsageT = await this.getOrInit(args);
+    putStrLn(`${this.id}:yielding`)
     yield resource;
+    putStrLn(`${this.id}:yielded`)
     this.close(resource);
   }
 }

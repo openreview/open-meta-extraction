@@ -73,10 +73,10 @@ function genHtml(head: string, body: string): string {
 
 async function* withPageContent(htmlContent: string): AsyncGenerator<{ pageInstance: PageInstance }, void, void> {
 
-  for await (const { gracefulExit } of withGracefulExit({})) {
-    for await (const { browserPool } of scopedBrowserPool({ gracefulExit })) {
-      for await (const { browserInstance } of scopedBrowserInstance({ browserPool })) {
-        for await (const wpi of scopedPageInstance({ browserInstance })) {
+  for await (const { gracefulExit } of withGracefulExit()({})) {
+    for await (const { browserPool } of scopedBrowserPool()({ gracefulExit })) {
+      for await (const { browserInstance } of scopedBrowserInstance()({ browserPool })) {
+        for await (const wpi of scopedPageInstance()({ browserInstance })) {
           const page = wpi.pageInstance.page;
           await page.setContent(htmlContent, {
             timeout: 8000,

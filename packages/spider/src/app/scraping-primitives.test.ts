@@ -13,7 +13,7 @@ import {
   initArg,
 } from '~/core/taskflow-defs';
 
-import { getServiceLogger, setLogEnvLevel } from '@watr/commonlib';
+import { getServiceLogger, newIdGenerator, setLogEnvLevel } from '@watr/commonlib';
 import { createBrowserPool } from '~/core/browser-pool';
 import { useTestingHttpServer } from '~/dev/test-http-server';
 import { ScriptablePageInstanceOptions } from '~/core/browser-instance';
@@ -33,13 +33,26 @@ async function withSpideringEnv(url: URL, fn: (env: SpiderEnv) => Promise<void>)
 
 describe('scraping primitives', () => {
   setLogEnvLevel('info');
+  const idGen =  newIdGenerator(1);
+  const basePort = 9000;
+  // const nextPortNum
 
   const workingDir = './test.scratch.d';
 
-  it('should scrape a simple url', async () => {
-    const url = new URL('http://localhost:9100/echo');
+  function nextPortNum(): number {
+    return basePort + idGen();
+  }
 
-    for await (const __ of useTestingHttpServer(workingDir)) {
+  function makeUrl(path:string, port: number): URL {
+    return new URL(`http://localhost:${port}${path}`);
+  }
+
+
+  it('should scrape a simple url', async () => {
+    const port = nextPortNum();
+    const url = makeUrl('/echo', port);
+
+    for await (const __ of useTestingHttpServer({ port, workingDir })) {
       await withSpideringEnv(url, async (env) => {
         const pipeline = pipe(
           initArg(url, env),
@@ -57,9 +70,10 @@ describe('scraping primitives', () => {
 
 
   it('should block javascript by default', async () => {
-    const url = new URL('http://localhost:9100/echo?foo=bar');
+    const port = nextPortNum();
+    const url = makeUrl('/echo?foo=bar', port);
 
-    for await (const __ of useTestingHttpServer(workingDir)) {
+    for await (const __ of useTestingHttpServer({ port, workingDir })) {
       await withSpideringEnv(url, async (env) => {
         const pipeline = pipe(
           initArg(url, env),
@@ -77,9 +91,10 @@ describe('scraping primitives', () => {
   });
 
   it('should allow javascript when specified', async () => {
-    const url = new URL('http://localhost:9100/echo?foo=bar');
+    const port = nextPortNum();
+    const url = makeUrl('/echo?foo=bar', port);
 
-    for await (const __ of useTestingHttpServer(workingDir)) {
+    for await (const __ of useTestingHttpServer({ port, workingDir })) {
       await withSpideringEnv(url, async (env) => {
         const pipeline = pipe(
           initArg(url, env),
