@@ -12,7 +12,8 @@ import {
   GracefulExit,
   withScopedResource,
   combineScopedResources,
-  withGracefulExit
+  withGracefulExit,
+  newIdGenerator
 } from '@watr/commonlib';
 
 export type Router = KoaRouter;
@@ -21,19 +22,24 @@ type HttpServerNeeds = {
   gracefulExit: GracefulExit;
   routerSetup: (router: Router) => void;
   port: number;
+  useUniqPort?: boolean;
 };
 
 class HttpServer {
   server: Server;
+  port: number;
   onClosedPromise: Promise<void>
-  constructor(server: Server, onClosedPromise: Promise<void>) {
+  constructor(server: Server, onClosedPromise: Promise<void>, port: number) {
     this.server = server
     this.onClosedPromise = onClosedPromise;
+    this.port = port;
   }
   async keepAlive(): Promise<void> {
     return this.onClosedPromise;
   }
 }
+
+const idGen = newIdGenerator(1);
 
 export const scopedHttpServer = () => withScopedResource<
   HttpServer,
@@ -41,7 +47,7 @@ export const scopedHttpServer = () => withScopedResource<
   HttpServerNeeds
 >(
   'httpServer',
-  async function init({ gracefulExit, routerSetup, port }) {
+  async function init({ gracefulExit, routerSetup, port, useUniqPort }) {
     const log = getServiceLogger('HttpServer');
     const routes = new KoaRouter();
     const app = new Koa();
@@ -53,10 +59,11 @@ export const scopedHttpServer = () => withScopedResource<
     app.use(routes.routes());
     app.use(routes.allowedMethods());
 
+    const usePort = useUniqPort? port + idGen() : port;
 
     const server = await new Promise<Server>((resolve) => {
-      const server = app.listen(port, () => {
-        log.info(`Koa is listening to http://localhost:${port}`);
+      const server = app.listen(usePort, () => {
+        log.info(`Koa is listening to http://localhost:${usePort}`);
         resolve(server);
       });
     });
@@ -69,7 +76,7 @@ export const scopedHttpServer = () => withScopedResource<
       await closedP;
     });
 
-    const httpServer = new HttpServer(server, closedP);
+    const httpServer = new HttpServer(server, closedP, usePort);
     return { httpServer };
   },
   async function destroy({ httpServer }) {

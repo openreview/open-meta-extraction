@@ -23,7 +23,7 @@ describe('browser pooling', () => {
     expect(expectComps).toStrictEqual(compSet);
   }
 
-  it.only('generators properly yield/close, own or share components', async () => {
+  it('generators properly yield/close, own or share components', async () => {
     try {
 
       for await (const { gracefulExit } of withGracefulExit()({})) {
@@ -94,44 +94,45 @@ describe('browser pooling', () => {
       putStrLn(`Attempt w/fail at ${failAtPosition}`);
       failPtNum = -1;
       poolNum = 0;
+
       function failPoint(comps: Partial<BrowserInstanceNeeds>) {
         failPtNum++;
         setupComponentHandlers(comps);
         if (failPtNum === failAtPosition) {
-          putStrLn(`Failing at p ${failPtNum}`);
           throw new Error(`Pos ${failPtNum} failure`);
         }
-        putStrLn(`Passed p ${failPtNum}`);
       }
       try {
         for await (const { gracefulExit } of withGracefulExit()({})) {
-          for await (const { browserPool } of scopedBrowserPool()({ gracefulExit })) {
+          failPoint({});
 
-            // failPoint(l1Components);
+          for await (const { browserPool } of scopedBrowserPool()({ gracefulExit })) {
+            failPoint({});
 
             for await (const { browserInstance } of scopedBrowserInstance()({ browserPool })) {
-
-              // failPoint(l2Components);
-
-              for await (const l3Components of scopedPageInstance()({ browserInstance })) {
-                // failPoint(l3Components);
-              }
               failPoint({});
 
               for await (const {} of scopedPageInstance()({ browserInstance })) {
-                // failPoint(comps);
+                failPoint({});
+              }
+
+              failPoint({});
+              for await (const {} of scopedPageInstance()({ browserInstance })) {
+                failPoint({});
               }
               failPoint({});
             }
             failPoint({});
           }
+          failPoint({});
         }
-        failPoint({});
       } catch (error: any) {
         putStrLn(error.message);
       }
     }
 
+    // await attempt(0);
+    // putStrLn('it.done')
     await asyncEachSeries(_.range(10), (i) => attempt(i));
   });
 

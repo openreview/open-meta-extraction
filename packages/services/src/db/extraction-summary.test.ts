@@ -3,13 +3,13 @@ import { putStrLn, setLogEnvLevel } from '@watr/commonlib';
 import { formatStatusMessages, showStatusSummary } from './extraction-summary';
 import { populateDBHostNoteStatus } from './mock-data';
 import { scopedMongoQueries } from './query-api';
-import { scopedMongoose } from './mongodb';
+import { scopedMongoose, scopedMongooseWithDeps } from './mongodb';
 
 describe('Create Extraction Status Summary', () => {
   setLogEnvLevel('debug');
 
   it('should create status summary', async () => {
-    for await (const { mongoose } of scopedMongoose()({ useUniqTestDB: true })) {
+    for await (const { mongoose } of scopedMongooseWithDeps()({ useUniqTestDB: true })) {
       for await (const { mongoQueries } of scopedMongoQueries()({ mongoose })) {
         await populateDBHostNoteStatus(mongoQueries, 200);
         const summaryMessages = await showStatusSummary();

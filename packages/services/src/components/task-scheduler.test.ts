@@ -1,5 +1,5 @@
 import _ from 'lodash';
-import { asyncEachOfSeries, setLogEnvLevel } from '@watr/commonlib';
+import { asyncEachOfSeries, loadConfig, setLogEnvLevel } from '@watr/commonlib';
 import { scopedTaskScheduler } from './task-scheduler';
 import { createFakeNote } from '~/db/mock-data';
 import { scopedMongoose } from '~/db/mongodb';
@@ -20,9 +20,10 @@ describe('Task Scheduling', () => {
 
   it('should schedule old and newly added Urls', async () => {
 
-    for await (const { mongoose } of scopedMongoose()({ useUniqTestDB: true })) {
+    const config = loadConfig();
+    for await (const { mongoose } of scopedMongoose()({ useUniqTestDB: true, config })) {
       for await (const { mongoQueries } of scopedMongoQueries()({ mongoose })) {
-        for await (const { shadowDB } of scopedShadowDB()({ mongoQueries })) {
+        for await (const { shadowDB } of scopedShadowDB()({ mongoQueries, config })) {
           for await (const { taskScheduler } of scopedTaskScheduler()({ mongoQueries })) {
 
             // Populate db

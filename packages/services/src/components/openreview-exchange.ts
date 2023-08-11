@@ -11,8 +11,8 @@ import axios, {
 
 
 import {
+  ConfigProvider,
   getServiceLogger,
-  initConfig,
   putStrLn
 } from '@watr/commonlib';
 
@@ -36,9 +36,10 @@ export class OpenReviewExchange {
   password: string;
   apiBaseURL: string;
   log: Logger;
+  config: ConfigProvider
 
-  constructor() {
-    const config = initConfig();
+  constructor(config: ConfigProvider) {
+    this.config = config;
     this.log = getServiceLogger('OpenReviewExchange');
     const restApi = config.get('openreview:restApi');
     const port = config.get('openreview:port');

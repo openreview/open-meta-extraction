@@ -1,6 +1,6 @@
 import _ from 'lodash';
 
-import { getServiceLogger, withScopedResource, shaEncodeAsHex, combineScopedResources } from '@watr/commonlib';
+import { getServiceLogger, withScopedResource, shaEncodeAsHex, combineScopedResources, ConfigProvider } from '@watr/commonlib';
 
 import { Logger } from 'winston';
 import { FetchCursor, NoteStatus, WorkflowStatus } from '~/db/schemas';
@@ -15,7 +15,8 @@ import { Note, OpenReviewGateway, UpdatableField } from './openreview-gateway';
 
 
 type ShadowDBNeeds = {
-  mongoQueries: MongoQueries
+  mongoQueries: MongoQueries,
+  config: ConfigProvider
 };
 
 export const scopedShadowDB = () => withScopedResource<
@@ -24,8 +25,8 @@ export const scopedShadowDB = () => withScopedResource<
   ShadowDBNeeds
 >(
   'shadowDB',
-  async function init({ mongoQueries }) {
-    const shadowDB = new ShadowDB(mongoQueries);
+  async function init({ mongoQueries, config }) {
+    const shadowDB = new ShadowDB(mongoQueries, config);
     return { shadowDB };
   },
   async function destroy() {
@@ -43,14 +44,17 @@ export class ShadowDB {
   gate: OpenReviewGateway;
   mdb: MongoQueries;
   writeChangesToOpenReview: boolean;
+  config: ConfigProvider;
 
   constructor(
     mdb: MongoQueries,
+    config: ConfigProvider
   ) {
     this.log = getServiceLogger('ShadowDB');
-    this.gate = new OpenReviewGateway();
+    this.gate = new OpenReviewGateway(config);
     this.mdb = mdb;
     this.writeChangesToOpenReview = true;
+    this.config = config;
   }
 
 

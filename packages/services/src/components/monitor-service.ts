@@ -1,6 +1,6 @@
 import _ from 'lodash';
 
-import { getServiceLogger, withScopedResource, putStrLn, combineScopedResources } from '@watr/commonlib';
+import { getServiceLogger, withScopedResource, putStrLn, combineScopedResources, ConfigProvider } from '@watr/commonlib';
 import { OpenReviewGateway } from '~/components/openreview-gateway';
 import { ExtractionServiceMonitor, extractionServiceMonitor } from './extraction-service';
 import { FetchServiceMonitor, fetchServiceMonitor } from './fetch-service';
@@ -14,14 +14,15 @@ import { scopedMongooseWithDeps } from '~/db/mongodb';
 type MonitorSummaries = {
   lastUpdateTime: Date,
   extractionSummary: ExtractionServiceMonitor,
-  fetchSummary: FetchServiceMonitor
+  fetchSummary: FetchServiceMonitor,
 }
 
 type MonitorServiceArgs = {
   mongoose: Mongoose,
   sendNotifications: boolean,
   monitorUpdateInterval: number,
-  monitorNotificationInterval: number
+  monitorNotificationInterval: number,
+  config: ConfigProvider
 };
 
 export class MonitorService {
@@ -32,18 +33,21 @@ export class MonitorService {
   monitorUpdateInterval: number;
   monitorNotificationInterval: number;
   lastSummary: MonitorSummaries | undefined;
+  config: ConfigProvider;
 
   constructor({
     sendNotifications,
     mongoose,
     monitorUpdateInterval,
-    monitorNotificationInterval
+    monitorNotificationInterval,
+    config
   }: MonitorServiceArgs) {
     this.log = getServiceLogger('MonitorService');
     this.mongoose = mongoose;
     this.sendNotifications = sendNotifications
     this.monitorUpdateInterval = monitorUpdateInterval;
     this.monitorNotificationInterval = monitorNotificationInterval;
+    this.config = config;
   }
 
   async collectMonitorSummaries(): Promise<MonitorSummaries | undefined> {
@@ -108,7 +112,7 @@ export class MonitorService {
   }
 
   async postNotifications(message: string) {
-    const gateway = new OpenReviewGateway();
+    const gateway = new OpenReviewGateway(this.config);
     const subject = 'OpenReview Extraction Service Status';
     this.log.info('Email:');
     this.log.info(`  subject: ${subject}`);

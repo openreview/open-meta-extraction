@@ -1,6 +1,6 @@
 import _ from 'lodash';
 
-import { arglib, combineScopedResources, initConfig, oneHour, putStrLn } from '@watr/commonlib';
+import { arglib, combineScopedResources, loadConfig, oneHour, putStrLn } from '@watr/commonlib';
 import { formatStatusMessages, showStatusSummary } from '~/db/extraction-summary';
 import { connectToMongoDB, mongoConnectionString, resetMongoDB, scopedMongoose } from '~/db/mongodb';
 import { scopedFetchServiceWithDeps } from '~/components/fetch-service';
@@ -22,8 +22,8 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
     )
   )(async () => {
     putStrLn('Extraction Summary');
-    initConfig();
-    const mongoose = await connectToMongoDB();
+    const config = loadConfig();
+    const mongoose = await connectToMongoDB(config);
     const summaryMessages = await showStatusSummary();
     const formatted = formatStatusMessages(summaryMessages);
     putStrLn(formatted);
@@ -53,7 +53,9 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
     )
   )(async (args: any) => {
     const del = args.delete;
-    for await (const { mongoose } of scopedMongoose()({ useUniqTestDB: true })) {
+
+    const config = loadConfig();
+    for await (const { mongoose } of scopedMongoose()({ useUniqTestDB: true, config })) {
       for await (const { mongoQueries } of scopedMongoQueries()({ mongoose })) {
         const cursors = await mongoQueries.getCursors()
         cursors.forEach(c => {
@@ -214,14 +216,14 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
     opt.flag('clean'),
   )(async (args: any) => {
     const { clean } = args;
-    initConfig();
-    const conn = mongoConnectionString();
+    const config = loadConfig();
+    const conn = mongoConnectionString(config);
     putStrLn('Mongo Tools');
     putStrLn(`Connection: ${conn}`);
 
     if (clean) {
       putStrLn('Cleaning Database');
-      const mongoose = await connectToMongoDB();
+      const mongoose = await connectToMongoDB(config);
       await resetMongoDB();
       putStrLn('Close connections');
       await mongoose.connection.close();
@@ -234,8 +236,8 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
     'openreview-api',
     'Interact with OpenReview.net REST API',
   )(async () => {
-    initConfig();
-    const openreviewGateway = new OpenReviewGateway();
+    const config = loadConfig();
+    const openreviewGateway = new OpenReviewGateway(config);
     await openreviewGateway.testNoteFetching();
   });
 }

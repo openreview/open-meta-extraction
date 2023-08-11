@@ -1,6 +1,7 @@
 import _ from 'lodash';
 
 import {
+  ConfigProvider,
   combineScopedResources,
   delay,
   getServiceLogger,
@@ -18,6 +19,7 @@ import { ShadowDB, scopedShadowDBWithDeps } from './shadow-db';
 
 type FetchServiceNeeds = {
   shadowDB: ShadowDB,
+  config: ConfigProvider,
 };
 
 export const scopedFetchService = () => withScopedResource<
@@ -26,8 +28,8 @@ export const scopedFetchService = () => withScopedResource<
   FetchServiceNeeds
 >(
   'fetchService',
-  async function init({ shadowDB }) {
-    const fetchService = new FetchService(shadowDB);
+  async function init({ shadowDB, config }) {
+    const fetchService = new FetchService(shadowDB, config);
     return { fetchService };
   },
   async function destroy() {
@@ -47,11 +49,16 @@ export class FetchService {
   log: Logger;
   gate: OpenReviewGateway;
   shadow: ShadowDB;
+  config: ConfigProvider;
 
-  constructor(shadow: ShadowDB) {
+  constructor(
+    shadow: ShadowDB,
+    config: ConfigProvider
+  ) {
     this.log = getServiceLogger('FetchService');
-    this.gate = new OpenReviewGateway();
+    this.gate = new OpenReviewGateway(config);
     this.shadow = shadow;
+    this.config = config
   }
 
   async* createNoteBatchGenerator(startingNoteId?: string): AsyncGenerator<Note[], void, void> {

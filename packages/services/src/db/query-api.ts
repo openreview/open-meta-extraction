@@ -1,10 +1,28 @@
 import _ from 'lodash';
 import * as E from 'fp-ts/Either';
 import { Document, Mongoose, Types } from 'mongoose';
-import { asyncMapSeries, getServiceLogger, initConfig, withScopedResource, shaEncodeAsHex, validateUrl, combineScopedResources } from '@watr/commonlib';
+import {
+  asyncMapSeries,
+  getServiceLogger,
+  withScopedResource,
+  shaEncodeAsHex,
+  validateUrl,
+  combineScopedResources
+} from '@watr/commonlib';
+
 import { Logger } from 'winston';
-import { FetchCursor, FieldStatus, UrlStatus, UrlStatusUpdateFields, NoteStatus, WorkflowStatus, createCollections } from './schemas';
-import { connectToMongoDB, scopedMongooseWithDeps } from './mongodb';
+
+import {
+  FetchCursor,
+  FieldStatus,
+  UrlStatus,
+  UrlStatusUpdateFields,
+  NoteStatus,
+  WorkflowStatus,
+  createCollections
+} from './schemas';
+
+import { scopedMongooseWithDeps } from './mongodb';
 import { UpdatableField } from '~/components/openreview-gateway';
 
 export type CursorID = Types.ObjectId;
@@ -36,42 +54,22 @@ export const scopedMongoQueries = () => withScopedResource<
   },
 );
 
-export const scopedMongoQueriesWithDeps = () => combineScopedResources(
+// export const scopedMongoQueriesWithDeps = () => combineScopedResources(
+export const scopedMongoQueriesWithDeps: () => (needs: MongooseNeeds&MongoQueriesNeeds) => AsyncGenerator<MongooseNeeds&MongoQueriesNeeds&Record<'mongoose', Mongoose>&Record<'mongoQueries', MongoQueries>, void, any> = () => combineScopedResources(
   scopedMongooseWithDeps(),
   scopedMongoQueries()
 );
 
 export class MongoQueries {
   log: Logger;
-  config: ReturnType<typeof initConfig>;
-  mongoose?: Mongoose;
+  mongoose: Mongoose;
 
-  constructor(mongoose?: Mongoose) {
+  constructor(mongoose: Mongoose) {
     this.log = getServiceLogger('MongoQueries');
-    this.config = initConfig();
     this.mongoose = mongoose;
   }
 
-  async connect() {
-    if (this.mongoose) {
-      this.log.info('Already connected');
-      return;
-    }
-    this.mongoose = await connectToMongoDB();
-  }
-
-  async close() {
-    if (this.mongoose) {
-      const conn = this.mongoose;
-      this.mongoose = undefined;
-      await conn.connection.close();
-    }
-  }
-
   conn() {
-    if (!this.mongoose) {
-      throw new Error('No MongoDB Connection');
-    }
     return this.mongoose.connection;
   }
 

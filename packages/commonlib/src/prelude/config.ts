@@ -1,7 +1,9 @@
 import path from 'path';
 import _ from 'lodash';
-import nconf from 'nconf';
+import { Provider } from 'nconf';
 import fs from 'fs';
+
+export type ConfigProvider = Provider;
 
 export const ENV_MODES = {
   'dev': null,
@@ -58,7 +60,9 @@ export function findAncestorFile(
   }
 }
 
-export function initConfig(): typeof nconf {
+export function loadConfig(): Provider  {
+  const provider = new Provider();
+
   const envMode = getEnv('NODE_ENV');
   if (!isValidEnvMode(envMode)) {
     throw new Error("NODE_ENV not set!");
@@ -66,16 +70,15 @@ export function initConfig(): typeof nconf {
 
   const envFile = `config-${envMode}.json`;
 
-  nconf.argv().env();
+  provider.argv().env();
 
   const envPath = findAncestorFile('.', envFile, ['conf', '.']);
   if (envPath === undefined) {
     throw new Error(`Could not find config file '${envFile}'`);
   }
 
-  nconf.file('env-conf', { file: envPath });
-
-  return nconf;
+  provider.file('env-conf', { file: envPath });
+  return provider;
 }
 
 type EnvKey = keyof typeof Env;
@@ -116,4 +119,3 @@ export function getCorpusRootDir(): string {
   const corpusRoot = path.join(shareDir, 'corpus-root.d');
   return path.resolve(corpusRoot);
 }
-

@@ -1,7 +1,7 @@
-import { initConfig } from '@watr/commonlib';
+import { loadConfig } from '@watr/commonlib';
 import path from 'path';
 
-const appconfig = initConfig();
+const appconfig = loadConfig();
 const ConnectionURL = appconfig.get('mongodb:connectionUrl');
 const MongoDBName = appconfig.get('mongodb:dbName');
 

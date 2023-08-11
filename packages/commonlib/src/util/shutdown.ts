@@ -9,9 +9,11 @@ import { withScopedResource } from './scoped-usage';
 
 export type ExitHandler = (code: Parameters<Handler>[0], signal: Parameters<Handler>[1]) => void | Promise<void>;
 
+export type GracefulExitNeeds = {};
 export const withGracefulExit = () => withScopedResource<
   GracefulExit,
-  'gracefulExit'
+  'gracefulExit',
+  GracefulExitNeeds
 >(
   'gracefulExit',
   async function init({}) {
@@ -44,19 +46,10 @@ export class GracefulExit {
   async runHandlers(code: Parameters<Handler>[0], signal: Parameters<Handler>[1]) {
     this.log.info('Gracefully Exiting');
     await asyncEachOfSeries(this.handlers.reverse(), async (handler, i) => {
+      putStrLn(`GracefulExit: running handler #${i}`)
       await Promise.resolve(handler(code, signal)).catch(error => {
         prettyPrint({ error })
       });
     })
-  }
-
-  async awaitClose() {
-    return new Promise<void>((resolve) => {
-      putStrLn('awaitClose');
-      process.on('disconnect', () => {
-        putStrLn('resolve closed');
-        resolve();
-      });
-    });
   }
 }

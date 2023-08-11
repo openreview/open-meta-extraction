@@ -5,6 +5,7 @@
 import _ from 'lodash';
 
 import {
+  ConfigProvider,
   asyncEachOfSeries,
   getServiceLogger, prettyPrint
 } from '@watr/commonlib';
@@ -62,10 +63,12 @@ export type UpdatableField = keyof typeof UpdateInvitations;
 export class OpenReviewGateway {
   log: Logger;
   opex: OpenReviewExchange;
+  config: ConfigProvider;
 
-  constructor() {
+  constructor(config: ConfigProvider) {
     this.log = getServiceLogger('OpenReviewGateway');
-    this.opex = new OpenReviewExchange();
+    this.config = config
+    this.opex = new OpenReviewExchange(config);
   }
 
   async fetchNotes(afterNoteId?: string): Promise<Notes | undefined> {

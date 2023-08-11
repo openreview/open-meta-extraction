@@ -23,7 +23,8 @@ export const scopedBrowserPool = () => withScopedResource<
     });
     return { browserPool };
   },
-  async function destroy() {
+  async function destroy({ browserPool }) {
+    await browserPool.shutdown();
   },
 );
 
