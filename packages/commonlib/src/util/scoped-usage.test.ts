@@ -1,23 +1,24 @@
 import _ from 'lodash';
 
 import { putStrLn } from "./pretty-print";
-import { combineScopedResources, withScopedResource } from "./scoped-usage";
+import { withScopedResource, combineScopedResources, combineScopes } from "./scoped-usage";
 import { newIdGenerator } from './utils';
-import { scopedAlphaResource, scopedBetaResource, scopedDeferredResource, scopedDerivedResource, scopedPrimaryResource } from './mock-scopes';
+import * as m from './mock-scopes';
 
 
 describe('Scoped Usage', () => {
   it('should be creatable through helper functions', async () => {
-    for await (const pr of scopedPrimaryResource()({})) {
-      for await (const __ of scopedDerivedResource()(pr)) {
+    for await (const pr of m.scopedPrimaryResource()({})) {
+      for await (const __ of m.scopedDerivedResource()(pr)) {
         // prettyPrint({ pr, dr })
       }
     }
   });
 
+
   it('should be handle async resources', async () => {
-    for await (const pr of scopedPrimaryResource()({})) {
-      for await (const __ of scopedDeferredResource()(pr)) {
+    for await (const pr of m.scopedPrimaryResource()({})) {
+      for await (const __ of m.scopedDeferredResource()(pr)) {
         // prettyPrint({ pr, dr })
       }
     }
@@ -25,18 +26,20 @@ describe('Scoped Usage', () => {
 
   it.only('should permit composition', async () => {
     // needs: str, bool
-    const alpha = scopedAlphaResource();
+    const alpha = m.alphaResource();
+    const alphaS = m.scopedAlphaResource();
     // needs: bool, num
-    const beta = scopedBetaResource();
+    const beta = m.betaResource();
+    const betaS = m.scopedBetaResource();
 
-    const ab = combineScopedResources(alpha, beta);
+    // const ab = combineScopes(alphaS, betaS);
 
-    const reqString = '';
-    const reqBool = true;
-    const reqNumber = 42;
-    for await (const {} of ab({ reqString, reqBool, reqNumber })) {
+    // const reqString = '';
+    // const reqBool = true;
+    // const reqNumber = 42;
+    // for await (const {} of ab({ reqString, reqBool, reqNumber })) {
 
-    }
+    // }
 
   });
 });

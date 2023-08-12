@@ -10,7 +10,8 @@ describe('MongoDB Schemas', () => {
 
   it('should create/find note status', async () => {
 
-    for await (const { mongoQueries } of scopedMongoQueriesWithDeps()({ useUniqTestDB: true })) {
+    const config = loadConfig();
+    for await (const { mongoQueries } of scopedMongoQueriesWithDeps()({ useUniqTestDB: true, config })) {
       let i = 1;
       await fc.assert(
         fc.asyncProperty(
@@ -51,7 +52,9 @@ describe('MongoDB Schemas', () => {
   });
 
   it('should create/find host status', async () => {
-    for await (const { mongoQueries } of scopedMongoQueriesWithDeps()({ useUniqTestDB: true })) {
+
+    const config = loadConfig();
+    for await (const { mongoQueries } of scopedMongoQueriesWithDeps()({ useUniqTestDB: true, config })) {
       let noteNum = 0;
       await fc.assert(
         fc.asyncProperty(

@@ -66,11 +66,9 @@ function makeRndStr(len: number): string {
 
 
 // export const scopedMongoose = () => withScopedResource<
-export const scopedMongoose: () => (needs: MongooseNeeds) => AsyncGenerator<MongooseNeeds&Record<'mongoose', Mongoose>, void, any> = () => withScopedResource<
-  Mongoose,
-  'mongoose',
-  MongooseNeeds
->(
+// export const scopedMongoose: () => (needs: MongooseNeeds) => AsyncGenerator<MongooseNeeds, void, any> =
+  // () => withScopedResource<
+export const scopedMongoose = () => withScopedResource<Mongoose, 'mongoose', MongooseNeeds>(
   'mongoose',
   async function init({ config, isProductionDB, useUniqTestDB }) {
     const log = getServiceLogger('useMongoose');

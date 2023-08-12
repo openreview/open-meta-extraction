@@ -53,9 +53,12 @@ export const scopedMongoQueries = () => withScopedResource<
   async function destroy() {
   },
 );
-
-// export const scopedMongoQueriesWithDeps = () => combineScopedResources(
-export const scopedMongoQueriesWithDeps: () => (needs: MongooseNeeds&MongoQueriesNeeds) => AsyncGenerator<MongooseNeeds&MongoQueriesNeeds&Record<'mongoose', Mongoose>&Record<'mongoQueries', MongoQueries>, void, any> = () => combineScopedResources(
+// Type 'Product<"gracefulExit", GracefulExit> & MongooseNeeds & Product<"mongoose", typeof import("mongoose")>' is not assignable to type 'InScope<Omit<MongooseNeeds, "gracefulExit">, "mongoose" | "gracefulExit" | keyof MongooseNeeds, {}>'.
+//
+//        'Product<"gracefulExit", GracefulExit> & MongooseNeeds & Product<"mongoose", Mongoose>'
+// !=     'InScope<Omit<MongooseNeeds, "gracefulExit">, "mongoose" | "gracefulExit" | keyof MongooseNeeds, {}>'.
+// export const scopedMongoQueriesWithDeps: () => (needs: MongooseNeeds&MongoQueriesNeeds) => AsyncGenerator<MongooseNeeds&MongoQueriesNeeds&Record<'mongoose', Mongoose>&Record<'mongoQueries', MongoQueries>, void, any> = () => combineScopedResources(
+export const scopedMongoQueriesWithDeps = () => combineScopedResources(
   scopedMongooseWithDeps(),
   scopedMongoQueries()
 );

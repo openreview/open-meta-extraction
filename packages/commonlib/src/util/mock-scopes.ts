@@ -1,5 +1,5 @@
 import { putStrLn } from "./pretty-print";
-import { withScopedResource } from "./scoped-usage";
+import { scopedResource, withScopedResource } from "./scoped-usage";
 
 class PrimaryResource {
   isPrimary: boolean = true;
@@ -62,12 +62,12 @@ export const scopedDeferredResource = () => withScopedResource<
 );
 
 
-type AlphaResourceNeeds = {
+export type AlphaResourceNeeds = {
   reqString: string;
   reqBool: boolean;
 }
 
-class AlphaResource {
+export class AlphaResource {
   id: number;
   reqString: string;
   reqBool: boolean
@@ -78,6 +78,19 @@ class AlphaResource {
     this.reqBool = reqBool;
   }
 }
+
+export const alphaResource = () => scopedResource<
+  AlphaResource,
+  'alphaResource',
+  AlphaResourceNeeds>(
+    'alphaResource',
+    async function init({ reqString, reqBool }) {
+      const alphaResource = new AlphaResource(0, reqString, reqBool);
+      return { alphaResource };
+    },
+    async function destroy() {
+    },
+  );
 
 export const scopedAlphaResource = () => withScopedResource<
   AlphaResource,
@@ -92,12 +105,12 @@ export const scopedAlphaResource = () => withScopedResource<
     },
   );
 
-type BetaResourceNeeds = {
+export type BetaResourceNeeds = {
   reqBool: boolean,
   reqNumber: number,
 };
 
-class BetaResource {
+export class BetaResource {
   id: number;
   reqNumber: number;
   reqBool: boolean
@@ -109,6 +122,18 @@ class BetaResource {
   }
 }
 
+export const betaResource = () => scopedResource<
+  BetaResource,
+  'betaResource',
+  BetaResourceNeeds>(
+    'betaResource',
+    async function init({ reqBool, reqNumber }) {
+      const betaResource = new BetaResource(0, reqNumber, reqBool);
+      return { betaResource };
+    },
+    async function destroy() {
+    },
+  );
 export const scopedBetaResource = () => withScopedResource<
   BetaResource,
   'betaResource',
@@ -121,3 +146,16 @@ export const scopedBetaResource = () => withScopedResource<
     async function destroy() {
     },
   );
+
+export type GammaResourceNeeds = {
+  alphaResource: AlphaResource
+  betaResource: BetaResource
+};
+
+export class GammaResource {
+  id: number;
+  constructor(id: number) {
+    putStrLn(`new GammaResource(#${id})`);
+    this.id = id;
+  }
+}

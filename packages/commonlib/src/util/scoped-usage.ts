@@ -2,6 +2,7 @@ import _ from 'lodash';
 import { newIdGenerator } from './utils';
 import { getServiceLogger } from './basic-logging';
 import { Logger } from 'winston';
+import * as t from './utility-types';
 
 /**
  * Provides  composable  manage  execution  scopes, within  which  services  are
@@ -20,6 +21,8 @@ function resourceId(name: string): string {
 }
 
 type Eventual<T> = T | Promise<T>;
+type Product<NameT extends string, UsageT> = Record<NameT, UsageT>;
+type InScope<NeedsT, NameT extends string, UsageT> = NeedsT & Product<NameT, UsageT>;
 
 // Naming Conventions:
 // UsageT: the type of the resource which will be available in scope
@@ -31,20 +34,18 @@ export class ScopedResource<
   UsageT,
   NameT extends string,
   NeedsT extends Record<string, any> = {},
-  ProductT extends Record<NameT, UsageT> = Record<NameT, UsageT>,
-  WithUsageT extends ProductT & NeedsT = ProductT & NeedsT
 > {
   name: NameT;
   id: string;
-  init: (args: NeedsT) => Eventual<ProductT>;
-  destroy: (used: WithUsageT) => Eventual<void>;
+  init: (args: NeedsT) => Eventual<Product<NameT, UsageT>>;
+  destroy: (used: InScope<NeedsT, NameT, UsageT>) => Eventual<void>;
   isClosed: boolean = false;
   log: Logger;
 
   constructor(
     name: NameT,
-    init: (args: NeedsT) => Eventual<ProductT>,
-    destroy: (used: WithUsageT) => Eventual<void>,
+    init: (args: NeedsT) => Eventual<Product<NameT, UsageT>>,
+    destroy: (used: InScope<NeedsT, NameT, UsageT>) => Eventual<void>,
     log?: Logger
   ) {
     this.name = name;
@@ -56,12 +57,12 @@ export class ScopedResource<
 
   }
 
-  async getOrInit(useArgs: NeedsT): Promise<WithUsageT> {
-    const used: ProductT = await Promise.resolve(this.init(useArgs));
-    const withU: WithUsageT = _.merge(used, useArgs) as any as WithUsageT;
+  async getOrInit(useArgs: NeedsT): Promise<InScope<NeedsT, NameT, UsageT>> {
+    const used: Product<NameT, UsageT> = await Promise.resolve(this.init(useArgs));
+    const withU: InScope<NeedsT, NameT, UsageT> = _.merge(used, useArgs) as any;
     return withU;
   }
-  async close(used: WithUsageT): Promise<void> {
+  async close(used: InScope<NeedsT, NameT, UsageT>): Promise<void> {
     this.log.debug(`${this.id}:close`)
     if (this.isClosed) {
       this.log.debug(`${this.id}.close: already closed`)
@@ -73,8 +74,9 @@ export class ScopedResource<
     this.log.debug(`${this.id}:close.destroyed`)
   }
 
-  async* use(args: NeedsT): AsyncGenerator<WithUsageT, void, any> {
-    let resource: WithUsageT = await this.getOrInit(args);
+
+  async* use(args: NeedsT): AsyncGenerator<InScope<NeedsT, NameT, UsageT>, void, any> {
+    let resource: InScope<NeedsT, NameT, UsageT> = await this.getOrInit(args);
     this.log.debug(`${this.id}:yielding`)
     try {
       yield resource;
@@ -88,109 +90,105 @@ export class ScopedResource<
   }
 }
 
+export function scopedResource<
+  UsageT,
+  NameT extends string,
+  NeedsT extends Record<string, any> = {},
+>(
+  name: NameT,
+  init: (n: NeedsT) => Eventual<Product<NameT, UsageT>>,
+  destroy: (used: InScope<NeedsT, NameT, UsageT>) => Eventual<void>,
+  log?: Logger
+): ScopedResource<UsageT, NameT, NeedsT> {
+  const sr = new ScopedResource<UsageT, NameT, NeedsT>(name, init, destroy, log);
+  return sr;
+}
+
+
 export function withScopedResource<
   UsageT,
   NameT extends string,
   NeedsT extends Record<string, any> = {},
-  ProductT extends Record<NameT, UsageT> = Record<NameT, UsageT>,
-  WithUsageT extends NeedsT & ProductT = NeedsT & ProductT
 >(
   name: NameT,
-  init: (n: NeedsT) => Eventual<ProductT>,
-  destroy: (used: WithUsageT) => Eventual<void>,
+  init: (n: NeedsT) => Eventual<Product<NameT, UsageT>>,
+  destroy: (used: InScope<NeedsT, NameT, UsageT>) => Eventual<void>,
   log?: Logger
-): (needs: NeedsT) => AsyncGenerator<WithUsageT, void, any> {
-  const sr = new ScopedResource<UsageT, NameT, NeedsT, ProductT, WithUsageT>(name, init, destroy, log);
+): (needs: NeedsT) => AsyncGenerator<InScope<NeedsT, NameT, UsageT>, void, any> {
+  const sr = new ScopedResource<UsageT, NameT, NeedsT>(name, init, destroy, log);
   const boundUse = _.bind(sr.use, sr);
   return boundUse;
 }
 
-type N1 = {
-  n: number;
-  b: boolean;
-}
-type P1 = {
-  o: { q: number };
-}
-type N2 = {
-  b: boolean;
-  o: { q: number };
-  s: string;
-}
-type N2o = Omit<N2, 'q'>;
-type N2e = Omit<N2, 'o'>;
-const asdf: N2o = { b: true, s: '', o: { q: 3 } }
-type NAll = N1 & N2o;
 
-// type Record<K extends keyof any, T> = {
-//     [P in K]: T;
-// };
 
-type ProductT<NameT extends string, UsageT> = { [k in NameT]: UsageT };
-type InScope<NeedsT, NameT extends string, UsageT> = NeedsT & ProductT<NameT, UsageT>;
-
-type MaybeOmit<
-  AvailableScope,
-  Key extends string,
-  Val,
-  Needs,
-> = Needs extends Record<Key, Val> ? Needs : Needs;
-
-type MaybeOmit2<
-  PriorNeeds,
-  Key extends string,
-  Val,
-// { [k in NameT]: UsageT };
-  Needs,
-> = Needs extends Record<Key, Val> ? Needs : Needs;
+type Generate<T> = AsyncGenerator<T, void, any>;
 
 export function combineScopedResources<
   UsageT1 extends {},
   UsageT2 extends {},
   NameT1 extends string,
   NameT2 extends string,
-  NeedsT1 extends Record<string, any>,
-  NeedsT2 extends Record<string, any>,
-// below here is all derived stuff, maybe get rid of it?
-// ProductT1 extends Record<NameT1, UsageT1> = Record<NameT1, UsageT1>,
-// ProductT2 extends Record<NameT2, UsageT2> = Record<NameT2, UsageT2>,
-// WithUsageT1 extends NeedsT1 & ProductT1 = NeedsT1 & ProductT1,
-// WithUsageT2 extends NeedsT2 & ProductT2 = NeedsT2 & ProductT2
+  //
+  Req1Keys extends string,
+  NeedsT1 extends Record<Req1Keys, any>,
+  InScope1 extends InScope<NeedsT1, NameT1, UsageT1>,
+  Req2Keys extends string,
+  NeedsT2 extends Record<Req1Keys & Req2Keys, any>,
+  InScope2 extends InScope1 & InScope<NeedsT2, NameT2, UsageT2>,
+  GenF1 extends (needs: NeedsT1) => Generate<InScope1>,
+  GenF2 extends (needs: NeedsT2) => Generate<InScope2>,
+  CompNeeds extends NeedsT1 & Omit<NeedsT2, NameT1>
 >(
-  gen1: (needs: NeedsT1) => AsyncGenerator<InScope<NeedsT1, NameT1, UsageT1>, void, any>,
-  gen2: (needs: NeedsT2) => AsyncGenerator<InScope<NeedsT2, NameT2, UsageT2>, void, any>,
-): (
-  // all needs for T1 and also T2 except what is provided by T1
-  needs: NeedsT1 & Omit<NeedsT2, NameT1>
-) => AsyncGenerator<InScope<NeedsT1, NameT1, UsageT1> & InScope<NeedsT2, NameT2, UsageT2>, void, any> {
+  gen1: GenF1,
+  gen2: GenF2
+): (needs: CompNeeds) => Generate<InScope2> {
 
-  type Foo = number;
-  async function* composition<InNeeds extends NeedsT1 & Omit<NeedsT2, NameT1>>(
-    needs: InNeeds
-  ): AsyncGenerator<InScope<NeedsT1, NameT1, UsageT1> & InScope<NeedsT2, NameT2, UsageT2>, void, any> {
+  async function* composition(needs: CompNeeds): Generate<InScope2> {
     for await (const prod1 of gen1(needs)) {
-      // TODO figure out typing such that 'as any as' is not needed
-      // const p2Needs: NeedsT2 = _.merge(needs, prod1) as any as NeedsT2;
-      const p2Needs = _.merge(needs, prod1);
+      const p2Needs: NeedsT2 = _.merge(needs, prod1) as any;
+      // const p2Needs = _.merge(needs, prod1);
       for await (const prod2 of gen2(p2Needs)) {
-        yield _.merge({}, prod1, prod2);
+        // const bothScopes: BothScopes = _.merge(prod1, prod2);
+        // yield _.merge({}, prod2);
+        yield prod2;
       }
     }
   };
   return composition;
 }
+type GenFunc<T> = T extends ((arg: infer A) => Generate<infer R>) ?
+  A extends R? (a: A) => Generate<R> : never : never;
 
-// type ProductT<R> = Record<`${R}`, R>;
-// type InScope<R> = Record<`${R}`, R>;
+type UnpackFunc<T> = T extends (arg: infer A) => Generate<infer R> ?
+  R extends A? (a: A) => R : never : never;
 
-// export function combineScopes<
-//   UsageT1,
-//   NameT1 extends string,
-//   UsageT2,
-//   NeedsT1 extends Record<string, any> = {},
-//   NeedsT2 extends Record<string, any> = {},
-// >(
-//   gen1: (needs: NeedsT1) => AsyncGenerator<InScope<>, void, any>,
-//   gen2: (needs: NeedsT2) => AsyncGenerator<InScope<>, void, any>,
-// ): (needs: NeedsT1) => AsyncGenerator<WithUsageT1 & WithUsageT2, void, any> {
-// }
+
+
+export function combineScopes<
+  F1,
+  F1Func extends UnpackFunc<GenFunc<F1>>,
+  Needs1 extends t.AsObject<Parameters<F1Func>[0]>,
+  InScope1 extends t.AsObject<ReturnType<F1Func>>,
+  Usage1 extends t.SymmetricDifference<t.$Keys<InScope1>, t.$Keys<Needs1>>,
+  F2,
+  F2Func extends UnpackFunc<F2>,
+  Needs2 extends t.AsObject<Parameters<F2Func>[0]>,
+  InScope2 extends t.AsObject<ReturnType<F2Func>>,
+  ComposeParm extends Needs1 & Omit<Needs2, Usage1>,
+  InnerScope extends InScope1 & InScope2,
+>(
+  gen1: GenFunc<F1>,
+  gen2: GenFunc<F2>,
+): (needs: ComposeParm) => Generate<InnerScope> {
+  async function* composition(needs: ComposeParm): Generate<InnerScope> {
+    for await (const prod1 of gen1(needs)) {
+      const p2Needs = _.merge(needs, prod1);
+      for await (const prod2 of gen2(p2Needs)) {
+        const innerScope: InnerScope = _.merge(p2Needs, prod2) as any ;
+        yield innerScope;
+      }
+    }
+  };
+  return composition;
+}
