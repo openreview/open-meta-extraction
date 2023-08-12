@@ -11,3 +11,8 @@ export type $Diff<T extends U, U extends object> = Pick<
 export type SymmetricDifference<A, B> = SetDifference<A | B, A & B>;
 
 export type $MaybeDiff<T, U extends object> = T extends U? $Diff<T, U> : T;
+
+export type $SymmetricDiff<T extends object, U extends object> = Pick<
+  T & U,
+  SymmetricDifference<keyof T, keyof U>
+>;

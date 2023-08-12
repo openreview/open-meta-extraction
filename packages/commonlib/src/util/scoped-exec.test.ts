@@ -1,6 +1,6 @@
 import _ from 'lodash';
 import * as m from './mock-scopes';
-import { withScopedExec, composeScopes } from './scoped-exec';
+import { withScopedExec, composeScopes, Yielded } from './scoped-exec';
 import { putStrLn } from './pretty-print';
 
 
@@ -35,11 +35,15 @@ describe('Scoped Execution', () => {
       m.secondaryExec()
     );
     for await (const {} of exec_1_2({})) {}
+    type R1_2 = Yielded<ReturnType<typeof exec_1_2>>;
+    type P1_2 = Parameters<typeof exec_1_2>[0];
 
     const exec_2_3 = composeScopes(
       m.secondaryExec(),
       m.tertiaryExec()
     );
+    type R2_3 = Yielded<ReturnType<typeof exec_2_3>>;
+    type P2_3 = Parameters<typeof exec_2_3>[0];
     const primary = new m.Primary({});
     for await (const {} of exec_2_3({ primary })) {}
 
@@ -47,6 +51,10 @@ describe('Scoped Execution', () => {
       exec_1_2,
       m.tertiaryExec()
     );
+    type R1_2_3 = Yielded<ReturnType<typeof exec_1_2_3>>;
+    // Should be P2-R1 & P3-P2
+    // Is currently P2-R1 & P3
+    type P1_2_3 = Parameters<typeof exec_1_2_3>[0];
 
     for await (const {} of exec_1_2_3({})) {}
 

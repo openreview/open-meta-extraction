@@ -3,7 +3,6 @@ import _ from 'lodash';
 import { newIdGenerator } from './utils';
 import { getServiceLogger } from './basic-logging';
 import { Logger } from 'winston';
-import { $MaybeDiff } from "./utility-types";
 
 /**
  * Provides  composable  manage  execution  scopes, within  which  services  are
@@ -23,9 +22,9 @@ function resourceId(name: string): string {
 
 type Eventual<T> = T | Promise<T>;
 type Product<NameT extends string, UsageT> = Record<NameT, UsageT>;
-type Gener<T> = AsyncGenerator<T, void, any>;
-type Yielded<G> = G extends Gener<infer T> ? T : never;
-type GenParam<T> = T extends ((arg: infer A) => Gener<unknown>) ? A : never;
+export type Gener<T> = AsyncGenerator<T, void, any>;
+export type Yielded<G> = G extends Gener<infer T> ? T : never;
+export type GenParam<T> = T extends ((arg: infer A) => Gener<unknown>) ? A : never;
 
 // Naming Conventions:
 // UsageT: the type of the resource which will be available in scope
@@ -110,6 +109,23 @@ export function withScopedExec<
   return boundUse;
 }
 
+// **********
+type BothNeeds<
+  F1 extends (a: any) => Gener<any>,
+  F2 extends (a: any) => Gener<any>,
+> = GenParam<F1> & Omit<GenParam<F2>, keyof Yielded<ReturnType<F1>>>;
+
+
+type BothScopes<
+  F1 extends (a: any) => Gener<any>,
+  F2 extends (a: any) => Gener<any>,
+> = Yielded<ReturnType<F1>> & Yielded<ReturnType<F2>> // & GenParam<typeof ab> & GenParam<typeof bc>
+
+type GenBothScopes<
+  F1 extends (a: any) => Gener<any>,
+  F2 extends (a: any) => Gener<any>,
+> = Gener<BothScopes<F1, F2>>;
+
 export function composeScopes<
   ANeeds extends Readonly<object>,
   BNeeds extends Readonly<object>,
@@ -118,18 +134,10 @@ export function composeScopes<
 >(
   ab: (an: ANeeds) => Gener<R1>,
   bc: (bn: BNeeds) => Gener<R2>,
-): (
-  needs: GenParam<typeof ab> & $MaybeDiff<GenParam<typeof bc>, Yielded<ReturnType<typeof ab>>>
-) => Gener<
-  Yielded<ReturnType<typeof ab>> & Yielded<ReturnType<typeof bc>> // & GenParam<typeof ab> & GenParam<typeof bc>
-> {
-  async function* composition(
-    compneeds: GenParam<typeof ab> & $MaybeDiff<GenParam<typeof bc>, Yielded<ReturnType<typeof ab>>>
-  ): Gener<
-    Yielded<ReturnType<typeof ab>> & Yielded<ReturnType<typeof bc>> // & GenParam<typeof ab> & GenParam<typeof bc>
-  > {
+): (needs: BothNeeds<typeof ab, typeof bc>) => GenBothScopes<typeof ab, typeof bc> {
+
+  async function* composition(compneeds: BothNeeds<typeof ab, typeof bc>): GenBothScopes<typeof ab, typeof bc> {
     for await (const aprod of ab(compneeds)) {
-      // const needs2: $MaybeDiff<GenParam<typeof bc>, Yielded<ReturnType<typeof ab>>> = compneeds;
       const bcNeeds = _.merge({}, compneeds, aprod) as any;
       for await (const bprod of bc(bcNeeds)) {
         const abcScope = _.merge({}, bcNeeds, bprod);
@@ -140,90 +148,3 @@ export function composeScopes<
 
   return composition;
 }
-
-
-
-// type Generate<T> = AsyncGenerator<T, void, any>;
-
-// type GenFunc<T> = T extends ((arg: infer A) => Generate<infer R>) ?
-//   A extends R? (a: A) => Generate<R> : never : never;
-
-// type UnpackFunc<T> = T extends (arg: infer A) => Generate<infer R> ?
-//   R extends A? (a: A) => R : never : never;
-
-
-// type Parm0<F extends ((...args: any) => any)> = Parameters<F>[0];
-
-// export class ScopedExec<
-//   UsageT,
-//   NameT extends string,
-//   NeedsT extends Record<string, any> = {},
-// > {
-//   name: NameT;
-//   id: string;
-//   init: (args: NeedsT) => Eventual<Product<NameT, UsageT>>;
-//   destroy: (used: InScope<NeedsT, NameT, UsageT>) => Eventual<void>;
-//   isClosed: boolean = false;
-//   log: Logger;
-
-//   constructor(
-//     name: NameT,
-//     init: (args: NeedsT) => Eventual<Product<NameT, UsageT>>,
-//     destroy: (used: InScope<NeedsT, NameT, UsageT>) => Eventual<void>,
-//     log?: Logger
-//   ) {
-//     this.name = name;
-//     this.init = init;
-//     this.destroy = destroy;
-//     this.id = resourceId(name);
-//     this.log = log || getServiceLogger(this.id);
-//     this.log.debug(`${this.id}:new`)
-
-//   }
-
-//   async getOrInit(useArgs: NeedsT): Promise<InScope<NeedsT, NameT, UsageT>> {
-//     const used: Product<NameT, UsageT> = await Promise.resolve(this.init(useArgs));
-//     const withU: InScope<NeedsT, NameT, UsageT> = _.merge(used, useArgs) as any;
-//     return withU;
-//   }
-//   async close(used: InScope<NeedsT, NameT, UsageT>): Promise<void> {
-//     this.log.debug(`${this.id}:close`)
-//     if (this.isClosed) {
-//       this.log.debug(`${this.id}.close: already closed`)
-//       return;
-//     }
-//     this.isClosed = true;
-//     this.log.debug(`${this.id}:close.destroying`)
-//     await Promise.resolve(this.destroy(used));
-//     this.log.debug(`${this.id}:close.destroyed`)
-//   }
-
-
-//   async* use(args: NeedsT): AsyncGenerator<InScope<NeedsT, NameT, UsageT>, void, any> {
-//     let inScope: InScope<NeedsT, NameT, UsageT> = await this.getOrInit(args);
-//     this.log.debug(`${this.id}:yielding`)
-//     try {
-//       yield inScope;
-//     } catch (error: unknown) {
-//       this.log.debug(`${this.id}:caught error`);
-//       throw error;
-//     } finally {
-//       this.log.debug(`${this.id}:yielded`)
-//       await this.close(inScope);
-//     }
-//   }
-// }
-// export function withScopedExec<
-//   UsageT,
-//   NameT extends string,
-//   NeedsT extends Record<string, any> = {},
-// >(
-//   name: NameT,
-//   init: (n: NeedsT) => Eventual<Product<NameT, UsageT>>,
-//   destroy: (used: InScope<NeedsT, NameT, UsageT>) => Eventual<void>,
-//   log?: Logger
-// ): (needs: NeedsT) => AsyncGenerator<InScope<NeedsT, NameT, UsageT>, void, any> {
-//   const sr = new ScopedExec<UsageT, NameT, NeedsT>(name, init, destroy, log);
-//   const boundUse = _.bind(sr.use, sr);
-//   return boundUse;
-// }
