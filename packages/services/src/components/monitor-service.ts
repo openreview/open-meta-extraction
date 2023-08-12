@@ -4,11 +4,11 @@ import { getServiceLogger, withScopedExec, putStrLn, composeScopes, ConfigProvid
 import { OpenReviewGateway } from '~/components/openreview-gateway';
 import { ExtractionServiceMonitor, extractionServiceMonitor } from './extraction-service';
 import { FetchServiceMonitor, fetchServiceMonitor } from './fetch-service';
-import { Router, respondWithPlainText, scopedHttpServerWithDeps } from '@watr/spider';
+import { Router, httpServerExecScopeWithDeps, respondWithPlainText  } from '@watr/spider';
 import { Logger } from 'winston';
 import { CountPerDay } from '~/db/mongo-helpers';
 import { Mongoose } from 'mongoose';
-import { scopedMongooseWithDeps } from '~/db/mongodb';
+import { mongooseExecScopeWithDeps } from '~/db/mongodb';
 
 
 type MonitorSummaries = {
@@ -86,7 +86,7 @@ export class MonitorService {
       });
     }
 
-    for await (const { httpServer } of scopedHttpServerWithDeps()({ port, routerSetup })) {
+    for await (const { httpServer } of httpServerExecScopeWithDeps()({ port, routerSetup })) {
       this.log.info('Server is live');
       await httpServer.keepAlive();
     }
@@ -123,12 +123,11 @@ export class MonitorService {
 }
 
 
-export const scopedMonitorService = () => withScopedExec<
+export const monitorServiceExecScope = () => withScopedExec<
   MonitorService,
   'monitorService',
   MonitorServiceArgs
 >(
-  'monitorService',
   async function init(args) {
     const monitorService = new MonitorService(args);
     return { monitorService };
@@ -138,9 +137,9 @@ export const scopedMonitorService = () => withScopedExec<
   },
 );
 
-export const scopedMonitorServiceWithDeps = () => composeScopes(
-  scopedMongooseWithDeps(),
-  scopedMonitorService()
+export const monitorServiceExecScopeWithDeps = () => composeScopes(
+  mongooseExecScopeWithDeps(),
+  monitorServiceExecScope()
 );
 
 function formatMonitorSummaries(summaries?: MonitorSummaries): string {

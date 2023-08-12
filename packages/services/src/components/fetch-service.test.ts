@@ -1,12 +1,12 @@
 import _ from 'lodash';
-import { asyncEachSeries, prettyPrint, setLogEnvLevel } from '@watr/commonlib';
+import { asyncEachSeries, loadConfig, prettyPrint, setLogEnvLevel } from '@watr/commonlib';
 
-import { scopedHttpServer } from '@watr/spider';
-import { fetchServiceMonitor, scopedFetchServiceWithDeps } from './fetch-service';
+import { httpServerExecScope } from '@watr/spider';
+import { fetchServiceExecScopeWithDeps, fetchServiceMonitor } from './fetch-service';
 
 import { createFakeNoteList, createFakeNotes } from '~/db/mock-data';
 import { fakeNoteIds, listNoteStatusIds, openreviewAPIForNotes } from './testing-utils';
-import { scopedShadowDBWithDeps } from './shadow-db';
+import { shadowDBExecScopeWithDeps } from './shadow-db';
 
 describe('Fetch Service', () => {
 
@@ -29,8 +29,9 @@ describe('Fetch Service', () => {
 
     const port = 9100;
 
-    for await (const { fetchService, gracefulExit } of scopedFetchServiceWithDeps()({ useUniqTestDB: true })) {
-      for await (const {} of scopedHttpServer()({ gracefulExit, port, routerSetup })) {
+    const config = loadConfig();
+    for await (const { fetchService, gracefulExit } of fetchServiceExecScopeWithDeps()({ useUniqTestDB: true, config })) {
+      for await (const {} of httpServerExecScope()({ gracefulExit, port, routerSetup })) {
         expect(await listNoteStatusIds()).toHaveLength(0);
         // get 1
         await fetchService.runFetchLoop(1);
@@ -54,8 +55,9 @@ describe('Fetch Service', () => {
   it('should monitor and report progress', async () => {
     const noteCount = 50;
     const notes = createFakeNoteList(noteCount, 1);
+    const config = loadConfig();
 
-    for await (const { shadowDB } of scopedShadowDBWithDeps()({ useUniqTestDB: true })) {
+    for await (const { shadowDB } of shadowDBExecScopeWithDeps()({ useUniqTestDB: true, config })) {
       await asyncEachSeries(notes, n => shadowDB.saveNote(n, true))
       const summary = await fetchServiceMonitor();
       prettyPrint({ summary })

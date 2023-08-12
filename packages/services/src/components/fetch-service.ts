@@ -15,7 +15,7 @@ import {
 } from './openreview-gateway';
 
 import { generateFromBatch } from '~/util/generators';
-import { ShadowDB, scopedShadowDBWithDeps } from './shadow-db';
+import { ShadowDB, shadowDBExecScope } from './shadow-db';
 
 type FetchServiceNeeds = {
   shadowDB: ShadowDB,
@@ -27,7 +27,6 @@ export const scopedFetchService = () => withScopedExec<
   'fetchService',
   FetchServiceNeeds
 >(
-  'fetchService',
   async function init({ shadowDB, config }) {
     const fetchService = new FetchService(shadowDB, config);
     return { fetchService };
@@ -36,8 +35,20 @@ export const scopedFetchService = () => withScopedExec<
   },
 );
 
-export const scopedFetchServiceWithDeps = () => composeScopes(
-  scopedShadowDBWithDeps(),
+
+// export const fetchServiceExecScopeWithDeps = () => composeScopes(
+//   composeScopes(
+//     mongoQueriesExecScopeWithDeps(),
+//     shadowDBExecScope()
+//   ),
+//   scopedFetchService()
+// );
+export const fetchServiceDeps = () => composeScopes(
+  mongoQueriesExecScopeWithDeps(),
+  shadowDBExecScope()
+);
+export const fetchServiceExecScopeWithDeps = () => composeScopes(
+  fetchServiceDeps(),
   scopedFetchService()
 );
 
@@ -118,6 +129,7 @@ export class FetchService {
 
 import { NoteStatus } from '~/db/schemas';
 import * as mh from '~/db/mongo-helpers';
+import { mongoQueriesExecScopeWithDeps } from '~/db/query-api';
 
 export interface FetchServiceMonitor {
   newNotesPerDay: mh.CountPerDay[]

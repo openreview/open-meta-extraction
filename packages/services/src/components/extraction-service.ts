@@ -35,7 +35,6 @@ export const scopedExtractionService = () => withScopedExec<
   'extractionService',
   ExtractionServiceNeeds
 >(
-  'extractionService',
   async function init({ shadowDB, taskScheduler, browserPool, postResultsToOpenReview }) {
     const corpusRoot = getCorpusRootDir();
     const extractionService = new ExtractionService(

@@ -3,13 +3,14 @@ import _ from 'lodash';
 import { arglib, composeScopes, loadConfig, oneHour, putStrLn } from '@watr/commonlib';
 import { formatStatusMessages, showStatusSummary } from '~/db/extraction-summary';
 import { connectToMongoDB, mongoConnectionString, resetMongoDB, scopedMongoose } from '~/db/mongodb';
-import { scopedFetchServiceWithDeps } from '~/components/fetch-service';
+import { fetchServiceExecScopeWithDeps } from '~/components/fetch-service';
 import { scopedExtractionService } from '~/components/extraction-service';
 import { OpenReviewGateway } from '~/components/openreview-gateway';
-import { scopedMonitorServiceWithDeps } from '~/components/monitor-service';
+import { monitorServiceExecScopeWithDeps } from '~/components/monitor-service';
 import { CursorRoles, isCursorRole, mongoQueriesExecScope } from '~/db/query-api';
 import { scopedTaskSchedulerWithDeps } from '~/components/task-scheduler';
 import { scopedBrowserPool } from '@watr/spider';
+import { shadowDBExecScope } from '~/components/shadow-db';
 
 const { opt, config, registerCmd } = arglib;
 
@@ -39,7 +40,8 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
   )(async (args: any) => {
     const { limit, pauseBeforeExit } = args;
 
-    for await (const { fetchService } of scopedFetchServiceWithDeps()({})) {
+    const config = loadConfig();
+    for await (const { fetchService } of fetchServiceExecScopeWithDeps()({ config })) {
       await fetchService.runFetchLoop(limit, pauseBeforeExit);
     }
   });
@@ -93,7 +95,8 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
       return;
     }
 
-    for await (const { taskScheduler, mongoQueries } of scopedTaskSchedulerWithDeps()({})) {
+    const config = loadConfig();
+    for await (const { taskScheduler, mongoQueries } of scopedTaskSchedulerWithDeps()({ config })) {
 
       if (_.isNumber(move) && move !== 0) {
         putStrLn(`Moving cursor w/role ${role}`);
@@ -144,7 +147,10 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
 
     const monitorUpdateInterval = updateInterval > 0 ? updateInterval : oneHour;
     const monitorNotificationInterval = notifyInterval > 0 ? notifyInterval : oneHour * 12;
-    for await (const { monitorService } of scopedMonitorServiceWithDeps()({
+
+    const config = loadConfig();
+    for await (const { monitorService } of monitorServiceExecScopeWithDeps()({
+      config,
       sendNotifications,
       monitorNotificationInterval,
       monitorUpdateInterval
@@ -174,13 +180,17 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
     const composition = composeScopes(
       composeScopes(
         scopedTaskSchedulerWithDeps(),
-        scopedBrowserPool()
+        shadowDBExecScope()
       ),
-      scopedExtractionService()
+      composeScopes(
+        scopedBrowserPool(),
+        scopedExtractionService()
+      ),
     );
 
 
-    for await (const { extractionService } of composition({ postResultsToOpenReview })) {
+    const config = loadConfig();
+    for await (const { extractionService } of composition({ postResultsToOpenReview, config })) {
       await extractionService.runExtractionLoop(limit, true);
     }
   });
@@ -198,12 +208,16 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
     const composition = composeScopes(
       composeScopes(
         scopedTaskSchedulerWithDeps(),
-        scopedBrowserPool()
+        shadowDBExecScope()
       ),
-      scopedExtractionService()
+      composeScopes(
+        scopedBrowserPool(),
+        scopedExtractionService()
+      ),
     );
 
-    for await (const { extractionService } of composition({ postResultsToOpenReview })) {
+    const config = loadConfig();
+    for await (const { extractionService } of composition({ postResultsToOpenReview, config })) {
       await extractionService.extractUrl(url);
     }
 

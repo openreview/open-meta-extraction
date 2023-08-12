@@ -22,7 +22,7 @@ import {
   createCollections
 } from './schemas';
 
-import { mongooseExecScopeWithDeps } from './mongodb';
+import { MongoDB, mongooseExecScopeWithDeps } from './mongodb';
 import { UpdatableField } from '~/components/openreview-gateway';
 
 export type CursorID = Types.ObjectId;
@@ -37,7 +37,7 @@ type upsertNoteStatusArgs = {
 };
 
 type MongoQueriesNeeds = {
-  mongoose: Mongoose;
+  mongoDB: MongoDB;
 }
 
 export const mongoQueriesExecScope = () => withScopedExec<
@@ -45,8 +45,8 @@ export const mongoQueriesExecScope = () => withScopedExec<
   'mongoQueries',
   MongoQueriesNeeds
 >(
-  async function init({ mongoose }) {
-    const mongoQueries = new MongoQueries(mongoose);
+  async function init({ mongoDB }) {
+    const mongoQueries = new MongoQueries(mongoDB);
     return { mongoQueries };
   },
   async function destroy() {
@@ -60,15 +60,15 @@ export const mongoQueriesExecScopeWithDeps = () => composeScopes(
 
 export class MongoQueries {
   log: Logger;
-  mongoose: Mongoose;
+  mongoDB: MongoDB;
 
-  constructor(mongoose: Mongoose) {
+  constructor(mongoDB: MongoDB) {
     this.log = getServiceLogger('MongoQueries');
-    this.mongoose = mongoose;
+    this.mongoDB = mongoDB;
   }
 
   conn() {
-    return this.mongoose.connection;
+    return this.mongoDB.mongoose.connection;
   }
 
   async dropDatabase() {

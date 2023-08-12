@@ -1,15 +1,14 @@
 import _ from 'lodash';
 
-import { asyncEachOfSeries, gracefulExitExecScope, setLogEnvLevel, prettyPrint } from '@watr/commonlib';
-import { scopedFetchService, scopedFetchServiceWithDeps } from './fetch-service';
+import { asyncEachOfSeries,  setLogEnvLevel, prettyPrint, loadConfig } from '@watr/commonlib';
+import { fetchServiceExecScopeWithDeps } from './fetch-service';
 import { createFakeNoteList } from '~/db/mock-data';
 import { fakeNoteIds, listNoteStatusIds, openreviewAPIForNotes, spiderableRoutes } from './testing-utils';
 import { extractionServiceMonitor, scopedExtractionService } from './extraction-service';
-import { CursorRole, MongoQueries, mongoQueriesExecScope } from '~/db/query-api';
-import { scopedShadowDB, scopedShadowDBWithDeps } from './shadow-db';
-import { Router, scopedHttpServer, scopedHttpServerWithDeps } from '@watr/spider/src/http-server/http-service';
-import { scopedMongoose } from '~/db/mongodb';
-import { scopedTaskScheduler, scopedTaskSchedulerWithDeps } from './task-scheduler';
+import { CursorRole, MongoQueries } from '~/db/query-api';
+import { shadowDBExecScopeWithDeps } from './shadow-db';
+import { Router, httpServerExecScopeWithDeps  } from '@watr/spider';
+import { scopedTaskScheduler } from './task-scheduler';
 import { scopedBrowserPool } from '@watr/spider';
 
 describe('Extraction Service', () => {
@@ -25,6 +24,7 @@ describe('Extraction Service', () => {
     const spiderRoutes = spiderableRoutes();
     const postResultsToOpenReview = true;
 
+    const config = loadConfig();
     async function checkCursor(mdb: MongoQueries, role: CursorRole, noteId: string) {
       const c1 = await mdb.getCursor(role);
       expect(c1).toBeDefined()
@@ -34,9 +34,9 @@ describe('Extraction Service', () => {
       expect(c1.noteId).toBe(noteId)
     }
     const port = 9100;
-    for await (const { gracefulExit } of scopedHttpServerWithDeps()({ port, routerSetup: (r: Router) => { routes(r); spiderRoutes(r) } })) {
+    for await (const { gracefulExit } of httpServerExecScopeWithDeps()({ port, routerSetup: (r: Router) => { routes(r); spiderRoutes(r) } })) {
       for await (const { browserPool } of scopedBrowserPool()({ gracefulExit })) {
-        for await (const { fetchService, shadowDB, mongoQueries } of scopedFetchServiceWithDeps()({ useUniqTestDB: true })) {
+        for await (const { fetchService, shadowDB, mongoQueries } of fetchServiceExecScopeWithDeps()({ useUniqTestDB: true, config })) {
           for await (const { taskScheduler } of scopedTaskScheduler()({ mongoQueries })) {
             // Init the shadow db
             await fetchService.runFetchLoop(100);
@@ -78,7 +78,8 @@ describe('Extraction Service', () => {
   });
 
   it('should monitor newly extracted fields', async () => {
-    for await (const { shadowDB } of scopedShadowDBWithDeps()({ useUniqTestDB: true })) {
+    const config = loadConfig();
+    for await (const { shadowDB } of shadowDBExecScopeWithDeps()({ useUniqTestDB: true, config })) {
 
       shadowDB.writeChangesToOpenReview = false;
 

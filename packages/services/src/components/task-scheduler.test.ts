@@ -4,7 +4,7 @@ import { scopedTaskScheduler } from './task-scheduler';
 import { createFakeNote } from '~/db/mock-data';
 import { scopedMongoose } from '~/db/mongodb';
 import { mongoQueriesExecScope } from '~/db/query-api';
-import { scopedShadowDB } from './shadow-db';
+import { shadowDBExecScope } from './shadow-db';
 
 describe('Task Scheduling', () => {
   setLogEnvLevel('warn');
@@ -21,9 +21,9 @@ describe('Task Scheduling', () => {
   it('should schedule old and newly added Urls', async () => {
 
     const config = loadConfig();
-    for await (const { mongoose } of scopedMongoose()({ useUniqTestDB: true, config })) {
-      for await (const { mongoQueries } of mongoQueriesExecScope()({ mongoose })) {
-        for await (const { shadowDB } of scopedShadowDB()({ mongoQueries, config })) {
+    for await (const { mongoDB } of scopedMongoose()({ useUniqTestDB: true, config })) {
+      for await (const { mongoQueries } of mongoQueriesExecScope()({ mongoDB })) {
+        for await (const { shadowDB } of shadowDBExecScope()({ mongoQueries })) {
           for await (const { taskScheduler } of scopedTaskScheduler()({ mongoQueries })) {
 
             // Populate db

@@ -1,10 +1,9 @@
 import _ from 'lodash';
 import { asyncEachOfSeries, loadConfig, setLogEnvLevel } from '@watr/commonlib';
-import { scopedMonitorService } from './monitor-service';
+import { monitorServiceExecScope } from './monitor-service';
 import { createFakeNoteList } from '~/db/mock-data';
-import { scopedShadowDBWithDeps } from './shadow-db';
 import { Note } from './openreview-gateway';
-import { scopedMongoose } from '~/db/mongodb';
+import { shadowDBExecScopeWithDeps } from './shadow-db';
 
 describe('Monitor Service', () => {
 
@@ -13,10 +12,7 @@ describe('Monitor Service', () => {
   it('should gather and format extraction summary', async () => {
     const config = loadConfig();
 
-    for await (const { mongoose } of scopedMongoose()({ useUniqTestDB: true, config })) {
-    }
-    // for await (const { mongoQueries } of mongoQueriesExecScopeWithDeps()({ useUniqTestDB: true })) {
-    for await (const { shadowDB, mongoose } of scopedShadowDBWithDeps()({})) {
+    for await (const { shadowDB, mongoose } of shadowDBExecScopeWithDeps()({ useUniqTestDB: true, config })) {
 
       const noteCount = 50;
       const notes = createFakeNoteList(noteCount, 1);
@@ -37,7 +33,7 @@ describe('Monitor Service', () => {
       const monitorUpdateInterval = 0;
       const monitorNotificationInterval = 0;
 
-      for await (const { monitorService } of scopedMonitorService()({
+      for await (const { monitorService } of monitorServiceExecScope()({
         mongoose,
         sendNotifications,
         monitorNotificationInterval,

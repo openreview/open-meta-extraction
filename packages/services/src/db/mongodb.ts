@@ -1,4 +1,5 @@
-import mongoose, { Mongoose } from 'mongoose';
+// import mongoose, { Mongoose } from 'mongoose';
+import * as mg from 'mongoose';
 import { randomBytes } from 'crypto';
 
 import { createCollections } from '~/db/schemas';
@@ -12,6 +13,7 @@ import {
   composeScopes,
   gracefulExitExecScope
 } from '@watr/commonlib';
+import { Logger } from 'winston';
 
 export function mongoConnectionString(config: ConfigProvider, dbNameMod?: string): string {
   const ConnectionURL = config.get('mongodb:connectionUrl');
@@ -21,15 +23,15 @@ export function mongoConnectionString(config: ConfigProvider, dbNameMod?: string
   return connectUrl;
 }
 
-export async function connectToMongoDB(config: ConfigProvider, dbNameMod?: string): Promise<Mongoose> {
+export async function connectToMongoDB(config: ConfigProvider, dbNameMod?: string): Promise<mg.Mongoose> {
   const connstr = mongoConnectionString(config, dbNameMod);
-  return mongoose.connect(connstr, { connectTimeoutMS: 5000 });
+  return mg.connect(connstr, { connectTimeoutMS: 5000 });
 }
 
 export async function resetMongoDB(): Promise<void> {
-  const dbName = mongoose.connection.name;
+  const dbName = mg.connection.name;
   putStrLn(`dropping MongoDB ${dbName}`);
-  await mongoose.connection.dropDatabase();
+  await mg.connection.dropDatabase();
   putStrLn('createCollections..');
   await createCollections();
 }
@@ -62,7 +64,7 @@ export function createCurrentTimeOpt(): CurrentTimeOpt {
   return mockedOpts;
 }
 
-export type MongooseNeeds = {
+export type MongoDBNeeds = {
   isProductionDB?: boolean;
   useUniqTestDB?: boolean;
   retainTestDB?: boolean;
@@ -74,8 +76,23 @@ function makeRndStr(len: number): string {
   return randomBytes(len).toString('hex').slice(0, len);
 }
 
+export class MongoDB {
+  mongoose: mg.Mongoose;
+  config: ConfigProvider;
+  log: Logger;
 
-export const scopedMongoose = () => withScopedExec<Mongoose, 'mongoose', MongooseNeeds>(
+  constructor(
+    mongoose: mg.Mongoose,
+    config: ConfigProvider,
+    log: Logger
+  ) {
+    this.config = config;
+    this.log = log;
+    this.mongoose = mongoose;
+  }
+}
+
+export const scopedMongoose = () => withScopedExec<MongoDB, 'mongoDB', MongoDBNeeds>(
   async function init({ config, isProductionDB, useUniqTestDB }) {
     const log = getServiceLogger('useMongoose');
 
@@ -89,12 +106,12 @@ export const scopedMongoose = () => withScopedExec<Mongoose, 'mongoose', Mongoos
     if (isValidProdDB) {
       log.info(`MongoDB Production Environ`);
       const mongooseConn = await connectToMongoDB(config);
-      return { mongoose: mongooseConn };
+      return { mongoDB: new MongoDB(mongooseConn, config, log) };
     }
     if (isValidDevDB) {
       log.info(`MongoDB Dev Environ`);
       const mongooseConn = await connectToMongoDB(config);
-      return { mongoose: mongooseConn };
+      return { mongoDB: new MongoDB(mongooseConn, config, log) };
     }
 
     if (isValidTestDB) {
@@ -111,27 +128,27 @@ export const scopedMongoose = () => withScopedExec<Mongoose, 'mongoose', Mongoos
         await createCollections();
       }
 
-      return { mongoose: mongooseConn };
+      return { mongoDB: new MongoDB(mongooseConn, config, log) };
     }
 
     throw new Error(`Mongo db init: db name is not valid for dev,test,or prod environments`);
   },
-  async function destroy({ mongoose, isProductionDB, useUniqTestDB, retainTestDB }) {
-    const MongoDBName = mongoose.connection.name;
+  async function destroy({ mongoDB, isProductionDB, useUniqTestDB, retainTestDB }) {
+    const MongoDBName = mongoDB.mongoose.connection.name;
 
     if (isProductionDB) {
       putStrLn(`mongo closing db ${MongoDBName}...`);
-      return mongoose.connection.close();
+      return mongoDB.mongoose.connection.close();
     }
 
     const isTestDBName = /.+test.*/.test(MongoDBName);
     const isValidTestDB = isEnvMode('test') && isTestDBName;
     if (isValidTestDB && useUniqTestDB && !retainTestDB) {
       putStrLn(`mongo dropping db ${MongoDBName}...`);
-      await mongoose.connection.dropDatabase()
+      await mongoDB.mongoose.connection.dropDatabase()
     }
     putStrLn(`mongo closing db ${MongoDBName}...`);
-    await mongoose.connection.close();
+    await mongoDB.mongoose.connection.close();
   }
 )
 

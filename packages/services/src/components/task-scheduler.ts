@@ -15,7 +15,6 @@ export const scopedTaskScheduler = () => withScopedExec<
   'taskScheduler',
   TaskSchedulerNeeds
 >(
-  'taskScheduler',
   async function init({ mongoQueries }) {
     const taskScheduler = new TaskScheduler(mongoQueries);
     return { taskScheduler };

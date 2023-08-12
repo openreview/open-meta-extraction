@@ -1,6 +1,6 @@
 import _ from 'lodash';
 
-import { getServiceLogger, withScopedExec, shaEncodeAsHex, composeScopes, ConfigProvider } from '@watr/commonlib';
+import { getServiceLogger, withScopedExec, shaEncodeAsHex, composeScopes  } from '@watr/commonlib';
 
 import { Logger } from 'winston';
 import { FetchCursor, NoteStatus, WorkflowStatus } from '~/db/schemas';
@@ -16,25 +16,25 @@ import { Note, OpenReviewGateway, UpdatableField } from './openreview-gateway';
 
 type ShadowDBNeeds = {
   mongoQueries: MongoQueries,
-  config: ConfigProvider
+  // config: ConfigProvider
 };
 
-export const scopedShadowDB = () => withScopedExec<
+export const shadowDBExecScope = () => withScopedExec<
   ShadowDB,
   'shadowDB',
   ShadowDBNeeds
 >(
-  async function init({ mongoQueries, config }) {
-    const shadowDB = new ShadowDB(mongoQueries, config);
+  async function init({ mongoQueries }) {
+    const shadowDB = new ShadowDB(mongoQueries);
     return { shadowDB };
   },
   async function destroy() {
   },
 );
 
-export const scopedShadowDBWithDeps = () => composeScopes(
+export const shadowDBExecScopeWithDeps = () => composeScopes(
   mongoQueriesExecScopeWithDeps(),
-  scopedShadowDB()
+  shadowDBExecScope()
 );
 
 
@@ -43,17 +43,17 @@ export class ShadowDB {
   gate: OpenReviewGateway;
   mdb: MongoQueries;
   writeChangesToOpenReview: boolean;
-  config: ConfigProvider;
+  // config: ConfigProvider;
 
   constructor(
     mdb: MongoQueries,
-    config: ConfigProvider
+    // config: ConfigProvider
   ) {
     this.log = getServiceLogger('ShadowDB');
-    this.gate = new OpenReviewGateway(config);
+    this.gate = new OpenReviewGateway(mdb.mongoDB.config);
     this.mdb = mdb;
     this.writeChangesToOpenReview = true;
-    this.config = config;
+    // this.config = config;
   }
 
 
