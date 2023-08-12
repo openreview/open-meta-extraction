@@ -4,7 +4,7 @@ import { loadConfig, setLogEnvLevel } from '@watr/commonlib';
 import { createFakeNote } from '~/db/mock-data';
 import { scopedShadowDB } from './shadow-db';
 import { scopedMongoose } from '~/db/mongodb';
-import { scopedMongoQueries } from '~/db/query-api';
+import { mongoQueriesExecScope } from '~/db/query-api';
 
 describe('Shadow DB', () => {
   setLogEnvLevel('trace');
@@ -13,7 +13,7 @@ describe('Shadow DB', () => {
 
     const config = loadConfig();
     for await (const { mongoose } of scopedMongoose()({ useUniqTestDB: true, config })) {
-      for await (const { mongoQueries } of scopedMongoQueries()({ mongoose })) {
+      for await (const { mongoQueries } of mongoQueriesExecScope()({ mongoose })) {
         for await (const { shadowDB } of scopedShadowDB()({ mongoQueries, config })) {
           const note1 = createFakeNote({ noteNumber: 1, hasAbstract: true, hasHTMLLink: true, hasPDFLink: false });
           expect(await shadowDB.findNote(note1.id)).toBeUndefined();

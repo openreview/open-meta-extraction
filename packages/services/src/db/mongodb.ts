@@ -1,7 +1,17 @@
-import { getServiceLogger, isTestingEnv, withScopedResource, putStrLn, isEnvMode, combineScopedResources, withGracefulExit, ConfigProvider } from '@watr/commonlib';
 import mongoose, { Mongoose } from 'mongoose';
-import { createCollections } from '~/db/schemas';
 import { randomBytes } from 'crypto';
+
+import { createCollections } from '~/db/schemas';
+import {
+  getServiceLogger,
+  isTestingEnv,
+  withScopedExec,
+  putStrLn,
+  isEnvMode,
+  ConfigProvider,
+  composeScopes,
+  gracefulExitExecScope
+} from '@watr/commonlib';
 
 export function mongoConnectionString(config: ConfigProvider, dbNameMod?: string): string {
   const ConnectionURL = config.get('mongodb:connectionUrl');
@@ -65,11 +75,7 @@ function makeRndStr(len: number): string {
 }
 
 
-// export const scopedMongoose = () => withScopedResource<
-// export const scopedMongoose: () => (needs: MongooseNeeds) => AsyncGenerator<MongooseNeeds, void, any> =
-  // () => withScopedResource<
-export const scopedMongoose = () => withScopedResource<Mongoose, 'mongoose', MongooseNeeds>(
-  'mongoose',
+export const scopedMongoose = () => withScopedExec<Mongoose, 'mongoose', MongooseNeeds>(
   async function init({ config, isProductionDB, useUniqTestDB }) {
     const log = getServiceLogger('useMongoose');
 
@@ -129,7 +135,7 @@ export const scopedMongoose = () => withScopedResource<Mongoose, 'mongoose', Mon
   }
 )
 
-export const scopedMongooseWithDeps = () => combineScopedResources(
-  withGracefulExit(),
+export const mongooseExecScopeWithDeps = () => composeScopes(
+  gracefulExitExecScope(),
   scopedMongoose()
 );

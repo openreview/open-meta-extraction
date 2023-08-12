@@ -5,17 +5,16 @@ import { onExit, Handler } from 'signal-exit';
 import { prettyPrint, putStrLn } from './pretty-print';
 import { getServiceLogger } from './basic-logging';
 import { asyncEachOfSeries } from './async-plus';
-import { withScopedResource } from './scoped-usage';
+import { withScopedExec } from './scoped-exec';
 
 export type ExitHandler = (code: Parameters<Handler>[0], signal: Parameters<Handler>[1]) => void | Promise<void>;
 
 export type GracefulExitNeeds = {};
-export const withGracefulExit = () => withScopedResource<
+export const gracefulExitExecScope = () => withScopedExec<
   GracefulExit,
   'gracefulExit',
   GracefulExitNeeds
 >(
-  'gracefulExit',
   async function init({}) {
     const gracefulExit = new GracefulExit();
 
@@ -27,9 +26,7 @@ export const withGracefulExit = () => withScopedResource<
   },
   async function destroy() {
   },
-)
-
-
+);
 
 export class GracefulExit {
   log: Logger;

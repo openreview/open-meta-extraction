@@ -1,8 +1,8 @@
 import _ from 'lodash';
 import { Logger } from 'winston';
-import { combineScopedResources, delay, getServiceLogger, withScopedResource } from '@watr/commonlib';
+import { composeScopes, delay, getServiceLogger, withScopedExec } from '@watr/commonlib';
 import { NoteStatus, UrlStatus } from '~/db/schemas';
-import { CursorRole, MongoQueries, scopedMongoQueriesWithDeps } from '~/db/query-api';
+import { CursorRole, MongoQueries, mongoQueriesExecScopeWithDeps } from '~/db/query-api';
 import differenceInMilliseconds from 'date-fns/differenceInMilliseconds';
 
 
@@ -10,7 +10,7 @@ type TaskSchedulerNeeds = {
   mongoQueries: MongoQueries;
 }
 
-export const scopedTaskScheduler = () => withScopedResource<
+export const scopedTaskScheduler = () => withScopedExec<
   TaskScheduler,
   'taskScheduler',
   TaskSchedulerNeeds
@@ -24,8 +24,8 @@ export const scopedTaskScheduler = () => withScopedResource<
   },
 );
 
-export const scopedTaskSchedulerWithDeps = () => combineScopedResources(
-  scopedMongoQueriesWithDeps(),
+export const scopedTaskSchedulerWithDeps = () => composeScopes(
+  mongoQueriesExecScopeWithDeps(),
   scopedTaskScheduler()
 );
 

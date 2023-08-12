@@ -1,13 +1,13 @@
 import _ from 'lodash';
 
-import { arglib, combineScopedResources, loadConfig, oneHour, putStrLn } from '@watr/commonlib';
+import { arglib, composeScopes, loadConfig, oneHour, putStrLn } from '@watr/commonlib';
 import { formatStatusMessages, showStatusSummary } from '~/db/extraction-summary';
 import { connectToMongoDB, mongoConnectionString, resetMongoDB, scopedMongoose } from '~/db/mongodb';
 import { scopedFetchServiceWithDeps } from '~/components/fetch-service';
 import { scopedExtractionService } from '~/components/extraction-service';
 import { OpenReviewGateway } from '~/components/openreview-gateway';
 import { scopedMonitorServiceWithDeps } from '~/components/monitor-service';
-import { CursorRoles, isCursorRole, scopedMongoQueries } from '~/db/query-api';
+import { CursorRoles, isCursorRole, mongoQueriesExecScope } from '~/db/query-api';
 import { scopedTaskSchedulerWithDeps } from '~/components/task-scheduler';
 import { scopedBrowserPool } from '@watr/spider';
 
@@ -56,7 +56,7 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
 
     const config = loadConfig();
     for await (const { mongoose } of scopedMongoose()({ useUniqTestDB: true, config })) {
-      for await (const { mongoQueries } of scopedMongoQueries()({ mongoose })) {
+      for await (const { mongoQueries } of mongoQueriesExecScope()({ mongoose })) {
         const cursors = await mongoQueries.getCursors()
         cursors.forEach(c => {
           putStrLn(`> ${c.role} = id:${c.noteId} number:${c.noteNumber} created:${c.createdAt}`);
@@ -167,12 +167,12 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
     const postResultsToOpenReview: boolean = args.postResults;
     const limit: number = args.limit;
 
-    // const composition = combineScopedResources(
+    // const composition = composeScopes(
     //   scopedBrowserPool,
     //   scopedExtractionServiceWithDeps
     // )
-    const composition = combineScopedResources(
-      combineScopedResources(
+    const composition = composeScopes(
+      composeScopes(
         scopedTaskSchedulerWithDeps(),
         scopedBrowserPool()
       ),
@@ -195,8 +195,8 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
     const urlstr: string = args.url;
     const url = new URL(urlstr);
 
-    const composition = combineScopedResources(
-      combineScopedResources(
+    const composition = composeScopes(
+      composeScopes(
         scopedTaskSchedulerWithDeps(),
         scopedBrowserPool()
       ),

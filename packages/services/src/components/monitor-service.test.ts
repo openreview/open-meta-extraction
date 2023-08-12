@@ -15,7 +15,7 @@ describe('Monitor Service', () => {
 
     for await (const { mongoose } of scopedMongoose()({ useUniqTestDB: true, config })) {
     }
-    // for await (const { mongoQueries } of scopedMongoQueriesWithDeps()({ useUniqTestDB: true })) {
+    // for await (const { mongoQueries } of mongoQueriesExecScopeWithDeps()({ useUniqTestDB: true })) {
     for await (const { shadowDB, mongoose } of scopedShadowDBWithDeps()({})) {
 
       const noteCount = 50;

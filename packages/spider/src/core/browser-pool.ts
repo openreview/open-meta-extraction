@@ -2,19 +2,18 @@ import _ from 'lodash';
 
 import { Logger } from 'winston';
 
-import { GracefulExit, asyncEach, getServiceLogger, prettyPrint, withScopedResource } from '@watr/commonlib';
+import { GracefulExit, asyncEach, getServiceLogger, prettyPrint, withScopedExec } from '@watr/commonlib';
 import { PoolX, createUnderlyingPool } from './browser-pool-impl';
 import { BrowserInstance, DefaultPageInstanceOptions, PageInstance } from './browser-instance';
 type BrowserPoolNeeds = {
   gracefulExit: GracefulExit;
 };
 
-export const scopedBrowserPool = () => withScopedResource<
+export const scopedBrowserPool = () => withScopedExec<
   BrowserPool,
   'browserPool',
   BrowserPoolNeeds
 >(
-  'browserPool',
   async function init({ gracefulExit }) {
     const pool = createUnderlyingPool();
     const browserPool = new BrowserPool(pool);
@@ -32,12 +31,11 @@ export type BrowserInstanceNeeds = {
   browserPool: BrowserPool
 };
 
-export const scopedBrowserInstance = () => withScopedResource<
+export const scopedBrowserInstance = () => withScopedExec<
   BrowserInstance,
   'browserInstance',
   BrowserInstanceNeeds
 >(
-  'browserInstance',
   async function init({ browserPool }) {
     const browserInstance = await browserPool.acquire();
     return { browserInstance };
@@ -51,12 +49,11 @@ type PageInstanceNeeds = {
   browserInstance: BrowserInstance
 };
 
-export const scopedPageInstance = () => withScopedResource<
+export const scopedPageInstance = () => withScopedExec<
   PageInstance,
   'pageInstance',
   PageInstanceNeeds
 >(
-  'pageInstance',
   async function init({ browserInstance }) {
     const pageInstance = await browserInstance.newPage(DefaultPageInstanceOptions);
     return { pageInstance };

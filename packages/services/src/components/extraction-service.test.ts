@@ -1,11 +1,11 @@
 import _ from 'lodash';
 
-import { asyncEachOfSeries, withGracefulExit, setLogEnvLevel, prettyPrint } from '@watr/commonlib';
+import { asyncEachOfSeries, gracefulExitExecScope, setLogEnvLevel, prettyPrint } from '@watr/commonlib';
 import { scopedFetchService, scopedFetchServiceWithDeps } from './fetch-service';
 import { createFakeNoteList } from '~/db/mock-data';
 import { fakeNoteIds, listNoteStatusIds, openreviewAPIForNotes, spiderableRoutes } from './testing-utils';
 import { extractionServiceMonitor, scopedExtractionService } from './extraction-service';
-import { CursorRole, MongoQueries, scopedMongoQueries } from '~/db/query-api';
+import { CursorRole, MongoQueries, mongoQueriesExecScope } from '~/db/query-api';
 import { scopedShadowDB, scopedShadowDBWithDeps } from './shadow-db';
 import { Router, scopedHttpServer, scopedHttpServerWithDeps } from '@watr/spider/src/http-server/http-service';
 import { scopedMongoose } from '~/db/mongodb';

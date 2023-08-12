@@ -10,10 +10,10 @@ import {
   putStrLn,
   getServiceLogger,
   GracefulExit,
-  withScopedResource,
-  combineScopedResources,
-  withGracefulExit,
-  newIdGenerator
+  newIdGenerator,
+  composeScopes,
+  gracefulExitExecScope,
+  withScopedExec
 } from '@watr/commonlib';
 
 export type Router = KoaRouter;
@@ -41,12 +41,11 @@ class HttpServer {
 
 const idGen = newIdGenerator(1);
 
-export const scopedHttpServer = () => withScopedResource<
+export const httpServerExecScope = () => withScopedExec<
   HttpServer,
   'httpServer',
   HttpServerNeeds
 >(
-  'httpServer',
   async function init({ gracefulExit, routerSetup, port, useUniqPort }) {
     const log = getServiceLogger('HttpServer');
     const routes = new KoaRouter();
@@ -86,11 +85,15 @@ export const scopedHttpServer = () => withScopedResource<
 );
 
 
-export const scopedHttpServerWithDeps = () => combineScopedResources(
-  withGracefulExit(),
-  scopedHttpServer()
-);
+// export const scopedHttpServerWithDeps = () => composeScopes(
+//   gracefulExitExecScope(),
+//   scopedHttpServer()
+// );
 
+export const httpServerExecScopeWithDeps = () => composeScopes(
+  gracefulExitExecScope(),
+  httpServerExecScope()
+);
 
 export function respondWithJson(
   body: Record<string, any>

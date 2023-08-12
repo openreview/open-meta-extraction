@@ -30,7 +30,7 @@ type InScope<NeedsT, NameT extends string, UsageT> = NeedsT & Product<NameT, Usa
 // NeedsT: the requirements to instantiate resource UsageT
 // ProductT: the record shape in which UsageT is provided, i.e., { [n: NameT]: UsageT }
 // WithUsageT: The full record provided to the user in scope, which is the merged value of ProductT and NeedsT
-export class ScopedResource<
+class ScopedResource<
   UsageT,
   NameT extends string,
   NeedsT extends Record<string, any> = {},
@@ -90,7 +90,7 @@ export class ScopedResource<
   }
 }
 
-export function scopedResource<
+function scopedResource<
   UsageT,
   NameT extends string,
   NeedsT extends Record<string, any> = {},
@@ -105,7 +105,7 @@ export function scopedResource<
 }
 
 
-export function withScopedResource<
+function withScopedExec<
   UsageT,
   NameT extends string,
   NeedsT extends Record<string, any> = {},
@@ -124,7 +124,7 @@ export function withScopedResource<
 
 type Generate<T> = AsyncGenerator<T, void, any>;
 
-export function combineScopedResources<
+function composeScopes<
   UsageT1 extends {},
   UsageT2 extends {},
   NameT1 extends string,
@@ -165,7 +165,7 @@ type UnpackFunc<T> = T extends (arg: infer A) => Generate<infer R> ?
 
 
 
-export function combineScopes<
+function combineScopes<
   F1,
   F1Func extends UnpackFunc<GenFunc<F1>>,
   Needs1 extends t.AsObject<Parameters<F1Func>[0]>,

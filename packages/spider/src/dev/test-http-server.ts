@@ -6,11 +6,11 @@ import {
   stripMargin,
   getServiceLogger,
   prettyPrint,
-  withGracefulExit,
+  gracefulExitExecScope,
 } from '@watr/commonlib';
 
 import fs from 'fs-extra';
-import { scopedHttpServer, scopedHttpServerWithDeps } from '~/http-server/http-service';
+import { httpServerExecScope, httpServerExecScopeWithDeps } from '~/http-server/http-service';
 
 const withFields = stripMargin(`
 |<html>
@@ -103,11 +103,11 @@ type Args = {
 
 export async function* useTestingHttpServer({ port, workingDir }: Args): AsyncGenerator<void, void, any> {
 
-  for await (const {} of scopedHttpServerWithDeps()({ useUniqPort: false, port, routerSetup: testHtmlRoutes })) {
+  for await (const {} of httpServerExecScopeWithDeps()({ useUniqPort: false, port, routerSetup: testHtmlRoutes })) {
   }
 
-  for await (const { gracefulExit } of withGracefulExit()({})) {
-    for await (const {} of scopedHttpServer()({ gracefulExit, useUniqPort: false, port, routerSetup: testHtmlRoutes })) {
+  for await (const { gracefulExit } of gracefulExitExecScope()({})) {
+    for await (const {} of httpServerExecScope()({ gracefulExit, useUniqPort: false, port, routerSetup: testHtmlRoutes })) {
       if (workingDir) {
         fs.emptyDirSync(workingDir);
         fs.removeSync(workingDir);

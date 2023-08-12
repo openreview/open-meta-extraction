@@ -4,10 +4,10 @@ import { Document, Mongoose, Types } from 'mongoose';
 import {
   asyncMapSeries,
   getServiceLogger,
-  withScopedResource,
+  withScopedExec,
   shaEncodeAsHex,
   validateUrl,
-  combineScopedResources
+  composeScopes
 } from '@watr/commonlib';
 
 import { Logger } from 'winston';
@@ -22,7 +22,7 @@ import {
   createCollections
 } from './schemas';
 
-import { scopedMongooseWithDeps } from './mongodb';
+import { mongooseExecScopeWithDeps } from './mongodb';
 import { UpdatableField } from '~/components/openreview-gateway';
 
 export type CursorID = Types.ObjectId;
@@ -40,12 +40,11 @@ type MongoQueriesNeeds = {
   mongoose: Mongoose;
 }
 
-export const scopedMongoQueries = () => withScopedResource<
+export const mongoQueriesExecScope = () => withScopedExec<
   MongoQueries,
   'mongoQueries',
   MongoQueriesNeeds
 >(
-  'mongoQueries',
   async function init({ mongoose }) {
     const mongoQueries = new MongoQueries(mongoose);
     return { mongoQueries };
@@ -53,14 +52,10 @@ export const scopedMongoQueries = () => withScopedResource<
   async function destroy() {
   },
 );
-// Type 'Product<"gracefulExit", GracefulExit> & MongooseNeeds & Product<"mongoose", typeof import("mongoose")>' is not assignable to type 'InScope<Omit<MongooseNeeds, "gracefulExit">, "mongoose" | "gracefulExit" | keyof MongooseNeeds, {}>'.
-//
-//        'Product<"gracefulExit", GracefulExit> & MongooseNeeds & Product<"mongoose", Mongoose>'
-// !=     'InScope<Omit<MongooseNeeds, "gracefulExit">, "mongoose" | "gracefulExit" | keyof MongooseNeeds, {}>'.
-// export const scopedMongoQueriesWithDeps: () => (needs: MongooseNeeds&MongoQueriesNeeds) => AsyncGenerator<MongooseNeeds&MongoQueriesNeeds&Record<'mongoose', Mongoose>&Record<'mongoQueries', MongoQueries>, void, any> = () => combineScopedResources(
-export const scopedMongoQueriesWithDeps = () => combineScopedResources(
-  scopedMongooseWithDeps(),
-  scopedMongoQueries()
+
+export const mongoQueriesExecScopeWithDeps = () => composeScopes(
+  mongooseExecScopeWithDeps(),
+  mongoQueriesExecScope()
 );
 
 export class MongoQueries {

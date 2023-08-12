@@ -1,6 +1,6 @@
 import _ from 'lodash';
 
-import { getServiceLogger, withScopedResource, putStrLn, combineScopedResources, ConfigProvider } from '@watr/commonlib';
+import { getServiceLogger, withScopedExec, putStrLn, composeScopes, ConfigProvider } from '@watr/commonlib';
 import { OpenReviewGateway } from '~/components/openreview-gateway';
 import { ExtractionServiceMonitor, extractionServiceMonitor } from './extraction-service';
 import { FetchServiceMonitor, fetchServiceMonitor } from './fetch-service';
@@ -123,7 +123,7 @@ export class MonitorService {
 }
 
 
-export const scopedMonitorService = () => withScopedResource<
+export const scopedMonitorService = () => withScopedExec<
   MonitorService,
   'monitorService',
   MonitorServiceArgs
@@ -138,7 +138,7 @@ export const scopedMonitorService = () => withScopedResource<
   },
 );
 
-export const scopedMonitorServiceWithDeps = () => combineScopedResources(
+export const scopedMonitorServiceWithDeps = () => composeScopes(
   scopedMongooseWithDeps(),
   scopedMonitorService()
 );

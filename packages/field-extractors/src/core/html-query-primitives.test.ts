@@ -4,7 +4,7 @@ import { isLeft, isRight } from 'fp-ts/Either';
 import * as TE from 'fp-ts/TaskEither';
 import * as E from 'fp-ts/Either';
 import { pipe } from 'fp-ts/function';
-import { asyncEachOfSeries, prettyPrint, putStrLn, setLogEnvLevel, stripMargin, withGracefulExit } from '@watr/commonlib';
+import { asyncEachOfSeries, prettyPrint, putStrLn, setLogEnvLevel, stripMargin, gracefulExitExecScope } from '@watr/commonlib';
 import { PageInstance, scopedBrowserInstance, scopedBrowserPool, scopedPageInstance } from '@watr/spider';
 
 import {
@@ -73,7 +73,7 @@ function genHtml(head: string, body: string): string {
 
 async function* withPageContent(htmlContent: string): AsyncGenerator<{ pageInstance: PageInstance }, void, void> {
 
-  for await (const { gracefulExit } of withGracefulExit()({})) {
+  for await (const { gracefulExit } of gracefulExitExecScope()({})) {
     for await (const { browserPool } of scopedBrowserPool()({ gracefulExit })) {
       for await (const { browserInstance } of scopedBrowserInstance()({ browserPool })) {
         for await (const wpi of scopedPageInstance()({ browserInstance })) {

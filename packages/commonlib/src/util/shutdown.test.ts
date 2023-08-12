@@ -1,6 +1,6 @@
 import { putStrLn } from "./pretty-print";
-import { withScopedResource } from "./scoped-usage";
-import { GracefulExit, withGracefulExit } from "./shutdown";
+import { withScopedExec } from "./scoped-exec";
+import { GracefulExit, gracefulExitExecScope  } from "./shutdown";
 import { exec } from 'child_process';
 import _ from 'lodash';
 
@@ -22,8 +22,7 @@ class PrimaryResource {
   }
 }
 
-const scopedPrimary = () => withScopedResource<PrimaryResource, 'primaryResource', PrimaryResourceNeeds>(
-  'primaryResource',
+const scopedPrimary = () => withScopedExec<PrimaryResource, 'primaryResource', PrimaryResourceNeeds>(
   ({ gracefulExit }) => {
     const primaryResource = new PrimaryResource(gracefulExit);
     return { primaryResource }
@@ -38,7 +37,7 @@ describe('Graceful Exit', () => {
   it('should run exit handlers when resource out of scope', async () => {
     const echo = (m: string) => async () => { putStrLn(`Echo: ${m}`) };
 
-    for await (const { gracefulExit } of withGracefulExit()({})) {
+    for await (const { gracefulExit } of gracefulExitExecScope()({})) {
       gracefulExit.addHandler(echo('inside graceful'));
       for await (const { primaryResource } of scopedPrimary()({ gracefulExit })) {
         gracefulExit.addHandler(echo('inside primary'));

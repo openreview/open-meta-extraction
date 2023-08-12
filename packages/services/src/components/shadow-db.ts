@@ -1,6 +1,6 @@
 import _ from 'lodash';
 
-import { getServiceLogger, withScopedResource, shaEncodeAsHex, combineScopedResources, ConfigProvider } from '@watr/commonlib';
+import { getServiceLogger, withScopedExec, shaEncodeAsHex, composeScopes, ConfigProvider } from '@watr/commonlib';
 
 import { Logger } from 'winston';
 import { FetchCursor, NoteStatus, WorkflowStatus } from '~/db/schemas';
@@ -8,7 +8,7 @@ import { FetchCursor, NoteStatus, WorkflowStatus } from '~/db/schemas';
 import {
   MongoQueries,
   UrlStatusDocument,
-  scopedMongoQueriesWithDeps
+  mongoQueriesExecScopeWithDeps
 } from '~/db/query-api';
 
 import { Note, OpenReviewGateway, UpdatableField } from './openreview-gateway';
@@ -19,12 +19,11 @@ type ShadowDBNeeds = {
   config: ConfigProvider
 };
 
-export const scopedShadowDB = () => withScopedResource<
+export const scopedShadowDB = () => withScopedExec<
   ShadowDB,
   'shadowDB',
   ShadowDBNeeds
 >(
-  'shadowDB',
   async function init({ mongoQueries, config }) {
     const shadowDB = new ShadowDB(mongoQueries, config);
     return { shadowDB };
@@ -33,8 +32,8 @@ export const scopedShadowDB = () => withScopedResource<
   },
 );
 
-export const scopedShadowDBWithDeps = () => combineScopedResources(
-  scopedMongoQueriesWithDeps(),
+export const scopedShadowDBWithDeps = () => composeScopes(
+  mongoQueriesExecScopeWithDeps(),
   scopedShadowDB()
 );
 

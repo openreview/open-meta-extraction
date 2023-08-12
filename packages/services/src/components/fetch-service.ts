@@ -2,10 +2,10 @@ import _ from 'lodash';
 
 import {
   ConfigProvider,
-  combineScopedResources,
+  composeScopes,
   delay,
   getServiceLogger,
-  withScopedResource,
+  withScopedExec,
 } from '@watr/commonlib';
 
 import { Logger } from 'winston';
@@ -22,7 +22,7 @@ type FetchServiceNeeds = {
   config: ConfigProvider,
 };
 
-export const scopedFetchService = () => withScopedResource<
+export const scopedFetchService = () => withScopedExec<
   FetchService,
   'fetchService',
   FetchServiceNeeds
@@ -36,7 +36,7 @@ export const scopedFetchService = () => withScopedResource<
   },
 );
 
-export const scopedFetchServiceWithDeps = () => combineScopedResources(
+export const scopedFetchServiceWithDeps = () => composeScopes(
   scopedShadowDBWithDeps(),
   scopedFetchService()
 );

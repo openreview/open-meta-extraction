@@ -7,8 +7,8 @@ import {
   getServiceLogger,
   getCorpusRootDir,
   prettyFormat,
-  withScopedResource,
-  combineScopedResources,
+  withScopedExec,
+  composeScopes,
 } from '@watr/commonlib';
 
 
@@ -30,7 +30,7 @@ type ExtractionServiceNeeds = {
   postResultsToOpenReview: boolean
 };
 
-export const scopedExtractionService = () => withScopedResource<
+export const scopedExtractionService = () => withScopedExec<
   ExtractionService,
   'extractionService',
   ExtractionServiceNeeds
@@ -51,7 +51,7 @@ export const scopedExtractionService = () => withScopedResource<
   },
 );
 
-export const scopedExtractionServiceWithDeps = () => combineScopedResources(
+export const scopedExtractionServiceWithDeps = () => composeScopes(
   scopedTaskSchedulerWithDeps(),
   scopedExtractionService()
 );

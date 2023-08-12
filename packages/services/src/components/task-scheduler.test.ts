@@ -3,7 +3,7 @@ import { asyncEachOfSeries, loadConfig, setLogEnvLevel } from '@watr/commonlib';
 import { scopedTaskScheduler } from './task-scheduler';
 import { createFakeNote } from '~/db/mock-data';
 import { scopedMongoose } from '~/db/mongodb';
-import { scopedMongoQueries } from '~/db/query-api';
+import { mongoQueriesExecScope } from '~/db/query-api';
 import { scopedShadowDB } from './shadow-db';
 
 describe('Task Scheduling', () => {
@@ -22,7 +22,7 @@ describe('Task Scheduling', () => {
 
     const config = loadConfig();
     for await (const { mongoose } of scopedMongoose()({ useUniqTestDB: true, config })) {
-      for await (const { mongoQueries } of scopedMongoQueries()({ mongoose })) {
+      for await (const { mongoQueries } of mongoQueriesExecScope()({ mongoose })) {
         for await (const { shadowDB } of scopedShadowDB()({ mongoQueries, config })) {
           for await (const { taskScheduler } of scopedTaskScheduler()({ mongoQueries })) {
 

@@ -1,4 +1,7 @@
-import { withScopedResource, newIdGenerator, putStrLn, withGracefulExit } from "~/index";
+import { putStrLn } from '~/util/pretty-print';
+import { newIdGenerator } from '~/util/utils';
+import { withScopedExec } from '~/util/scoped-exec';
+import { gracefulExitExecScope } from '~/index';
 
 const args = process.argv;
 const userArg1 = args[2];
@@ -36,8 +39,7 @@ class PrimaryResource {
 
 const idGen = newIdGenerator(0);
 
-const withPrimary = () => withScopedResource<PrimaryResource, 'primaryResource'>(
-  'primaryResource',
+const withPrimary = () => withScopedExec<PrimaryResource, 'primaryResource'>(
   () => {
     const id = idGen();
     putStrLn(`init:${id}`)
@@ -51,7 +53,7 @@ const withPrimary = () => withScopedResource<PrimaryResource, 'primaryResource'>
 );
 
 async function runNested() {
-  for await (const { gracefulExit } of withGracefulExit()({})) {
+  for await (const { gracefulExit } of gracefulExitExecScope()({})) {
     maybeExit();
 
     for await (const { primaryResource: p1 } of withPrimary()({})) {

@@ -1,65 +1,69 @@
 import { putStrLn } from "./pretty-print";
-import { scopedResource, withScopedResource } from "./scoped-usage";
+import { withScopedExec } from "./scoped-exec";
 
-class PrimaryResource {
+export type PrimaryNeeds = {
+}
+
+export class Primary {
   isPrimary: boolean = true;
-  id: number;
-  constructor(id: number) {
-    putStrLn(`new PrimaryResource(#${id})`);
-    this.id = id;
+  needs: PrimaryNeeds;
+  constructor(needs: PrimaryNeeds) {
+    this.needs = needs
   }
 }
 
-export const scopedPrimaryResource = () => withScopedResource<
-  PrimaryResource,
-  'primaryResource'
->(
-  'primaryResource',
-  async function init({}) {
-    const primaryResource = new PrimaryResource(0);
-    return { primaryResource };
-  },
-  async function destroy() {
-  },
-);
+export const primaryExec = () =>
+  withScopedExec<Primary, 'primary', PrimaryNeeds>(
+    async function init(needs) {
+      return { primary: new Primary(needs) };
+    },
+    async function destroy() {
+    },
+  );
 
-class DerivedResource {
-  isPrimary: boolean = false;
-  isDerived: boolean = true;
-  primaryResource: PrimaryResource;
+export type SecondaryNeeds = {
+  primary: Primary;
+}
 
-  constructor(p: PrimaryResource) {
-    this.primaryResource = p;
+export class Secondary {
+  isSecondary: boolean = true;
+  needs: SecondaryNeeds;
+  constructor(needs: SecondaryNeeds) {
+    this.needs = needs
   }
 }
 
-export const scopedDerivedResource = () => withScopedResource<
-  DerivedResource,
-  'derivedResource',
-  { primaryResource: PrimaryResource }
->(
-  'derivedResource',
-  ({ primaryResource }) => {
-    putStrLn('derivedResource: init')
-    const derivedResource = new DerivedResource(primaryResource);
-    return { derivedResource };
-  },
-  () => { putStrLn('derivedResource: destroy') }
-);
+export const secondaryExec = () =>
+  withScopedExec<Secondary, 'secondary', SecondaryNeeds>(
+    async function init(needs) {
+      return { secondary: new Secondary(needs) };
+    },
+    async function destroy() {
+    },
+  );
 
-export const scopedDeferredResource = () => withScopedResource<
-  DerivedResource,
-  'deferDerivedResource',
-  { primaryResource: PrimaryResource }
->(
-  'deferDerivedResource',
-  async ({ primaryResource }) => {
-    putStrLn('derivedResource: init')
-    const deferDerivedResource = new DerivedResource(primaryResource);
-    return Promise.resolve({ deferDerivedResource });
-  },
-  async () => { putStrLn('derivedResource: destroy') }
-);
+export type TertiaryNeeds = {
+  secondary: Secondary;
+}
+
+export class Tertiary {
+  isTertiary: boolean = true;
+  needs: TertiaryNeeds;
+  constructor(needs: TertiaryNeeds) {
+    this.needs = needs
+  }
+}
+
+export const tertiaryExec = () =>
+  withScopedExec<Tertiary, 'tertiary', TertiaryNeeds>(
+    async function init(needs) {
+      return { tertiary: new Tertiary(needs) };
+    },
+    async function destroy() {
+    },
+  );
+
+
 
 
 export type AlphaResourceNeeds = {
@@ -79,11 +83,8 @@ export class AlphaResource {
   }
 }
 
-export const alphaResource = () => scopedResource<
-  AlphaResource,
-  'alphaResource',
-  AlphaResourceNeeds>(
-    'alphaResource',
+export const alphaExec = () =>
+  withScopedExec<AlphaResource, 'alphaResource', AlphaResourceNeeds>(
     async function init({ reqString, reqBool }) {
       const alphaResource = new AlphaResource(0, reqString, reqBool);
       return { alphaResource };
@@ -92,18 +93,7 @@ export const alphaResource = () => scopedResource<
     },
   );
 
-export const scopedAlphaResource = () => withScopedResource<
-  AlphaResource,
-  'alphaResource',
-  AlphaResourceNeeds>(
-    'alphaResource',
-    async function init({ reqString, reqBool }) {
-      const alphaResource = new AlphaResource(0, reqString, reqBool);
-      return { alphaResource };
-    },
-    async function destroy() {
-    },
-  );
+
 
 export type BetaResourceNeeds = {
   reqBool: boolean,
@@ -122,24 +112,9 @@ export class BetaResource {
   }
 }
 
-export const betaResource = () => scopedResource<
-  BetaResource,
-  'betaResource',
-  BetaResourceNeeds>(
-    'betaResource',
-    async function init({ reqBool, reqNumber }) {
-      const betaResource = new BetaResource(0, reqNumber, reqBool);
-      return { betaResource };
-    },
-    async function destroy() {
-    },
-  );
-export const scopedBetaResource = () => withScopedResource<
-  BetaResource,
-  'betaResource',
-  BetaResourceNeeds>(
-    'betaResource',
-    async function init({ reqBool, reqNumber }) {
+export const betaExec = () =>
+  withScopedExec<BetaResource, 'betaResource', BetaResourceNeeds>(
+    async function init({ reqNumber, reqBool }) {
       const betaResource = new BetaResource(0, reqNumber, reqBool);
       return { betaResource };
     },
@@ -159,3 +134,12 @@ export class GammaResource {
     this.id = id;
   }
 }
+
+export const gammaExec = () =>
+  withScopedExec<GammaResource, 'gammaResource', GammaResourceNeeds>(
+    async function init({ alphaResource, betaResource }) {
+      return { gammaResource: new GammaResource(0) };
+    },
+    async function destroy({ gammaResource, alphaResource, betaResource }) {
+    },
+  );

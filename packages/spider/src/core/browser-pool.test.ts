@@ -4,7 +4,7 @@ import {
   asyncEachSeries,
   prettyPrint,
   putStrLn,
-  withGracefulExit,
+  gracefulExitExecScope,
   setLogEnvLevel,
 } from '@watr/commonlib';
 
@@ -26,7 +26,7 @@ describe('browser pooling', () => {
   it('generators properly yield/close, own or share components', async () => {
     try {
 
-      for await (const { gracefulExit } of withGracefulExit()({})) {
+      for await (const { gracefulExit } of gracefulExitExecScope()({})) {
         for await (const l1Components of scopedBrowserPool()({ gracefulExit })) {
           prettyPrint({ keys: _.keys(l1Components) })
           expectComponents(l1Components, 'browserPool');
@@ -103,7 +103,7 @@ describe('browser pooling', () => {
         }
       }
       try {
-        for await (const { gracefulExit } of withGracefulExit()({})) {
+        for await (const { gracefulExit } of gracefulExitExecScope()({})) {
           failPoint({});
 
           for await (const { browserPool } of scopedBrowserPool()({ gracefulExit })) {
