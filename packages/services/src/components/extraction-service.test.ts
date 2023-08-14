@@ -20,11 +20,12 @@ describe('Extraction Service', () => {
     const batchSize = 2;
     const startingId = 1;
     const notes = createFakeNoteList(noteCount, startingId);
-    const routes = openreviewAPIForNotes({ notes, batchSize });
-    const spiderRoutes = spiderableRoutes();
+    const routerSetup = (r:Router) => {
+      openreviewAPIForNotes({ notes, batchSize })(r)
+      spiderableRoutes()(r);
+    };
     const postResultsToOpenReview = true;
 
-    const config = loadConfig();
     async function checkCursor(mdb: MongoQueries, role: CursorRole, noteId: string) {
       const c1 = await mdb.getCursor(role);
       expect(c1).toBeDefined()
@@ -33,8 +34,10 @@ describe('Extraction Service', () => {
       }
       expect(c1.noteId).toBe(noteId)
     }
-    const port = 9100;
-    for await (const { gracefulExit } of httpServerExecScopeWithDeps()({ port, routerSetup: (r: Router) => { routes(r); spiderRoutes(r) } })) {
+
+    const config = loadConfig();
+
+    for await (const { gracefulExit } of httpServerExecScopeWithDeps()({ useUniqPort: true, port: 0, routerSetup })) {
       for await (const { browserPool } of scopedBrowserPool()({ gracefulExit })) {
         for await (const { fetchService, shadowDB, mongoQueries } of fetchServiceExecScopeWithDeps()({ useUniqTestDB: true, config })) {
           for await (const { taskScheduler } of scopedTaskScheduler()({ mongoQueries })) {

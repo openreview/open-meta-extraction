@@ -11,7 +11,6 @@ export * from './util/async-plus';
 export * from './prelude/config';
 export * from './util/url-utils';
 export * from './util/shutdown';
-export * from './util/scoped-usage';
 export * from './util/scoped-exec';
 
 export * as arglib from './cli/arglib';

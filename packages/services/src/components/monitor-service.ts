@@ -7,8 +7,7 @@ import { FetchServiceMonitor, fetchServiceMonitor } from './fetch-service';
 import { Router, httpServerExecScopeWithDeps, respondWithPlainText  } from '@watr/spider';
 import { Logger } from 'winston';
 import { CountPerDay } from '~/db/mongo-helpers';
-import { Mongoose } from 'mongoose';
-import { mongooseExecScopeWithDeps } from '~/db/mongodb';
+import { MongoDB, mongooseExecScopeWithDeps } from '~/db/mongodb';
 
 
 type MonitorSummaries = {
@@ -18,7 +17,7 @@ type MonitorSummaries = {
 }
 
 type MonitorServiceArgs = {
-  mongoose: Mongoose,
+  mongoDB: MongoDB,
   sendNotifications: boolean,
   monitorUpdateInterval: number,
   monitorNotificationInterval: number,
@@ -27,9 +26,9 @@ type MonitorServiceArgs = {
 
 export class MonitorService {
   log: Logger;
-  mongoose: Mongoose;
   sendNotifications: boolean;
 
+  mongoDB: MongoDB;
   monitorUpdateInterval: number;
   monitorNotificationInterval: number;
   lastSummary: MonitorSummaries | undefined;
@@ -37,13 +36,13 @@ export class MonitorService {
 
   constructor({
     sendNotifications,
-    mongoose,
+    mongoDB,
     monitorUpdateInterval,
     monitorNotificationInterval,
     config
   }: MonitorServiceArgs) {
     this.log = getServiceLogger('MonitorService');
-    this.mongoose = mongoose;
+    this.mongoDB = mongoDB;
     this.sendNotifications = sendNotifications
     this.monitorUpdateInterval = monitorUpdateInterval;
     this.monitorNotificationInterval = monitorNotificationInterval;

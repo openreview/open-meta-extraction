@@ -57,8 +57,8 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
     const del = args.delete;
 
     const config = loadConfig();
-    for await (const { mongoose } of scopedMongoose()({ useUniqTestDB: true, config })) {
-      for await (const { mongoQueries } of mongoQueriesExecScope()({ mongoose })) {
+    for await (const { mongoDB } of scopedMongoose()({ useUniqTestDB: true, config })) {
+      for await (const { mongoQueries } of mongoQueriesExecScope()({ mongoDB })) {
         const cursors = await mongoQueries.getCursors()
         cursors.forEach(c => {
           putStrLn(`> ${c.role} = id:${c.noteId} number:${c.noteNumber} created:${c.createdAt}`);

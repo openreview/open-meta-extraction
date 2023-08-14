@@ -12,7 +12,7 @@ describe('Monitor Service', () => {
   it('should gather and format extraction summary', async () => {
     const config = loadConfig();
 
-    for await (const { shadowDB, mongoose } of shadowDBExecScopeWithDeps()({ useUniqTestDB: true, config })) {
+    for await (const { shadowDB, mongoDB } of shadowDBExecScopeWithDeps()({ useUniqTestDB: true, config })) {
 
       const noteCount = 50;
       const notes = createFakeNoteList(noteCount, 1);
@@ -34,7 +34,7 @@ describe('Monitor Service', () => {
       const monitorNotificationInterval = 0;
 
       for await (const { monitorService } of monitorServiceExecScope()({
-        mongoose,
+        mongoDB,
         sendNotifications,
         monitorNotificationInterval,
         monitorUpdateInterval,

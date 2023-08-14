@@ -85,11 +85,6 @@ export const httpServerExecScope = () => withScopedExec<
 );
 
 
-// export const scopedHttpServerWithDeps = () => composeScopes(
-//   gracefulExitExecScope(),
-//   scopedHttpServer()
-// );
-
 export const httpServerExecScopeWithDeps = () => composeScopes(
   gracefulExitExecScope(),
   httpServerExecScope()
