@@ -41,10 +41,7 @@ export class OpenReviewExchange {
   constructor(config: ConfigProvider) {
     this.config = config;
     this.log = getServiceLogger('OpenReviewExchange');
-    const restApi = config.get('openreview:restApi');
-    const port = config.get('openreview:port');
-    this.apiBaseURL = `${restApi}:${port}`;
-
+    this.apiBaseURL = config.get('openreview:restApi');
     this.user = config.get('openreview:restUser');
     this.password = config.get('openreview:restPassword');
   }

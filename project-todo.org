@@ -23,6 +23,7 @@
 ** Ideas
 
 - better parameterization of mocktimestamps on testing
+- Notifications when system is generating errors
 
 ** Complete
 - [X] system crashes when openreview rest api fails (e.g., during server restarts)
