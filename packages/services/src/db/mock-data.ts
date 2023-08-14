@@ -1,5 +1,5 @@
 import _ from 'lodash';
-import { asyncEachOfSeries } from '@watr/commonlib';
+import { ConfigProvider, asyncEachOfSeries } from '@watr/commonlib';
 import * as fc from 'fast-check';
 import { MongoQueries } from './query-api';
 import { WorkflowStatuses } from './schemas';
@@ -46,6 +46,7 @@ export const numberSeries = (start: number, end?: number) =>
   fc.Stream.of<number>(... _.range(start, end));
 
 type CreateFakeNote = {
+  config: ConfigProvider;
   noteNumber: number;
   hasAbstract: boolean;
   hasHTMLLink: boolean;
@@ -53,19 +54,21 @@ type CreateFakeNote = {
 };
 
 export function createFakeNote({
+  config,
   noteNumber,
   hasAbstract,
   hasHTMLLink,
   hasPDFLink,
 }: CreateFakeNote): Note {
+  const baseUrl = config.get('openreview:restApi');
   const number = noteNumber;
   const minutes = noteNumber.toString().padStart(2, '0');
   const inputStr = `2023-07-10T18:${minutes}:12.629Z`;
   const date = new Date(inputStr);
   const dateAsNum = date.getTime();
   const abs = hasAbstract ? `Abstract: Paper ${number} description...` : undefined;
-  const pdf = hasPDFLink ? `http://localhost:9100/pdf/paper-${number}.pdf` : undefined;
-  const html = hasHTMLLink ? `http://localhost:9100/html/${number}` : undefined;
+  const pdf = hasPDFLink ? `${baseUrl}/pdf/paper-${number}.pdf` : undefined;
+  const html = hasHTMLLink ? `${baseUrl}/html/${number}` : undefined;
 
   return {
     id: `note#${number}`,
@@ -89,9 +92,10 @@ export function createFakeNote({
   };
 }
 
-export function createFakeNoteList(count: number, startingNumber: number = 1): Note[] {
+export function createFakeNoteList(config: ConfigProvider, count: number, startingNumber: number = 1): Note[] {
   const ids = _.range(startingNumber, startingNumber + count);
   return _.map(ids, (i) => createFakeNote({
+    config,
     noteNumber: i,
     hasAbstract: false,
     hasPDFLink: false,
@@ -106,7 +110,7 @@ export function asNoteBatch(count: number, notes: Note[]): Notes {
   };
 }
 
-export function createFakeNotes(count: number, startingNumber: number = 1): Notes {
-  const notes = createFakeNoteList(count, startingNumber);
+export function createFakeNotes(config: ConfigProvider, count: number, startingNumber: number = 1): Notes {
+  const notes = createFakeNoteList(config, count, startingNumber);
   return asNoteBatch(count, notes);
 }

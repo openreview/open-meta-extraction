@@ -10,10 +10,10 @@ import {
   putStrLn,
   getServiceLogger,
   GracefulExit,
-  newIdGenerator,
   composeScopes,
   gracefulExitExecScope,
-  withScopedExec
+  withScopedExec,
+  prettyFormat
 } from '@watr/commonlib';
 
 export type Router = KoaRouter;
@@ -21,11 +21,11 @@ export type Router = KoaRouter;
 type HttpServerNeeds = {
   gracefulExit: GracefulExit;
   routerSetup: (router: Router) => void;
+  baseUrl: URL;
   port: number;
-  useUniqPort?: boolean;
 };
 
-class HttpServer {
+export class HttpServer {
   server: Server;
   port: number;
   onClosedPromise: Promise<void>
@@ -39,14 +39,13 @@ class HttpServer {
   }
 }
 
-const idGen = newIdGenerator(1);
 
 export const httpServerExecScope = () => withScopedExec<
   HttpServer,
   'httpServer',
   HttpServerNeeds
 >(
-  async function init({ gracefulExit, routerSetup, port, useUniqPort }) {
+  async function init({ gracefulExit, routerSetup, baseUrl, port }) {
     const log = getServiceLogger('HttpServer');
     const routes = new KoaRouter();
     const app = new Koa();
@@ -58,14 +57,15 @@ export const httpServerExecScope = () => withScopedExec<
     app.use(routes.routes());
     app.use(routes.allowedMethods());
 
-    const usePort = useUniqPort? port + idGen() : port;
-
     const server = await new Promise<Server>((resolve) => {
-      const server = app.listen(usePort, () => {
-        log.info(`Koa is listening to http://localhost:${usePort}`);
+      const server = app.listen(port, () => {
         resolve(server);
       });
     });
+    const address = server.address()
+    const maybePort = address && typeof address !== 'string' && address.port;
+    const portInUse = typeof maybePort === 'number' ? maybePort : port;
+    log.info(`Koa is listening to ${baseUrl} on ${portInUse}`);
 
     const closedP = onServerClosedP(server);
 
@@ -75,7 +75,7 @@ export const httpServerExecScope = () => withScopedExec<
       await closedP;
     });
 
-    const httpServer = new HttpServer(server, closedP, usePort);
+    const httpServer = new HttpServer(server, closedP, portInUse);
     return { httpServer };
   },
   async function destroy({ httpServer }) {

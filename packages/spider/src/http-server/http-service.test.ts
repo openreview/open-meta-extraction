@@ -23,9 +23,10 @@ describe('HTTP Service', () => {
     }
 
     const port = 9100;
+    const baseUrl = new URL('http://localhost');
 
     for await (const { gracefulExit } of gracefulExitExecScope()({})) {
-      for await (const {} of httpServerExecScope()({ gracefulExit, port, routerSetup: setup })) {
+      for await (const {} of httpServerExecScope()({ gracefulExit, port, baseUrl, routerSetup: setup })) {
 
         await expectGETEqual('http://localhost:9100/foo', { foo: 'bar' })
         await expectGETEqual('http://localhost:9100/bar', { bar: 'foo' })

@@ -1,18 +1,19 @@
 import _ from 'lodash';
-import { loadConfig, prettyPrint, setLogEnvLevel } from '@watr/commonlib';
+import { prettyPrint, setLogEnvLevel } from '@watr/commonlib';
 import { mongoQueriesExecScopeWithDeps } from './query-api';
 import { populateDBHostNoteStatus } from './mock-data';
+import { mongoTestConfig } from './mongodb';
 
 describe('MongoDB Queries', () => {
 
   setLogEnvLevel('info');
 
+
   it('should crud noteStatus records', async () => {});
 
   it('should create/update/delete fetch cursors', async () => {
-    const config = loadConfig();
 
-    for await (const { mongoQueries } of mongoQueriesExecScopeWithDeps()({ useUniqTestDB: true, config })) {
+    for await (const { mongoQueries } of mongoQueriesExecScopeWithDeps()(mongoTestConfig())) {
       expect(await mongoQueries.getCursor('extract-fields/all')).toBeUndefined();
       expect(await mongoQueries.updateCursor('extract-fields/all', '1')).toMatchObject({ role: 'extract-fields/all', noteId: '1' });
       expect(await mongoQueries.updateCursor('extract-fields/newest', '2')).toMatchObject({ role: 'extract-fields/newest', noteId: '2' });
@@ -23,8 +24,7 @@ describe('MongoDB Queries', () => {
   });
 
   it('should advance cursors', async () => {
-    const config = loadConfig();
-    for await (const { mongoQueries } of mongoQueriesExecScopeWithDeps()({ useUniqTestDB: true, config })) {
+    for await (const { mongoQueries } of mongoQueriesExecScopeWithDeps()(mongoTestConfig())) {
       const nocursor = await mongoQueries.createCursor('extract-fields/all', 'note#1');
       expect(nocursor).toBeUndefined();
 
@@ -40,8 +40,7 @@ describe('MongoDB Queries', () => {
 
 
   it('get/update next spiderable host/url', async () => {
-    const config = loadConfig();
-    for await (const { mongoQueries } of mongoQueriesExecScopeWithDeps()({ useUniqTestDB: true, config })) {
+    for await (const { mongoQueries } of mongoQueriesExecScopeWithDeps()(mongoTestConfig())) {
       const initEntry = await mongoQueries.upsertUrlStatus('asdf', 1, 'unknown', { hasAbstract: false });
 
       expect(initEntry.noteId).toEqual('asdf');
@@ -64,8 +63,7 @@ describe('MongoDB Queries', () => {
   });
 
   it('should release all locks, allow for re-extraction of failed notes', async () => {
-    const config = loadConfig();
-    for await (const { mongoQueries } of mongoQueriesExecScopeWithDeps()({ useUniqTestDB: true, config })) {
+    for await (const { mongoQueries } of mongoQueriesExecScopeWithDeps()(mongoTestConfig())) {
       await populateDBHostNoteStatus(mongoQueries, 200);
     }
   });

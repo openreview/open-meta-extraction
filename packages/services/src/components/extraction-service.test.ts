@@ -1,13 +1,13 @@
 import _ from 'lodash';
 
-import { asyncEachOfSeries,  setLogEnvLevel, prettyPrint, loadConfig } from '@watr/commonlib';
+import { asyncEachOfSeries, setLogEnvLevel, prettyPrint } from '@watr/commonlib';
 import { fetchServiceExecScopeWithDeps } from './fetch-service';
 import { createFakeNoteList } from '~/db/mock-data';
 import { fakeNoteIds, listNoteStatusIds, openreviewAPIForNotes, spiderableRoutes } from './testing-utils';
 import { extractionServiceMonitor, scopedExtractionService } from './extraction-service';
 import { CursorRole, MongoQueries } from '~/db/query-api';
-import { shadowDBExecScopeWithDeps } from './shadow-db';
-import { Router, httpServerExecScopeWithDeps  } from '@watr/spider';
+import { shadowDBExecScopeWithDeps, shadowDBTestConfig } from './shadow-db';
+import { Router, withHttpTestServer } from '@watr/spider';
 import { scopedTaskScheduler } from './task-scheduler';
 import { scopedBrowserPool } from '@watr/spider';
 
@@ -15,12 +15,14 @@ describe('Extraction Service', () => {
 
   setLogEnvLevel('debug');
 
-  it('should run end-to-end', async () => {
+  it.only('should run end-to-end', async () => {
+    const shadowDBConfig = shadowDBTestConfig();
+    const config = shadowDBConfig.config;
     const noteCount = 10;
     const batchSize = 2;
     const startingId = 1;
-    const notes = createFakeNoteList(noteCount, startingId);
-    const routerSetup = (r:Router) => {
+    const notes = createFakeNoteList(config, noteCount, startingId);
+    const routerSetup = (r: Router) => {
       openreviewAPIForNotes({ notes, batchSize })(r)
       spiderableRoutes()(r);
     };
@@ -35,11 +37,9 @@ describe('Extraction Service', () => {
       expect(c1.noteId).toBe(noteId)
     }
 
-    const config = loadConfig();
-
-    for await (const { gracefulExit } of httpServerExecScopeWithDeps()({ useUniqPort: true, port: 0, routerSetup })) {
+    for await (const { gracefulExit } of withHttpTestServer({ config, routerSetup })) {
       for await (const { browserPool } of scopedBrowserPool()({ gracefulExit })) {
-        for await (const { fetchService, shadowDB, mongoQueries } of fetchServiceExecScopeWithDeps()({ useUniqTestDB: true, config })) {
+        for await (const { fetchService, shadowDB, mongoQueries } of fetchServiceExecScopeWithDeps()(shadowDBConfig)) {
           for await (const { taskScheduler } of scopedTaskScheduler()({ mongoQueries })) {
             // Init the shadow db
             await fetchService.runFetchLoop(100);
@@ -81,10 +81,9 @@ describe('Extraction Service', () => {
   });
 
   it('should monitor newly extracted fields', async () => {
-    const config = loadConfig();
-    for await (const { shadowDB } of shadowDBExecScopeWithDeps()({ useUniqTestDB: true, config })) {
 
-      shadowDB.writeChangesToOpenReview = false;
+    const config = shadowDBTestConfig();
+    for await (const { shadowDB } of shadowDBExecScopeWithDeps()(config)) {
 
       const noteIds = fakeNoteIds(1, 100);
       await asyncEachOfSeries(noteIds, async (noteId, i) => {

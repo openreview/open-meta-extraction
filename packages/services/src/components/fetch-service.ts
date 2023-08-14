@@ -85,11 +85,10 @@ export class FetchService {
     return generateFromBatch<Note>(this.createNoteBatchGenerator(startingNoteId), limit);
   }
 
-
   // Main loop
   async runFetchLoop(limit: number, pauseBeforeExiting: boolean = false) {
     this.log.info('Starting Fetch Service');
-    const lastNoteFetched = await this.shadow.mdb.getLastSavedNote();
+    const lastNoteFetched = await this.shadow.mongoQueries.getLastSavedNote();
     const startingNoteId = lastNoteFetched ? lastNoteFetched.id : undefined;
     if (startingNoteId) {
       this.log.info(`Resuming Fetch Service after note ${startingNoteId}`);

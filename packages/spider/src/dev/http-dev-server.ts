@@ -7,10 +7,14 @@ import {
   getServiceLogger,
   prettyPrint,
   gracefulExitExecScope,
+  ConfigProvider,
+  newIdGenerator,
+  GracefulExit,
+  putStrLn
 } from '@watr/commonlib';
 
 import fs from 'fs-extra';
-import { httpServerExecScope, httpServerExecScopeWithDeps } from '~/http-server/http-service';
+import { httpServerExecScope } from '~/http-server/http-service';
 
 const withFields = stripMargin(`
 |<html>
@@ -96,24 +100,56 @@ export function testHtmlRoutes(router: Router) {
   });
 }
 
-type Args = {
-  port: number,
-  workingDir?: string
-}
 
-export async function* useTestingHttpServer({ port, workingDir }: Args): AsyncGenerator<void, void, any> {
+type TestHttpServerArgs = {
+  config: ConfigProvider;
+  routerSetup: (router: Router) => void;
+};
 
-  for await (const {} of httpServerExecScopeWithDeps()({ useUniqPort: false, port, routerSetup: testHtmlRoutes })) {
-  }
+// const basePort = 9200;
+// const idGen = newIdGenerator(1);
+// function nextPortNum(): number {
+//   return basePort + idGen();
+// }
+
+export async function* withHttpTestServer({ config, routerSetup }: TestHttpServerArgs): AsyncGenerator<{ gracefulExit: GracefulExit }, void, any> {
+  // const port = nextPortNum();
+  // const openreviewEndpoint = config.get('openreview:restApi');
+  // const baseUrl = new URL(openreviewEndpoint);
+  // baseUrl.port = port.toString();
+  // putStrLn(`Starting HTTP Server on ${baseUrl}`)
+  // config.set('openreview:restApi', baseUrl.toString());
+
+  const openreviewEndpoint = config.get('openreview:restApi');
+  const baseUrl = new URL(openreviewEndpoint);
+  baseUrl.port = '';
+  const port = 0;
 
   for await (const { gracefulExit } of gracefulExitExecScope()({})) {
-    for await (const {} of httpServerExecScope()({ gracefulExit, useUniqPort: false, port, routerSetup: testHtmlRoutes })) {
-      if (workingDir) {
-        fs.emptyDirSync(workingDir);
-        fs.removeSync(workingDir);
-        fs.mkdirSync(workingDir);
-      }
-      yield;
+    for await (const { httpServer } of httpServerExecScope()({ gracefulExit, routerSetup, port, baseUrl })) {
+      const openreviewEndpoint = config.get('openreview:restApi');
+      const baseUrl = new URL(openreviewEndpoint);
+      const port = httpServer.port;
+      baseUrl.port = port.toString();
+      config.set('openreview:restApi', baseUrl.toString());
+      yield { gracefulExit };
     }
+  }
+}
+
+type Args = {
+  config: ConfigProvider;
+  workingDir?: string;
+}
+
+export async function* useTestingHttpServer({ config, workingDir }: Args): AsyncGenerator<void, void, any> {
+
+  for await (const __ of withHttpTestServer({ config, routerSetup: testHtmlRoutes })) {
+    if (workingDir) {
+      fs.emptyDirSync(workingDir);
+      fs.removeSync(workingDir);
+      fs.mkdirSync(workingDir);
+    }
+    yield;
   }
 }

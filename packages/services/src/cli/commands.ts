@@ -2,7 +2,7 @@ import _ from 'lodash';
 
 import { arglib, composeScopes, loadConfig, oneHour, putStrLn } from '@watr/commonlib';
 import { formatStatusMessages, showStatusSummary } from '~/db/extraction-summary';
-import { connectToMongoDB, mongoConnectionString, resetMongoDB, scopedMongoose } from '~/db/mongodb';
+import { connectToMongoDB, mongoConnectionString, mongoProductionConfig, resetMongoDB, scopedMongoose } from '~/db/mongodb';
 import { fetchServiceExecScopeWithDeps } from '~/components/fetch-service';
 import { scopedExtractionService } from '~/components/extraction-service';
 import { OpenReviewGateway } from '~/components/openreview-gateway';
@@ -10,7 +10,7 @@ import { monitorServiceExecScopeWithDeps } from '~/components/monitor-service';
 import { CursorRoles, isCursorRole, mongoQueriesExecScope } from '~/db/query-api';
 import { scopedTaskSchedulerWithDeps } from '~/components/task-scheduler';
 import { scopedBrowserPool } from '@watr/spider';
-import { shadowDBExecScope } from '~/components/shadow-db';
+import { shadowDBExecScope, shadowDBProductionConfig } from '~/components/shadow-db';
 
 const { opt, config, registerCmd } = arglib;
 
@@ -40,8 +40,8 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
   )(async (args: any) => {
     const { limit, pauseBeforeExit } = args;
 
-    const config = loadConfig();
-    for await (const { fetchService } of fetchServiceExecScopeWithDeps()({ config })) {
+    const config = shadowDBProductionConfig();
+    for await (const { fetchService } of fetchServiceExecScopeWithDeps()(config)) {
       await fetchService.runFetchLoop(limit, pauseBeforeExit);
     }
   });
@@ -56,8 +56,7 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
   )(async (args: any) => {
     const del = args.delete;
 
-    const config = loadConfig();
-    for await (const { mongoDB } of scopedMongoose()({ useUniqTestDB: true, config })) {
+    for await (const { mongoDB } of scopedMongoose()(mongoProductionConfig())) {
       for await (const { mongoQueries } of mongoQueriesExecScope()({ mongoDB })) {
         const cursors = await mongoQueries.getCursors()
         cursors.forEach(c => {
@@ -95,8 +94,7 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
       return;
     }
 
-    const config = loadConfig();
-    for await (const { taskScheduler, mongoQueries } of scopedTaskSchedulerWithDeps()({ config })) {
+    for await (const { taskScheduler, mongoQueries } of scopedTaskSchedulerWithDeps()(mongoProductionConfig())) {
 
       if (_.isNumber(move) && move !== 0) {
         putStrLn(`Moving cursor w/role ${role}`);
@@ -148,9 +146,8 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
     const monitorUpdateInterval = updateInterval > 0 ? updateInterval : oneHour;
     const monitorNotificationInterval = notifyInterval > 0 ? notifyInterval : oneHour * 12;
 
-    const config = loadConfig();
     for await (const { monitorService } of monitorServiceExecScopeWithDeps()({
-      config,
+      ...mongoProductionConfig(),
       sendNotifications,
       monitorNotificationInterval,
       monitorUpdateInterval
@@ -188,9 +185,12 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
       ),
     );
 
+    const config = shadowDBProductionConfig();
 
-    const config = loadConfig();
-    for await (const { extractionService } of composition({ postResultsToOpenReview, config })) {
+    for await (const { extractionService } of composition({
+      ...config,
+      postResultsToOpenReview // TODO merge this with 'writeChangesToOpenReview'
+    })) {
       await extractionService.runExtractionLoop(limit, true);
     }
   });
@@ -205,6 +205,7 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
     const urlstr: string = args.url;
     const url = new URL(urlstr);
 
+    const config = shadowDBProductionConfig();
     const composition = composeScopes(
       composeScopes(
         scopedTaskSchedulerWithDeps(),
@@ -216,8 +217,10 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
       ),
     );
 
-    const config = loadConfig();
-    for await (const { extractionService } of composition({ postResultsToOpenReview, config })) {
+    for await (const { extractionService } of composition({
+      ...config,
+      postResultsToOpenReview
+    })) {
       await extractionService.extractUrl(url);
     }
 

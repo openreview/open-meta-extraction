@@ -41,8 +41,9 @@ export class GracefulExit {
   }
 
   async runHandlers(code: Parameters<Handler>[0], signal: Parameters<Handler>[1]) {
-    this.log.info('Gracefully Exiting');
-    await asyncEachOfSeries(this.handlers.reverse(), async (handler, i) => {
+    const handlers = this.handlers.reverse();
+    this.log.info(`Gracefully Exiting: ${handlers.length} exit handlers`);
+    await asyncEachOfSeries(handlers, async (handler, i) => {
       putStrLn(`GracefulExit: running handler #${i}`)
       await Promise.resolve(handler(code, signal)).catch(error => {
         prettyPrint({ error })

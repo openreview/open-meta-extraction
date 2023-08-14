@@ -152,7 +152,7 @@ export class ExtractionService {
 
 
   async updateWorkflowStatus(noteId: string, workflowStatus: WorkflowStatus): Promise<boolean> {
-    const update = await this.shadowDB.mdb.updateUrlStatus(noteId, { workflowStatus });
+    const update = await this.shadowDB.mongoQueries.updateUrlStatus(noteId, { workflowStatus });
     if (!update) {
       this.log.error(`Problem updating workflow status='${workflowStatus}' for note ${noteId}`)
     }
@@ -187,7 +187,7 @@ export class ExtractionService {
       await this.updateWorkflowStatus(noteId, 'fields:posted');
     }
 
-    await this.shadowDB.mdb.updateUrlStatus(noteId, {
+    await this.shadowDB.mongoQueries.updateUrlStatus(noteId, {
       hasAbstract,
       hasPdfLink,
       httpStatus,
@@ -201,7 +201,7 @@ export class ExtractionService {
     const { status } = urlFetchData;
     const httpStatus = parseIntOrElse(status, 0);
 
-    await this.shadowDB.mdb.updateUrlStatus(noteId, {
+    await this.shadowDB.mongoQueries.updateUrlStatus(noteId, {
       httpStatus,
     });
     prettyPrint({ urlFetchData });

@@ -48,3 +48,4 @@ export function countByDay(dateField: string): PipelineStage.Group {
   _.set(countByDayStage, ['$group', '_id', '$dateToString', 'date'], `$${dateField}`);
   return countByDayStage;
 }
+

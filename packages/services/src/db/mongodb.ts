@@ -11,7 +11,8 @@ import {
   isEnvMode,
   ConfigProvider,
   composeScopes,
-  gracefulExitExecScope
+  gracefulExitExecScope,
+  loadConfig
 } from '@watr/commonlib';
 import { Logger } from 'winston';
 
@@ -65,7 +66,7 @@ export function createCurrentTimeOpt(): CurrentTimeOpt {
 }
 
 export type MongoDBNeeds = {
-  isProductionDB?: boolean;
+  isProductionDB: boolean;
   useUniqTestDB?: boolean;
   retainTestDB?: boolean;
   config: ConfigProvider;
@@ -156,3 +157,16 @@ export const mongooseExecScopeWithDeps = () => composeScopes(
   gracefulExitExecScope(),
   scopedMongoose()
 );
+
+
+export function mongoTestConfig(): MongoDBNeeds {
+  const config = loadConfig();
+  const args = { isProductionDB: false, useUniqTestDB: true, config }
+  return args;
+}
+
+export function mongoProductionConfig(): MongoDBNeeds {
+  const config = loadConfig();
+  const args = { isProductionDB: true, config }
+  return args;
+}

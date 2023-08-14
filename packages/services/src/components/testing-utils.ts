@@ -1,39 +1,12 @@
 import _ from 'lodash';
 
 import { respondWithJson, respondWithHtml } from '@watr/spider';
-import { asNoteBatch, createFakeNoteList } from '~/db/mock-data';
+import { asNoteBatch } from '~/db/mock-data';
 import Router from '@koa/router';
 import { Note } from './openreview-gateway';
 import { NoteStatus } from '~/db/schemas';
-import { prettyPrint, stripMargin } from '@watr/commonlib';
+import { stripMargin } from '@watr/commonlib';
 
-// Router that creates an infinite # of fake note batches for use in testing
-//
-// Notes are all sequentially ordered:
-//  e.g., { id: 'note#3', number: 3, content:{ ... } }
-//        { id: 'note#4', number: 4, content:{ ... } }
-export function openreviewAPIRoutes(router: Router) {
-  router.post('/login', respondWithJson({ token: 'fake-token', user: { id: '~TestUser;' } }));
-
-  const totalNotes = 100;
-  const batchSize = 10;
-  router.get('/notes', (ctx) => {
-    const { query } = ctx;
-    const { after } = query;
-    let prevIdNum = 0;
-    if (_.isString(after)) {
-      const idnum = after.split('#')[1];
-      prevIdNum = Number.parseInt(idnum, 10);
-    }
-    const noteList = createFakeNoteList(batchSize, prevIdNum + 1);
-    respondWithJson(asNoteBatch(totalNotes, noteList))(ctx);
-  });
-  router.post('/notes', (ctx) => {
-    const body = ctx.body;
-    prettyPrint({ body })
-    respondWithJson({ id: 'note#any' })(ctx)
-  });
-}
 
 type OpenreviewAPIForNotes = {
   notes: Note[];

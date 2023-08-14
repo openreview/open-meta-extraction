@@ -1,15 +1,18 @@
 import _ from 'lodash';
-import { asyncEachOfSeries, loadConfig, setLogEnvLevel } from '@watr/commonlib';
+import { asyncEachOfSeries, setLogEnvLevel } from '@watr/commonlib';
 import { scopedTaskScheduler } from './task-scheduler';
 import { createFakeNote } from '~/db/mock-data';
 import { scopedMongoose } from '~/db/mongodb';
 import { mongoQueriesExecScope } from '~/db/query-api';
-import { shadowDBExecScope } from './shadow-db';
+import { shadowDBExecScope, shadowDBTestConfig } from './shadow-db';
 
 describe('Task Scheduling', () => {
   setLogEnvLevel('warn');
 
+  const shadowDBConfig = shadowDBTestConfig();
+  const config = shadowDBConfig.config;
   const _3Notes = _.map(_.range(1, 4), (i) => createFakeNote({
+    config,
     noteNumber: i,
     hasAbstract: false,
     hasPDFLink: false,
@@ -20,10 +23,9 @@ describe('Task Scheduling', () => {
 
   it('should schedule old and newly added Urls', async () => {
 
-    const config = loadConfig();
-    for await (const { mongoDB } of scopedMongoose()({ useUniqTestDB: true, config })) {
+    for await (const { mongoDB } of scopedMongoose()(shadowDBConfig)) {
       for await (const { mongoQueries } of mongoQueriesExecScope()({ mongoDB })) {
-        for await (const { shadowDB } of shadowDBExecScope()({ mongoQueries })) {
+        for await (const { shadowDB } of shadowDBExecScope()({ mongoQueries, ...shadowDBConfig })) {
           for await (const { taskScheduler } of scopedTaskScheduler()({ mongoQueries })) {
 
             // Populate db

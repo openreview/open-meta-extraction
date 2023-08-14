@@ -1,6 +1,6 @@
 import _ from 'lodash';
 
-import { getServiceLogger, withScopedExec, shaEncodeAsHex, composeScopes  } from '@watr/commonlib';
+import { getServiceLogger, withScopedExec, shaEncodeAsHex, composeScopes } from '@watr/commonlib';
 
 import { Logger } from 'winston';
 import { FetchCursor, NoteStatus, WorkflowStatus } from '~/db/schemas';
@@ -12,11 +12,12 @@ import {
 } from '~/db/query-api';
 
 import { Note, OpenReviewGateway, UpdatableField } from './openreview-gateway';
+import { MongoDBNeeds, mongoProductionConfig, mongoTestConfig } from '~/db/mongodb';
 
 
-type ShadowDBNeeds = {
+export type ShadowDBNeeds = {
   mongoQueries: MongoQueries,
-  // config: ConfigProvider
+  writeChangesToOpenReview: boolean;
 };
 
 export const shadowDBExecScope = () => withScopedExec<
@@ -24,8 +25,8 @@ export const shadowDBExecScope = () => withScopedExec<
   'shadowDB',
   ShadowDBNeeds
 >(
-  async function init({ mongoQueries }) {
-    const shadowDB = new ShadowDB(mongoQueries);
+  async function init(needs: ShadowDBNeeds) {
+    const shadowDB = new ShadowDB(needs);
     return { shadowDB };
   },
   async function destroy() {
@@ -41,19 +42,15 @@ export const shadowDBExecScopeWithDeps = () => composeScopes(
 export class ShadowDB {
   log: Logger;
   gate: OpenReviewGateway;
-  mdb: MongoQueries;
+  mongoQueries: MongoQueries;
   writeChangesToOpenReview: boolean;
-  // config: ConfigProvider;
 
-  constructor(
-    mdb: MongoQueries,
-    // config: ConfigProvider
-  ) {
+  constructor(needs: ShadowDBNeeds) {
+    const { mongoQueries, writeChangesToOpenReview } = needs;
     this.log = getServiceLogger('ShadowDB');
-    this.gate = new OpenReviewGateway(mdb.mongoDB.config);
-    this.mdb = mdb;
-    this.writeChangesToOpenReview = true;
-    // this.config = config;
+    this.gate = new OpenReviewGateway(mongoQueries.mongoDB.config);
+    this.mongoQueries = mongoQueries;
+    this.writeChangesToOpenReview = writeChangesToOpenReview;
   }
 
 
@@ -62,7 +59,7 @@ export class ShadowDB {
     fieldName: UpdatableField,
     fieldValue: string,
   ): Promise<void> {
-    const priorStatus = await this.mdb.getFieldStatus(noteId, fieldName);
+    const priorStatus = await this.mongoQueries.getFieldStatus(noteId, fieldName);
     const newFieldValueHash = shaEncodeAsHex(fieldValue);
     const fieldIsUnchanged = priorStatus && priorStatus.contentHash === newFieldValueHash;
 
@@ -71,7 +68,7 @@ export class ShadowDB {
       return;
     }
 
-    await this.mdb.upsertFieldStatus(
+    await this.mongoQueries.upsertFieldStatus(
       noteId,
       fieldName,
       fieldValue
@@ -82,16 +79,16 @@ export class ShadowDB {
   }
 
   async getUrlStatusForCursor(cursor: FetchCursor): Promise<UrlStatusDocument | undefined> {
-    return this.mdb.findUrlStatusById(cursor.noteId);
+    return this.mongoQueries.findUrlStatusById(cursor.noteId);
   }
 
   async findNote(noteId: string): Promise<NoteStatus | undefined> {
-    return this.mdb.findNoteStatusById(noteId);
+    return this.mongoQueries.findNoteStatusById(noteId);
   }
 
   async saveNote(note: Note, upsert: boolean): Promise<void> {
     const urlstr = note.content.html;
-    const existingNote = await this.mdb.findNoteStatusById(note.id);
+    const existingNote = await this.mongoQueries.findNoteStatusById(note.id);
     const noteExists = existingNote !== undefined;
     if (noteExists && !upsert) {
       this.log.info('SaveNote: note already exists, skipping');
@@ -100,7 +97,7 @@ export class ShadowDB {
 
     this.log.info(`SaveNote: ${noteExists ? 'overwriting' : 'creating new'} Note<id:${note.id}, #${note.number}>`);
 
-    const noteStatus = await this.mdb.upsertNoteStatus({ noteId: note.id, number: note.number, urlstr });
+    const noteStatus = await this.mongoQueries.upsertNoteStatus({ noteId: note.id, number: note.number, urlstr });
     if (!noteStatus.validUrl) {
       this.log.debug('SaveNote: no valid url.');
       return;
@@ -116,13 +113,36 @@ export class ShadowDB {
     const hasAbstract = typeof abs === 'string';
     const hasPdfLink = typeof pdfLink === 'string';
     const status: WorkflowStatus = hasAbstract && hasPdfLink ? 'extractor:success' : 'unknown';
-    await this.mdb.upsertUrlStatus(note.id, note.number, status, { hasAbstract, hasPdfLink, requestUrl });
+    await this.mongoQueries.upsertUrlStatus(note.id, note.number, status, { hasAbstract, hasPdfLink, requestUrl });
 
     if (hasAbstract) {
-      await this.mdb.upsertFieldStatus(note.id, 'abstract', abs);
+      await this.mongoQueries.upsertFieldStatus(note.id, 'abstract', abs);
     }
     if (hasPdfLink) {
-      await this.mdb.upsertFieldStatus(note.id, 'pdf', pdfLink);
+      await this.mongoQueries.upsertFieldStatus(note.id, 'pdf', pdfLink);
     }
   }
+}
+
+export function shadowDBTestConfig(): MongoDBNeeds & Omit<ShadowDBNeeds, 'mongoQueries'> {
+  const mongoConfig = mongoTestConfig();
+  const shadowConfig: Omit<ShadowDBNeeds, 'mongoQueries'> = {
+    writeChangesToOpenReview: false
+  };
+  return {
+    ...mongoConfig,
+    ...shadowConfig
+  };
+}
+
+
+export function shadowDBProductionConfig(): MongoDBNeeds & Omit<ShadowDBNeeds, 'mongoQueries'> {
+  const mongoConfig = mongoProductionConfig();
+  const shadowConfig: Omit<ShadowDBNeeds, 'mongoQueries'> = {
+    writeChangesToOpenReview: true
+  };
+  return {
+    ...mongoConfig,
+    ...shadowConfig
+  };
 }

@@ -4,7 +4,7 @@ import { getServiceLogger, withScopedExec, putStrLn, composeScopes, ConfigProvid
 import { OpenReviewGateway } from '~/components/openreview-gateway';
 import { ExtractionServiceMonitor, extractionServiceMonitor } from './extraction-service';
 import { FetchServiceMonitor, fetchServiceMonitor } from './fetch-service';
-import { Router, httpServerExecScopeWithDeps, respondWithPlainText  } from '@watr/spider';
+import { Router, httpServerExecScopeWithDeps, respondWithPlainText } from '@watr/spider';
 import { Logger } from 'winston';
 import { CountPerDay } from '~/db/mongo-helpers';
 import { MongoDB, mongooseExecScopeWithDeps } from '~/db/mongodb';
@@ -85,7 +85,8 @@ export class MonitorService {
       });
     }
 
-    for await (const { httpServer } of httpServerExecScopeWithDeps()({ port, routerSetup })) {
+    const baseUrl = new URL('http://localhost');
+    for await (const { httpServer } of httpServerExecScopeWithDeps()({ routerSetup, port, baseUrl })) {
       this.log.info('Server is live');
       await httpServer.keepAlive();
     }
@@ -97,6 +98,7 @@ export class MonitorService {
 
   async notify() {
     this.log.info('Starting Notifications');
+    await this.updateSummary();
     const summary = formatMonitorSummaries(this.lastSummary);
     if (this.sendNotifications) {
       this.log.info('Sending Notifications');

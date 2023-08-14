@@ -13,6 +13,7 @@ import axios, {
 import {
   ConfigProvider,
   getServiceLogger,
+  prettyPrint,
   putStrLn
 } from '@watr/commonlib';
 
@@ -44,6 +45,8 @@ export class OpenReviewExchange {
     this.apiBaseURL = config.get('openreview:restApi');
     this.user = config.get('openreview:restUser');
     this.password = config.get('openreview:restPassword');
+    prettyPrint({ user: this.user, pass: this.password })
+
   }
 
 
