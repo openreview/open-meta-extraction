@@ -9,6 +9,7 @@ import {
   prettyFormat,
   withScopedExec,
   composeScopes,
+  putStrLn,
 } from '@watr/commonlib';
 
 
@@ -18,7 +19,7 @@ import { CanonicalFieldRecords, ExtractionEnv, getEnvCanonicalFields, SpiderAndE
 
 import { Logger } from 'winston';
 import { ShadowDB } from './shadow-db';
-import { FieldStatus, UrlStatus, WorkflowStatus } from '~/db/schemas';
+import { DBModels, UrlStatus, WorkflowStatus } from '~/db/schemas';
 import { scopedTaskSchedulerWithDeps, TaskScheduler } from './task-scheduler';
 import { parseIntOrElse } from '~/util/misc';
 import * as mh from '~/db/mongo-helpers';
@@ -231,11 +232,13 @@ function chooseCanonicalPdfLink(canonicalFields: CanonicalFieldRecords): string 
 }
 
 export interface ExtractionServiceMonitor {
-  newAbstracts: mh.CountPerDay[]
-  newPdfLinks: mh.CountPerDay[]
+  newAbstracts: mh.CountPerDay[];
+  newPdfLinks: mh.CountPerDay[];
+  abstractCount: number;
+  pdfCount: number;
 }
 
-export async function extractionServiceMonitor(): Promise<ExtractionServiceMonitor> {
+export async function extractionServiceMonitor(dbModels: DBModels): Promise<ExtractionServiceMonitor> {
   //// Fields extracted per day
   // Abstracts
   const matchAbstracts = mh.matchAll(
@@ -249,13 +252,25 @@ export async function extractionServiceMonitor(): Promise<ExtractionServiceMonit
     mh.matchFieldVal('fieldType', 'pdf')
   );
 
-  const res = await FieldStatus.aggregate([{
+  const res = await dbModels.fieldStatus.aggregate([{
     $facet: {
       newAbstracts: [matchAbstracts, mh.countByDay('createdAt'), mh.sortByDay],
       newPdfLinks: [matchPdfLinks, mh.countByDay('createdAt'), mh.sortByDay],
     }
   }]);
-  prettyPrint({ res })
+
+  const fsAbstractCount = await dbModels.fieldStatus.countDocuments({ fieldType: 'abstract' })
+  const fsPdfCount = await dbModels.fieldStatus.countDocuments({ fieldType: 'pdf' })
+  const usAbstractCount = await dbModels.urlStatus.countDocuments({ hasAbstract: true })
+  const usPdfCount = await dbModels.urlStatus.countDocuments({ hasPdfLink: true })
+
+  if (fsAbstractCount != usAbstractCount) {
+    putStrLn(`Warning: FieldStatus:abstractCount(${fsAbstractCount}) != UrlStatus.abstractCount(${usAbstractCount})`);
+  }
+
+  if (fsPdfCount != usPdfCount) {
+    putStrLn(`Warning: FieldStatus:pdfCount(${fsPdfCount}) != UrlStatus.pdfCount(${usPdfCount})`);
+  }
 
   const newAbstracts = _.map(res[0].newAbstracts, ({ _id, count }) => {
     return { day: _id, count };
@@ -264,5 +279,10 @@ export async function extractionServiceMonitor(): Promise<ExtractionServiceMonit
     return { day: _id, count };
   });
 
-  return { newAbstracts, newPdfLinks };
+  return {
+    newAbstracts,
+    newPdfLinks,
+    abstractCount: usAbstractCount,
+    pdfCount: usPdfCount
+  };
 }

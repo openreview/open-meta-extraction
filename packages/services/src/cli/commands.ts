@@ -2,7 +2,7 @@ import _ from 'lodash';
 
 import { arglib, composeScopes, loadConfig, oneHour, putStrLn } from '@watr/commonlib';
 import { formatStatusMessages, showStatusSummary } from '~/db/extraction-summary';
-import { connectToMongoDB, mongoConnectionString, mongoProductionConfig, resetMongoDB, scopedMongoose } from '~/db/mongodb';
+import { connectToMongoDB, mongoConnectionString, mongoConfig, scopedMongoose } from '~/db/mongodb';
 import { fetchServiceExecScopeWithDeps } from '~/components/fetch-service';
 import { scopedExtractionService } from '~/components/extraction-service';
 import { OpenReviewGateway } from '~/components/openreview-gateway';
@@ -10,7 +10,7 @@ import { monitorServiceExecScopeWithDeps } from '~/components/monitor-service';
 import { CursorRoles, isCursorRole, mongoQueriesExecScope } from '~/db/query-api';
 import { scopedTaskSchedulerWithDeps } from '~/components/task-scheduler';
 import { scopedBrowserPool } from '@watr/spider';
-import { shadowDBExecScope, shadowDBProductionConfig } from '~/components/shadow-db';
+import { shadowDBExecScope, shadowDBConfig } from '~/components/shadow-db';
 
 const { opt, config, registerCmd } = arglib;
 
@@ -40,7 +40,7 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
   )(async (args: any) => {
     const { limit, pauseBeforeExit } = args;
 
-    const config = shadowDBProductionConfig();
+    const config = shadowDBConfig();
     for await (const { fetchService } of fetchServiceExecScopeWithDeps()(config)) {
       await fetchService.runFetchLoop(limit, pauseBeforeExit);
     }
@@ -56,7 +56,7 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
   )(async (args: any) => {
     const del = args.delete;
 
-    for await (const { mongoDB } of scopedMongoose()(mongoProductionConfig())) {
+    for await (const { mongoDB } of scopedMongoose()(mongoConfig())) {
       for await (const { mongoQueries } of mongoQueriesExecScope()({ mongoDB })) {
         const cursors = await mongoQueries.getCursors()
         cursors.forEach(c => {
@@ -94,7 +94,7 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
       return;
     }
 
-    for await (const { taskScheduler, mongoQueries } of scopedTaskSchedulerWithDeps()(mongoProductionConfig())) {
+    for await (const { taskScheduler, mongoQueries } of scopedTaskSchedulerWithDeps()(mongoConfig())) {
 
       if (_.isNumber(move) && move !== 0) {
         putStrLn(`Moving cursor w/role ${role}`);
@@ -147,7 +147,7 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
     const monitorNotificationInterval = notifyInterval > 0 ? notifyInterval : oneHour * 12;
 
     for await (const { monitorService } of monitorServiceExecScopeWithDeps()({
-      ...mongoProductionConfig(),
+      ...mongoConfig(),
       sendNotifications,
       monitorNotificationInterval,
       monitorUpdateInterval
@@ -185,7 +185,7 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
       ),
     );
 
-    const config = shadowDBProductionConfig();
+    const config = shadowDBConfig();
 
     for await (const { extractionService } of composition({
       ...config,
@@ -205,7 +205,7 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
     const urlstr: string = args.url;
     const url = new URL(urlstr);
 
-    const config = shadowDBProductionConfig();
+    const config = shadowDBConfig();
     const composition = composeScopes(
       composeScopes(
         scopedTaskSchedulerWithDeps(),
@@ -239,12 +239,10 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
     putStrLn(`Connection: ${conn}`);
 
     if (clean) {
-      putStrLn('Cleaning Database');
-      const mongoose = await connectToMongoDB(config);
-      await resetMongoDB();
-      putStrLn('Close connections');
-      await mongoose.connection.close();
-      putStrLn('...done');
+      for await (const { mongoDB } of scopedMongoose()(mongoConfig())) {
+        await mongoDB.dropDatabase();
+        await mongoDB.createCollections();
+      }
     }
   });
 

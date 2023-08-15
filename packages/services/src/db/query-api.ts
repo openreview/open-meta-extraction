@@ -1,6 +1,6 @@
 import _ from 'lodash';
 import * as E from 'fp-ts/Either';
-import { Document, Mongoose, Types } from 'mongoose';
+import { Document, Types } from 'mongoose';
 import {
   asyncMapSeries,
   getServiceLogger,
@@ -19,7 +19,7 @@ import {
   UrlStatusUpdateFields,
   NoteStatus,
   WorkflowStatus,
-  createCollections
+  DBModels
 } from './schemas';
 
 import { MongoDB, mongooseExecScopeWithDeps } from './mongodb';
@@ -58,13 +58,16 @@ export const mongoQueriesExecScopeWithDeps = () => composeScopes(
   mongoQueriesExecScope()
 );
 
+
 export class MongoQueries {
   log: Logger;
   mongoDB: MongoDB;
+  dbModels: DBModels;
 
   constructor(mongoDB: MongoDB) {
     this.log = getServiceLogger('MongoQueries');
     this.mongoDB = mongoDB;
+    this.dbModels = mongoDB.dbModels;
   }
 
   conn() {
@@ -76,7 +79,11 @@ export class MongoQueries {
   }
 
   async createDatabase() {
-    await createCollections();
+    // await createCollections();
+    await this.dbModels.noteStatus.createCollection();
+    await this.dbModels.urlStatus.createCollection();
+    await this.dbModels.fetchCursor.createCollection();
+    await this.dbModels.fieldStatus.createCollection();
   }
 
   async upsertNoteStatus({
@@ -92,7 +99,7 @@ export class MongoQueries {
     )(maybeUrl);
 
 
-    return NoteStatus.findOneAndUpdate(
+    return this.dbModels.noteStatus.findOneAndUpdate(
       { id: noteId },
       { number, validUrl, url: urlOrErrStr },
       { new: true, upsert: true }
@@ -100,19 +107,19 @@ export class MongoQueries {
   }
 
   async findNoteStatusById(noteId: string): Promise<NoteStatus | undefined> {
-    const ret = await NoteStatus.findOne({ id: noteId });
+    const ret = await this.dbModels.noteStatus.findOne({ id: noteId });
     return ret === null ? undefined : ret;
   }
 
   async getLastSavedNote(): Promise<NoteStatus | undefined> {
-    const s = await NoteStatus.findOne(
+    const s = await this.dbModels.noteStatus.findOne(
       {}, null, { sort: { number: -1 } }
     );
     return s || undefined;
   }
 
   async getNextNoteWithValidURL(noteNumber: number): Promise<NoteStatus | undefined> {
-    const s = await NoteStatus.findOne(
+    const s = await this.dbModels.noteStatus.findOne(
       { number: { $gt: noteNumber }, validUrl: true },
       null,
       { sort: { number: 1 } }
@@ -121,7 +128,7 @@ export class MongoQueries {
   }
 
   async getPrevNoteWithValidURL(noteNumber: number): Promise<NoteStatus | undefined> {
-    const s = await NoteStatus.findOne(
+    const s = await this.dbModels.noteStatus.findOne(
       { number: { $lt: noteNumber }, validUrl: true },
       null,
       { sort: { number: -1 } }
@@ -130,26 +137,26 @@ export class MongoQueries {
   }
 
   async getLastNoteWithSuccessfulExtractionV1(): Promise<NoteStatus | undefined> {
-    const s = await UrlStatus.findOne(
+    const s = await this.dbModels.urlStatus.findOne(
       { response: { $exists: true, $ne: null } },
       null,
       { sort: { noteNumber: -1 } }
     );
     if (!s) return;
 
-    const n = await NoteStatus.findOne({ id: s.noteId });
+    const n = await this.dbModels.noteStatus.findOne({ id: s.noteId });
     return n || undefined;
   }
 
   async getLastNoteWithSuccessfulExtractionV2(): Promise<NoteStatus | undefined> {
-    const s = await UrlStatus.findOne(
+    const s = await this.dbModels.urlStatus.findOne(
       { hasAbstract: true },
       null,
       { sort: { noteNumber: -1 } }
     );
     if (!s) return;
 
-    const n = await NoteStatus.findOne({ id: s.noteId });
+    const n = await this.dbModels.noteStatus.findOne({ id: s.noteId });
     return n || undefined;
   }
 
@@ -182,7 +189,7 @@ export class MongoQueries {
       $unset: unsetQ,
     };
 
-    const updated = await UrlStatus.findOneAndUpdate(
+    const updated = await this.dbModels.urlStatus.findOneAndUpdate(
       { noteId },
       updateQ,
       { new: true, runValidators: true }
@@ -220,7 +227,7 @@ export class MongoQueries {
       $unset: unsetQ,
     };
 
-    const updated = await UrlStatus.findOneAndUpdate(
+    const updated = await this.dbModels.urlStatus.findOneAndUpdate(
       { noteId },
       updateQ,
       { new: true, upsert: true, runValidators: true }
@@ -229,7 +236,7 @@ export class MongoQueries {
   }
 
   async findUrlStatusById(noteId: string): Promise<UrlStatusDocument | undefined> {
-    const ret = await UrlStatus.findOne({ noteId });
+    const ret = await this.dbModels.urlStatus.findOne({ noteId });
     return ret === null ? undefined : ret;
   }
 
@@ -245,7 +252,7 @@ export class MongoQueries {
 
 
   async advanceCursor(cursorId: CursorID): Promise<FetchCursor | undefined> {
-    const current = await FetchCursor.findById(cursorId);
+    const current = await this.dbModels.fetchCursor.findById(cursorId);
     if (!current) return;
     const { noteNumber } = current;
     const nextNote = await this.getNextNoteWithValidURL(noteNumber);
@@ -253,7 +260,7 @@ export class MongoQueries {
       return;
     };
 
-    const nextCursor = await FetchCursor.findByIdAndUpdate(cursorId,
+    const nextCursor = await this.dbModels.fetchCursor.findByIdAndUpdate(cursorId,
       {
         noteId: nextNote.id,
         noteNumber: nextNote.number
@@ -263,7 +270,7 @@ export class MongoQueries {
       return;
     };
 
-    const c = await FetchCursor.findById(cursorId);
+    const c = await this.dbModels.fetchCursor.findById(cursorId);
     if (c) return c;
   }
 
@@ -275,7 +282,7 @@ export class MongoQueries {
     const absDist = Math.abs(distance);
     this.log.info(`Moving Cursor ${direction} by ${absDist}`);
 
-    const current = await FetchCursor.findById(cursorId);
+    const current = await this.dbModels.fetchCursor.findById(cursorId);
     if (!current) return `No cursor w/id ${cursorId}`;
 
     const { noteNumber } = current;
@@ -304,7 +311,7 @@ export class MongoQueries {
       throw Error('Error: notes are empty');
     }
 
-    const nextCursor = await FetchCursor.findByIdAndUpdate(cursorId,
+    const nextCursor = await this.dbModels.fetchCursor.findByIdAndUpdate(cursorId,
       {
         noteId: lastNote.id,
         noteNumber: lastNote.number
@@ -318,7 +325,7 @@ export class MongoQueries {
   }
 
   async getCursor(role: CursorRole): Promise<FetchCursor | undefined> {
-    const cursor = await FetchCursor.findOne({ role });
+    const cursor = await this.dbModels.fetchCursor.findOne({ role });
     if (cursor === null || cursor === undefined) {
       return;
     }
@@ -326,22 +333,22 @@ export class MongoQueries {
   }
 
   async getCursors(): Promise<FetchCursor[]> {
-    return FetchCursor.find();
+    return this.dbModels.fetchCursor.find();
   }
 
   async deleteCursor(role: CursorRole): Promise<boolean> {
-    const cursor = await FetchCursor.findOneAndRemove({ role });
+    const cursor = await this.dbModels.fetchCursor.findOneAndRemove({ role });
     return cursor !== null;
   }
 
   async deleteCursors(): Promise<void> {
-    const cursors = await FetchCursor.find();
+    const cursors = await this.dbModels.fetchCursor.find();
     this.log.info(`Deleting ${cursors.length} cursors`);
     await Promise.all(cursors.map(async c => c.deleteOne()))
   }
 
   async updateCursor(role: CursorRole, noteId: string): Promise<FetchCursor> {
-    return FetchCursor.findOneAndUpdate(
+    return this.dbModels.fetchCursor.findOneAndUpdate(
       { role },
       { role, noteId },
       { new: true, upsert: true }
@@ -351,7 +358,7 @@ export class MongoQueries {
   async createCursor(role: CursorRole, noteId: string): Promise<FetchCursor | undefined> {
     const noteStatus = await this.findNoteStatusById(noteId);
     if (!noteStatus) return;
-    const c = await FetchCursor.create(
+    const c = await this.dbModels.fetchCursor.create(
       { role, noteId, noteNumber: noteStatus.number },
     );
 
@@ -364,7 +371,7 @@ export class MongoQueries {
     fieldValue: string,
   ): Promise<FieldStatus> {
     const contentHash = shaEncodeAsHex(fieldValue);
-    return FieldStatus.findOneAndUpdate(
+    return this.dbModels.fieldStatus.findOneAndUpdate(
       { noteId, fieldType },
       { fieldType, contentHash },
       { new: true, upsert: true }
@@ -375,7 +382,7 @@ export class MongoQueries {
     noteId: string,
     fieldType: string,
   ): Promise<FieldStatus | undefined> {
-    const s = await FieldStatus.findOne({ noteId, fieldType });
+    const s = await this.dbModels.fieldStatus.findOne({ noteId, fieldType });
     return s ? s : undefined;
   }
 

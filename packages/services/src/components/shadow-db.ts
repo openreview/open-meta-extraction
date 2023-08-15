@@ -1,6 +1,6 @@
 import _ from 'lodash';
 
-import { getServiceLogger, withScopedExec, shaEncodeAsHex, composeScopes } from '@watr/commonlib';
+import { getServiceLogger, withScopedExec, shaEncodeAsHex, composeScopes, isTestingEnv } from '@watr/commonlib';
 
 import { Logger } from 'winston';
 import { FetchCursor, NoteStatus, WorkflowStatus } from '~/db/schemas';
@@ -12,7 +12,7 @@ import {
 } from '~/db/query-api';
 
 import { Note, OpenReviewGateway, UpdatableField } from './openreview-gateway';
-import { MongoDBNeeds, mongoProductionConfig, mongoTestConfig } from '~/db/mongodb';
+import { MongoDBNeeds, mongoConfig } from '~/db/mongodb';
 
 
 export type ShadowDBNeeds = {
@@ -124,25 +124,15 @@ export class ShadowDB {
   }
 }
 
-export function shadowDBTestConfig(): MongoDBNeeds & Omit<ShadowDBNeeds, 'mongoQueries'> {
-  const mongoConfig = mongoTestConfig();
+export function shadowDBConfig(): MongoDBNeeds & Omit<ShadowDBNeeds, 'mongoQueries'> {
+  const config = mongoConfig();
+
+  const isTest = isTestingEnv();
   const shadowConfig: Omit<ShadowDBNeeds, 'mongoQueries'> = {
-    writeChangesToOpenReview: false
+    writeChangesToOpenReview: !isTest
   };
   return {
-    ...mongoConfig,
-    ...shadowConfig
-  };
-}
-
-
-export function shadowDBProductionConfig(): MongoDBNeeds & Omit<ShadowDBNeeds, 'mongoQueries'> {
-  const mongoConfig = mongoProductionConfig();
-  const shadowConfig: Omit<ShadowDBNeeds, 'mongoQueries'> = {
-    writeChangesToOpenReview: true
-  };
-  return {
-    ...mongoConfig,
+    ...config,
     ...shadowConfig
   };
 }

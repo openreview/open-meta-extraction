@@ -2,7 +2,7 @@ import { isUrl, setLogEnvLevel } from '@watr/commonlib';
 import * as fc from 'fast-check';
 import { mongoQueriesExecScopeWithDeps } from './query-api';
 import { genHttpStatus } from './mock-data';
-import { mongoTestConfig } from './mongodb';
+import { mongoConfig } from './mongodb';
 
 describe('MongoDB Schemas', () => {
   setLogEnvLevel('debug');
@@ -10,7 +10,7 @@ describe('MongoDB Schemas', () => {
 
   it('should create/find note status', async () => {
 
-    for await (const { mongoQueries } of mongoQueriesExecScopeWithDeps()(mongoTestConfig())) {
+    for await (const { mongoQueries } of mongoQueriesExecScopeWithDeps()(mongoConfig())) {
       let i = 1;
       await fc.assert(
         fc.asyncProperty(
@@ -52,7 +52,7 @@ describe('MongoDB Schemas', () => {
 
   it('should create/find host status', async () => {
 
-    for await (const { mongoQueries } of mongoQueriesExecScopeWithDeps()(mongoTestConfig())) {
+    for await (const { mongoQueries } of mongoQueriesExecScopeWithDeps()(mongoConfig())) {
       let noteNum = 0;
       await fc.assert(
         fc.asyncProperty(

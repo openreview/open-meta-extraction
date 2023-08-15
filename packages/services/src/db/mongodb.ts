@@ -2,7 +2,7 @@
 import * as mg from 'mongoose';
 import { randomBytes } from 'crypto';
 
-import { createCollections } from '~/db/schemas';
+import { DBModels, createDBModels } from '~/db/schemas';
 import {
   getServiceLogger,
   isTestingEnv,
@@ -12,7 +12,8 @@ import {
   ConfigProvider,
   composeScopes,
   gracefulExitExecScope,
-  loadConfig
+  loadConfig,
+  isProdEnv
 } from '@watr/commonlib';
 import { Logger } from 'winston';
 
@@ -29,40 +30,35 @@ export async function connectToMongoDB(config: ConfigProvider, dbNameMod?: strin
   return mg.connect(connstr, { connectTimeoutMS: 5000 });
 }
 
-export async function resetMongoDB(): Promise<void> {
-  const dbName = mg.connection.name;
-  putStrLn(`dropping MongoDB ${dbName}`);
-  await mg.connection.dropDatabase();
-  putStrLn('createCollections..');
-  await createCollections();
-}
 
-
-interface CurrentTimeOpt {
+export interface CurrentTimeOpt {
   currentTime(): Date;
 }
-
-
-export function createCurrentTimeOpt(): CurrentTimeOpt {
-  if (!isTestingEnv()) {
-    const defaultOpt: CurrentTimeOpt = {
-      currentTime: () => new Date()
-    };
-    return defaultOpt;
+export class MockCurrentTimeOpt implements CurrentTimeOpt {
+  lastTime: Date;
+  constructor(d: Date) {
+    this.lastTime = d;
   }
+  currentTime(): Date {
+    const rando = Math.floor(Math.random() * 10) + 1;
+    const jitter = rando % 4;
+    const nextTime = addHours(this.lastTime, jitter);
+    this.lastTime = nextTime;
+    return nextTime;
+  }
+}
+
+export const DefaultCurrentTimeOpt: CurrentTimeOpt = {
+  currentTime: () => new Date()
+};
+
+
+import { addHours, addDays } from 'date-fns';
+
+export function mockCurrentTimeOpt(): CurrentTimeOpt {
   putStrLn('Using MongoDB Mock Timestamps');
-  const currentFakeDate = new Date();
-  currentFakeDate.setDate(currentFakeDate.getDate() - 7);
-  const mockedOpts: CurrentTimeOpt = {
-    currentTime: () => {
-      const currDate = new Date(currentFakeDate);
-      const rando = Math.floor(Math.random() * 10) + 1;
-      const jitter = rando % 4;
-      currentFakeDate.setHours(currentFakeDate.getHours() + jitter);
-      return currDate;
-    }
-  };
-  return mockedOpts;
+  const startTime = addDays(new Date(), -7);
+  return new MockCurrentTimeOpt(startTime);
 }
 
 export type MongoDBNeeds = {
@@ -80,16 +76,36 @@ function makeRndStr(len: number): string {
 export class MongoDB {
   mongoose: mg.Mongoose;
   config: ConfigProvider;
+  dbModels: DBModels;
   log: Logger;
 
   constructor(
     mongoose: mg.Mongoose,
     config: ConfigProvider,
+    dbModels: DBModels,
     log: Logger
   ) {
     this.config = config;
     this.log = log;
     this.mongoose = mongoose;
+    this.dbModels = dbModels;
+  }
+
+  async dropDatabase() {
+    const dbName = this.mongoose.connection.name;
+    putStrLn(`dropping MongoDB ${dbName}`);
+    await this.mongoose.connection.dropDatabase();
+  }
+
+  async createCollections() {
+    await this.dbModels.noteStatus.createCollection();
+    await this.dbModels.urlStatus.createCollection();
+    await this.dbModels.fetchCursor.createCollection();
+    await this.dbModels.fieldStatus.createCollection();
+  }
+  async unsafeResetD() {
+    await this.dropDatabase();
+    await this.createCollections();
   }
 }
 
@@ -103,16 +119,18 @@ export const scopedMongoose = () => withScopedExec<MongoDB, 'mongoDB', MongoDBNe
     const isValidTestDB = isEnvMode('test') && isTestDBName;
     const isValidDevDB = isEnvMode('dev') && isDevDBName;
     const isValidProdDB = isProductionDB && isEnvMode('prod') && !(isTestDBName || isDevDBName);
+    const timeOpt = isTestingEnv()? mockCurrentTimeOpt() : undefined;
+    const dbModels = createDBModels(timeOpt);
 
     if (isValidProdDB) {
       log.info(`MongoDB Production Environ`);
       const mongooseConn = await connectToMongoDB(config);
-      return { mongoDB: new MongoDB(mongooseConn, config, log) };
+      return { mongoDB: new MongoDB(mongooseConn, config, dbModels, log) };
     }
     if (isValidDevDB) {
       log.info(`MongoDB Dev Environ`);
       const mongooseConn = await connectToMongoDB(config);
-      return { mongoDB: new MongoDB(mongooseConn, config, log) };
+      return { mongoDB: new MongoDB(mongooseConn, config, dbModels, log) };
     }
 
     if (isValidTestDB) {
@@ -125,11 +143,12 @@ export const scopedMongoose = () => withScopedExec<MongoDB, 'mongoDB', MongoDBNe
       const mongooseConn = await connectToMongoDB(config, dbSuffix);
       const dbName = mongooseConn.connection.name;
       log.debug(`mongo db ${dbName} connected...`);
+      const mongoDB = new MongoDB(mongooseConn, config, dbModels, log);
       if (useUniqTestDB) {
-        await createCollections();
+        await mongoDB.createCollections();
       }
 
-      return { mongoDB: new MongoDB(mongooseConn, config, log) };
+      return { mongoDB };
     }
 
     throw new Error(`Mongo db init: db name is not valid for dev,test,or prod environments`);
@@ -159,14 +178,11 @@ export const mongooseExecScopeWithDeps = () => composeScopes(
 );
 
 
-export function mongoTestConfig(): MongoDBNeeds {
-  const config = loadConfig();
-  const args = { isProductionDB: false, useUniqTestDB: true, config }
-  return args;
-}
+export function mongoConfig(): MongoDBNeeds {
+  const isProd = isProdEnv();
+  const isTest = isTestingEnv();
 
-export function mongoProductionConfig(): MongoDBNeeds {
   const config = loadConfig();
-  const args = { isProductionDB: true, config }
+  const args = { config, isProductionDB: isProd, useUniqTestDB: isTest }
   return args;
 }

@@ -1,7 +1,7 @@
 import _ from 'lodash';
 
 import { subDays } from 'date-fns';
-import { UrlStatus, NoteStatus } from './schemas';
+import { createDBModels } from './schemas';
 
 interface BoolIDCounts {
   _id: boolean;
@@ -232,7 +232,9 @@ export async function showStatusSummary(): Promise<string[][]> {
 
   const count = { $count: 'total' };
 
-  const noteStatusRes = await NoteStatus.aggregate([{
+  const dbModels = createDBModels();
+
+  const noteStatusRes = await dbModels.noteStatus.aggregate([{
     $facet: {
       noteCount: [count],
       updateByDay: [selectOneWeek, groupByUpdateDay, { $sort: { _id: 1 } }],
@@ -242,7 +244,7 @@ export async function showStatusSummary(): Promise<string[][]> {
 
   const noteStatusSummary: NoteStatusSummary = noteStatusRes[0];
 
-  const res = await UrlStatus.aggregate([{
+  const res = await dbModels.urlStatus.aggregate([{
     $facet: {
       noteCount: [count],
       updateByDay: [selectOneWeek, groupByUpdateDay, { $sort: { _id: 1 } }],

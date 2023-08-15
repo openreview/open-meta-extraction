@@ -2,11 +2,11 @@ import _ from 'lodash';
 
 import { asyncEachOfSeries, setLogEnvLevel, prettyPrint } from '@watr/commonlib';
 import { fetchServiceExecScopeWithDeps } from './fetch-service';
-import { createFakeNoteList } from '~/db/mock-data';
+import { FieldFrequencies, createFakeNoteList } from '~/db/mock-data';
 import { fakeNoteIds, listNoteStatusIds, openreviewAPIForNotes, spiderableRoutes } from './testing-utils';
 import { extractionServiceMonitor, scopedExtractionService } from './extraction-service';
 import { CursorRole, MongoQueries } from '~/db/query-api';
-import { shadowDBExecScopeWithDeps, shadowDBTestConfig } from './shadow-db';
+import { shadowDBExecScopeWithDeps, shadowDBConfig } from './shadow-db';
 import { Router, withHttpTestServer } from '@watr/spider';
 import { scopedTaskScheduler } from './task-scheduler';
 import { scopedBrowserPool } from '@watr/spider';
@@ -16,12 +16,19 @@ describe('Extraction Service', () => {
   setLogEnvLevel('debug');
 
   it.only('should run end-to-end', async () => {
-    const shadowDBConfig = shadowDBTestConfig();
-    const config = shadowDBConfig.config;
+    const shadowConfig = shadowDBConfig();
+    const config = shadowConfig.config;
     const noteCount = 10;
     const batchSize = 2;
     const startingId = 1;
-    const notes = createFakeNoteList(config, noteCount, startingId);
+
+    const fieldFrequencies: FieldFrequencies = {
+      validHtmlLinkFreq: [4, 5],
+      abstractFreq: [1, 2],
+      pdfLinkFreq: [1, 3]
+    };
+
+    const notes = createFakeNoteList(config, noteCount, fieldFrequencies, startingId);
     const routerSetup = (r: Router) => {
       openreviewAPIForNotes({ notes, batchSize })(r)
       spiderableRoutes()(r);
@@ -39,11 +46,12 @@ describe('Extraction Service', () => {
 
     for await (const { gracefulExit } of withHttpTestServer({ config, routerSetup })) {
       for await (const { browserPool } of scopedBrowserPool()({ gracefulExit })) {
-        for await (const { fetchService, shadowDB, mongoQueries } of fetchServiceExecScopeWithDeps()(shadowDBConfig)) {
+        for await (const { fetchService, shadowDB, mongoQueries, mongoDB } of fetchServiceExecScopeWithDeps()(shadowConfig)) {
           for await (const { taskScheduler } of scopedTaskScheduler()({ mongoQueries })) {
+            const dbModels = mongoDB.dbModels
             // Init the shadow db
             await fetchService.runFetchLoop(100);
-            const noteStatusIds = await listNoteStatusIds();
+            const noteStatusIds = await listNoteStatusIds(dbModels);
             prettyPrint({ noteStatusIds })
             expect(noteStatusIds).toMatchObject(fakeNoteIds(startingId, startingId + noteCount - 1));
             for await (const { extractionService } of scopedExtractionService()({ shadowDB, taskScheduler, browserPool, postResultsToOpenReview })) {
@@ -82,8 +90,8 @@ describe('Extraction Service', () => {
 
   it('should monitor newly extracted fields', async () => {
 
-    const config = shadowDBTestConfig();
-    for await (const { shadowDB } of shadowDBExecScopeWithDeps()(config)) {
+    const config = shadowDBConfig();
+    for await (const { shadowDB, mongoDB } of shadowDBExecScopeWithDeps()(config)) {
 
       const noteIds = fakeNoteIds(1, 100);
       await asyncEachOfSeries(noteIds, async (noteId, i) => {
@@ -96,7 +104,7 @@ describe('Extraction Service', () => {
           await shadowDB.updateFieldStatus(noteId, 'pdf', pdf);
         }
       });
-      await extractionServiceMonitor();
+      await extractionServiceMonitor(mongoDB.dbModels);
     }
   });
 });

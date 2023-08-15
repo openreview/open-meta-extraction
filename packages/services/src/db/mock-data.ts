@@ -1,5 +1,5 @@
 import _ from 'lodash';
-import { ConfigProvider, asyncEachOfSeries } from '@watr/commonlib';
+import { ConfigProvider, asyncEachOfSeries, prettyPrint } from '@watr/commonlib';
 import * as fc from 'fast-check';
 import { MongoQueries } from './query-api';
 import { WorkflowStatuses } from './schemas';
@@ -43,7 +43,7 @@ export const genHttpStatus = fc.oneof(
 );
 
 export const numberSeries = (start: number, end?: number) =>
-  fc.Stream.of<number>(... _.range(start, end));
+  fc.Stream.of<number>(..._.range(start, end));
 
 type CreateFakeNote = {
   config: ConfigProvider;
@@ -92,15 +92,52 @@ export function createFakeNote({
   };
 }
 
-export function createFakeNoteList(config: ConfigProvider, count: number, startingNumber: number = 1): Note[] {
+type Freq = [number, number];
+export type FieldFrequencies = {
+  validHtmlLinkFreq: Freq;
+  abstractFreq: Freq;
+  pdfLinkFreq: Freq;
+}
+function fieldOccurs(freq: Freq, n: number): boolean {
+  const [occurs, outOf] = freq;
+  return (n % outOf) < occurs;
+}
+
+type ToBool<T> = {
+  [P in keyof T]: boolean
+}
+
+function rec(k: string, v: boolean): Record<string, boolean> {
+  const r: Record<string, boolean> = {};
+  r[k] = v
+  return r;
+}
+
+function fieldsOccur(fieldFreqs: FieldFrequencies, n: number): ToBool<FieldFrequencies> {
+  const freqPairs: Record<string, boolean>[] = _.map(
+    _.toPairs(fieldFreqs),
+    ([k, v]) => rec(k, fieldOccurs(v, n))
+  );
+  return _.merge({}, ...freqPairs);
+}
+export function createFakeNoteList(config: ConfigProvider, count: number, fieldFrequencies: FieldFrequencies, startingNumber: number = 1): Note[] {
   const ids = _.range(startingNumber, startingNumber + count);
-  return _.map(ids, (i) => createFakeNote({
-    config,
-    noteNumber: i,
-    hasAbstract: false,
-    hasPDFLink: false,
-    hasHTMLLink: true
-  }));
+
+  return _.map(ids, (i) => {
+    const occurances = fieldsOccur(fieldFrequencies, i-startingNumber);
+    const hasHTMLLink = occurances.validHtmlLinkFreq;
+    const hasAbstract = hasHTMLLink && occurances.abstractFreq;
+    const hasPDFLink = hasHTMLLink && occurances.pdfLinkFreq;
+
+    return createFakeNote({
+      config,
+      noteNumber: i,
+      hasAbstract,
+      hasPDFLink,
+      hasHTMLLink
+    });
+
+  });
 }
 
 export function asNoteBatch(count: number, notes: Note[]): Notes {
@@ -111,6 +148,11 @@ export function asNoteBatch(count: number, notes: Note[]): Notes {
 }
 
 export function createFakeNotes(config: ConfigProvider, count: number, startingNumber: number = 1): Notes {
-  const notes = createFakeNoteList(config, count, startingNumber);
+  const fieldFrequencies: FieldFrequencies = {
+    validHtmlLinkFreq: [4, 5],
+    abstractFreq: [1, 2],
+    pdfLinkFreq: [1, 3]
+  };
+  const notes = createFakeNoteList(config, count, fieldFrequencies, startingNumber);
   return asNoteBatch(count, notes);
 }

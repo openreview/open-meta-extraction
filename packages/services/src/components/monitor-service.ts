@@ -50,17 +50,14 @@ export class MonitorService {
   }
 
   async collectMonitorSummaries(): Promise<MonitorSummaries | undefined> {
-    const extractionSummary = await extractionServiceMonitor();
-    const fetchSummary = await fetchServiceMonitor();
+    const extractionSummary = await extractionServiceMonitor(this.mongoDB.dbModels);
+    const fetchSummary = await fetchServiceMonitor(this.mongoDB.dbModels);
     return { extractionSummary, fetchSummary, lastUpdateTime: new Date() };
   }
 
   async updateSummary(): Promise<MonitorSummaries | undefined> {
     this.log.info('Updating Monitor Summaries')
     this.lastSummary = await this.collectMonitorSummaries();
-    putStrLn('Summary is');
-    putStrLn(this.lastSummary);
-    putStrLn('/Summary');
     return this.lastSummary;
   }
 
@@ -108,8 +105,9 @@ export class MonitorService {
     this.log.info('No notifications sent');
     const subject = 'OpenReview Extraction Service Status';
     this.log.info(`Subject> ${subject}`);
+    this.log.info(`Body>\n${summary}`);
+    this.log.info(`/Status Summary`);
     this.log.info(summary);
-    this.log.info('/notify');
   }
 
   async postNotifications(message: string) {
@@ -148,10 +146,17 @@ function formatMonitorSummaries(summaries?: MonitorSummaries): string {
     return 'Error: No Monitor Summary Available';
   }
 
+  summaries.fetchSummary.notesWithValidURLCount
   function fmtCountsPerDay(cpd: CountPerDay[]): string {
     return cpd.map((v) => `    ${v.day}: ${v.count}`).join('\n');
   }
   const message = `
+Overview
+  Total note count: ${summaries.fetchSummary.totalNoteCount}
+  Notes with valid URL: ${summaries.fetchSummary.notesWithValidURLCount}
+  Notes with Abstract: ${summaries.extractionSummary.abstractCount}
+  Notes with PDF Link: ${summaries.extractionSummary.pdfCount}
+
 Daily Activity
 
   New Abstracts Found:

@@ -4,7 +4,7 @@ import { respondWithJson, respondWithHtml } from '@watr/spider';
 import { asNoteBatch } from '~/db/mock-data';
 import Router from '@koa/router';
 import { Note } from './openreview-gateway';
-import { NoteStatus } from '~/db/schemas';
+import { DBModels, NoteStatus } from '~/db/schemas';
 import { stripMargin } from '@watr/commonlib';
 
 
@@ -51,15 +51,15 @@ export function openreviewAPIForNotes({ notes, batchSize }: OpenreviewAPIForNote
   return routes;
 }
 
-export async function listNoteStatuses(): Promise<NoteStatus[]> {
-  return NoteStatus.find();
+export async function listNoteStatuses(dbModels: DBModels): Promise<NoteStatus[]> {
+  return dbModels.noteStatus.find();
 }
 
 export function fakeNoteIds(firstId: number, lastId: number): string[] {
   return _.range(firstId, lastId + 1).map(i => `note#${i}`);
 }
-export async function listNoteStatusIds(): Promise<string[]> {
-  const notes = await listNoteStatuses();
+export async function listNoteStatusIds(dbModels: DBModels): Promise<string[]> {
+  const notes = await listNoteStatuses(dbModels);
   return notes.map(n => n.id)
 }
 

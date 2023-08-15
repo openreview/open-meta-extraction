@@ -13,7 +13,6 @@ import axios, {
 import {
   ConfigProvider,
   getServiceLogger,
-  prettyPrint,
   putStrLn
 } from '@watr/commonlib';
 

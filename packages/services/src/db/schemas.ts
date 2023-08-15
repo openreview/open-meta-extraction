@@ -1,10 +1,104 @@
-import { getServiceLogger, isUrl } from '@watr/commonlib';
-import { Schema, model, Types } from 'mongoose';
 import _ from 'lodash';
-import { createCurrentTimeOpt } from './mongodb';
+
+import { CurrentTimeOpt, DefaultCurrentTimeOpt } from './mongodb';
+import { getServiceLogger, isUrl } from '@watr/commonlib';
+import { Schema, model, Types, Model } from 'mongoose';
 
 const log = getServiceLogger('MongoSchema');
 
+export type DBModels = {
+  noteStatus: Model<NoteStatus>;
+  urlStatus: Model<UrlStatus>;
+  fetchCursor: Model<FetchCursor>;
+  fieldStatus: Model<FieldStatus>;
+}
+
+export function createDBModels(currTimeOpt?: CurrentTimeOpt): DBModels {
+  const timeOpt = currTimeOpt || DefaultCurrentTimeOpt;
+  const NoteStatus = () => {
+    const schema = new Schema<NoteStatus>({
+      id: { type: String, required: true, unique: true },
+      number: { type: Number, required: true, unique: true },
+      validUrl: { type: Boolean, required: true },
+      url: { type: String, required: false },
+    }, {
+      collection: 'note_status',
+      timestamps: timeOpt
+    });
+
+    schema.on('index', error => {
+      log.error('NoteStatus: indexing', error.message);
+    });
+
+    const m = model<NoteStatus>('NoteStatus', schema);
+
+    return m;
+  }
+  const UrlStatus = () => {
+    const schema = new Schema<UrlStatus>({
+      noteId: { type: String, index: true, unique: true },
+      noteNumber: { type: Number, required: true, unique: true },
+      hasAbstract: { type: Boolean, required: true },
+      hasPdfLink: { type: Boolean, required: true },
+      requestUrl: { type: String, required: true, index: true, validate: isUrl },
+      validResponseUrl: { type: Boolean, required: false, validate: NonNullable },
+      response: { type: String, required: false, },
+      responseHost: { type: String, required: false, index: true },
+      workflowStatus: { type: String, required: true, index: true, validate: isWorkflowStatus },
+      httpStatus: { type: Number, required: false },
+    }, {
+      collection: 'url_status',
+      timestamps: timeOpt
+    });
+
+    schema.on('index', error => {
+      log.error('UrlStatus: indexing', error.message);
+    });
+    return model<UrlStatus>('UrlStatus', schema);
+  }
+
+  const FetchCursor = () => {
+    const schema = new Schema<FetchCursor>({
+      noteId: { type: String, required: true },
+      noteNumber: { type: Number, required: true },
+      role: { type: String, required: true, unique: true },
+      // lockStatus: { type: String },
+    }, {
+      collection: 'fetch_cursor',
+      timestamps: timeOpt,
+    });
+
+    return model<FetchCursor>('FetchCursor', schema);
+  }
+
+  const FieldStatus = () => {
+    const schema = new Schema<FieldStatus>({
+      noteId: { type: String },
+      fieldType: { type: String, required: true },
+      contentHash: { type: String, required: false },
+    }, {
+      collection: 'field_status',
+      timestamps: timeOpt
+    });
+
+    // unique on (noteId, fieldType),
+    // e.g., ('note#23', 'abstract')
+    schema.index({ noteId: 1, fieldType: 1 });
+
+    schema.on('index', error => {
+      log.error('FieldStatus: indexing', error.message);
+    });
+
+    return model<FieldStatus>('FieldStatus', schema);
+  }
+  return {
+    noteStatus: NoteStatus(),
+    urlStatus: UrlStatus(),
+    fieldStatus: FieldStatus(),
+    fetchCursor: FetchCursor(),
+  }
+
+}
 export interface NoteStatus {
   _id: Types.ObjectId;
   id: string;
@@ -15,21 +109,6 @@ export interface NoteStatus {
   updatedAt: Date;
 }
 
-export const NoteStatusSchema = new Schema<NoteStatus>({
-  id: { type: String, required: true, unique: true },
-  number: { type: Number, required: true, unique: true },
-  validUrl: { type: Boolean, required: true },
-  url: { type: String, required: false },
-}, {
-  collection: 'note_status',
-  timestamps: createCurrentTimeOpt()
-});
-
-NoteStatusSchema.on('index', error => {
-  log.error('NoteStatus: indexing', error.message);
-});
-
-export const NoteStatus = model<NoteStatus>('NoteStatus', NoteStatusSchema);
 
 type WorkflowStatusKeys = {
   unknown: null,
@@ -95,29 +174,6 @@ function NonNullable(v: unknown): boolean {
 }
 
 
-export const UrlStatusSchema = new Schema<UrlStatus>({
-  noteId: { type: String, index: true, unique: true },
-  noteNumber: { type: Number, required: true, unique: true },
-  hasAbstract: { type: Boolean, required: true },
-  hasPdfLink: { type: Boolean, required: true },
-  requestUrl: { type: String, required: true, index: true, validate: isUrl },
-  validResponseUrl: { type: Boolean, required: false, validate: NonNullable },
-  response: { type: String, required: false, },
-  responseHost: { type: String, required: false, index: true },
-  workflowStatus: { type: String, required: true, index: true, validate: isWorkflowStatus },
-  httpStatus: { type: Number, required: false },
-}, {
-  collection: 'url_status',
-  timestamps: createCurrentTimeOpt()
-});
-
-UrlStatusSchema.on('index', error => {
-  log.error('UrlStatus: indexing', error.message);
-});
-
-export const UrlStatus = model<UrlStatus>('UrlStatus', UrlStatusSchema);
-
-
 export interface FetchCursor {
   _id: Types.ObjectId;
   noteId: string;
@@ -128,49 +184,10 @@ export interface FetchCursor {
   updatedAt: Date;
 }
 
-export const FetchCursorSchema = new Schema<FetchCursor>({
-  noteId: { type: String, required: true },
-  noteNumber: { type: Number, required: true },
-  role: { type: String, required: true, unique: true },
-  // lockStatus: { type: String },
-}, {
-  collection: 'fetch_cursor',
-  timestamps: createCurrentTimeOpt(),
-});
-
-export const FetchCursor = model<FetchCursor>('FetchCursor', FetchCursorSchema);
-
 export interface FieldStatus {
   noteId: string;
   fieldType: string;
   contentHash: string;
   createdAt: Date;
   updatedAt: Date;
-}
-
-
-export const FieldStatusSchema = new Schema<FieldStatus>({
-  noteId: { type: String },
-  fieldType: { type: String, required: true },
-  contentHash: { type: String, required: false },
-}, {
-  collection: 'field_status',
-  timestamps: createCurrentTimeOpt()
-});
-
-// unique on (noteId, fieldType),
-// e.g., ('note#23', 'abstract')
-FieldStatusSchema.index({ noteId: 1, fieldType: 1 });
-
-FieldStatusSchema.on('index', error => {
-  log.error('FieldStatus: indexing', error.message);
-});
-
-export const FieldStatus = model<FieldStatus>('FieldStatus', FieldStatusSchema);
-
-export async function createCollections() {
-  await NoteStatus.createCollection();
-  await UrlStatus.createCollection();
-  await FetchCursor.createCollection();
-  await FieldStatus.createCollection();
 }

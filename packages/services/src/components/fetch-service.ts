@@ -118,25 +118,33 @@ export class FetchService {
 
 }
 
-import { NoteStatus } from '~/db/schemas';
 import * as mh from '~/db/mongo-helpers';
 import { mongoQueriesExecScopeWithDeps } from '~/db/query-api';
+import { DBModels } from '~/db/schemas';
 
 export interface FetchServiceMonitor {
   newNotesPerDay: mh.CountPerDay[]
+  totalNoteCount: number;
+  notesWithValidURLCount: number;
 }
 // How many new note records, per day, over past week (histogram)
-export async function fetchServiceMonitor(): Promise<FetchServiceMonitor> {
+export async function fetchServiceMonitor(dbModels: DBModels): Promise<FetchServiceMonitor> {
   const matchLastWeek = mh.matchCreatedAtDaysFromToday(-7);
 
-  const res = await NoteStatus.aggregate([{
+  const totalNoteCount = await dbModels.noteStatus.count();
+  const res = await dbModels.noteStatus.aggregate([{
     $facet: {
       createdByDay: [matchLastWeek, mh.countByDay('createdAt'), mh.sortByDay],
     }
   }]);
 
-  const byDay = _.map(res[0].createdByDay, ({ _id, count }) => {
+  const notesWithValidURLCount = await dbModels.urlStatus.count();
+  const newNotesPerDay = _.map(res[0].createdByDay, ({ _id, count }) => {
     return { day: _id, count };
   });
-  return { newNotesPerDay: byDay }
+  return {
+    newNotesPerDay,
+    totalNoteCount,
+    notesWithValidURLCount,
+  };
 }
