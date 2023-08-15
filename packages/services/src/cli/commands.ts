@@ -1,8 +1,7 @@
 import _ from 'lodash';
 
 import { arglib, composeScopes, loadConfig, oneHour, putStrLn } from '@watr/commonlib';
-import { formatStatusMessages, showStatusSummary } from '~/db/extraction-summary';
-import { connectToMongoDB, mongoConnectionString, mongoConfig, scopedMongoose } from '~/db/mongodb';
+import { mongoConnectionString, mongoConfig, scopedMongoose } from '~/db/mongodb';
 import { fetchServiceExecScopeWithDeps } from '~/components/fetch-service';
 import { scopedExtractionService } from '~/components/extraction-service';
 import { OpenReviewGateway } from '~/components/openreview-gateway';
@@ -15,21 +14,21 @@ import { shadowDBExecScope, shadowDBConfig } from '~/components/shadow-db';
 const { opt, config, registerCmd } = arglib;
 
 export function registerCLICommands(yargv: arglib.YArgsT) {
-  registerCmd(
-    yargv,
-    'extraction-summary',
-    'Show A Summary of Spidering/Extraction Progress',
-    config(
-    )
-  )(async () => {
-    putStrLn('Extraction Summary');
-    const config = loadConfig();
-    const mongoose = await connectToMongoDB(config);
-    const summaryMessages = await showStatusSummary();
-    const formatted = formatStatusMessages(summaryMessages);
-    putStrLn(formatted);
-    await mongoose.connection.close();
-  });
+  // registerCmd(
+  //   yargv,
+  //   'extraction-summary',
+  //   'Show A Summary of Spidering/Extraction Progress',
+  //   config(
+  //   )
+  // )(async () => {
+  //   putStrLn('Extraction Summary');
+  //   const config = loadConfig();
+  //   const mongoose = await connectToMongoDB(config);
+  //   const summaryMessages = await showStatusSummary();
+  //   const formatted = formatStatusMessages(summaryMessages);
+  //   putStrLn(formatted);
+  //   await mongoose.connection.close();
+  // });
 
   registerCmd(
     yargv,

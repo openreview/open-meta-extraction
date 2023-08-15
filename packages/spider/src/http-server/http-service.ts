@@ -13,14 +13,13 @@ import {
   composeScopes,
   gracefulExitExecScope,
   withScopedExec,
-  prettyFormat
 } from '@watr/commonlib';
 
 export type Router = KoaRouter;
 
 type HttpServerNeeds = {
   gracefulExit: GracefulExit;
-  routerSetup: (router: Router) => void;
+  routerSetup: (router: Router, port: number) => void;
   baseUrl: URL;
   port: number;
 };
@@ -52,10 +51,6 @@ export const httpServerExecScope = () => withScopedExec<
     app.use(koaBody());
     app.use(json({ pretty: false }));
 
-    routerSetup(routes);
-
-    app.use(routes.routes());
-    app.use(routes.allowedMethods());
 
     const server = await new Promise<Server>((resolve) => {
       const server = app.listen(port, () => {
@@ -66,6 +61,11 @@ export const httpServerExecScope = () => withScopedExec<
     const maybePort = address && typeof address !== 'string' && address.port;
     const portInUse = typeof maybePort === 'number' ? maybePort : port;
     log.info(`Koa is listening to ${baseUrl} on ${portInUse}`);
+
+    routerSetup(routes, portInUse);
+
+    app.use(routes.routes());
+    app.use(routes.allowedMethods());
 
     const closedP = onServerClosedP(server);
 

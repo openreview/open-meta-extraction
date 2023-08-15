@@ -2,7 +2,7 @@ import _ from 'lodash';
 
 import { Logger } from 'winston';
 
-import { GracefulExit, asyncEach, getServiceLogger, prettyPrint, withScopedExec } from '@watr/commonlib';
+import { GracefulExit, asyncEach, getServiceLogger, prettyFormat, prettyPrint, withScopedExec } from '@watr/commonlib';
 import { PoolX, createUnderlyingPool } from './browser-pool-impl';
 import { BrowserInstance, DefaultPageInstanceOptions, PageInstance } from './browser-instance';
 type BrowserPoolNeeds = {
@@ -152,7 +152,7 @@ export class BrowserPool {
     const cachedPIDs = _.map(cachedInstances, ([k]) => k);
     const cachedInstanceIds = cachedPIDs.join('; ');
 
-    prettyPrint({
+    const fmt =prettyFormat({
       numUsed,
       numFree,
       numPendingAcquires,
@@ -161,6 +161,7 @@ export class BrowserPool {
       cachedInstanceIds
     });
 
+    this.log.debug(fmt)
   }
   async clearCache(): Promise<void> {
     this.log.debug('Clear Cache (disabled)');

@@ -5,7 +5,7 @@ import { asNoteBatch } from '~/db/mock-data';
 import Router from '@koa/router';
 import { Note } from './openreview-gateway';
 import { DBModels, NoteStatus } from '~/db/schemas';
-import { stripMargin } from '@watr/commonlib';
+import { putStrLn, stripMargin } from '@watr/commonlib';
 
 
 type OpenreviewAPIForNotes = {
@@ -14,9 +14,16 @@ type OpenreviewAPIForNotes = {
 }
 
 export function openreviewAPIForNotes({ notes, batchSize }: OpenreviewAPIForNotes) {
-  function routes(router: Router) {
+  function routes(router: Router, port: number) {
     router.post('/login', respondWithJson({ token: 'fake-token', user: { id: '~TestUser;' } }));
     const noteCollections = _.clone(notes);
+    noteCollections.forEach(n => {
+      const html = n.content.html;
+      if (html) {
+        const update = html.replace(/:[\d]+\//, `:${port}/`);
+        n.content.html = update;
+      }
+    })
     const totalNotes = notes.length;
     router.get('/notes', (ctx) => {
       const { query } = ctx;

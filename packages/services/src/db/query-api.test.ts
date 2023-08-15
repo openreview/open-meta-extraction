@@ -9,8 +9,6 @@ describe('MongoDB Queries', () => {
   setLogEnvLevel('info');
 
 
-  it('should crud noteStatus records', async () => {});
-
   it('should create/update/delete fetch cursors', async () => {
 
     for await (const { mongoQueries } of mongoQueriesExecScopeWithDeps()(mongoConfig())) {

@@ -8,13 +8,11 @@ import {
   prettyPrint,
   gracefulExitExecScope,
   ConfigProvider,
-  newIdGenerator,
   GracefulExit,
-  putStrLn
 } from '@watr/commonlib';
 
 import fs from 'fs-extra';
-import { httpServerExecScope } from '~/http-server/http-service';
+import { HttpServer, httpServerExecScope } from '~/http-server/http-service';
 
 const withFields = stripMargin(`
 |<html>
@@ -103,22 +101,16 @@ export function testHtmlRoutes(router: Router) {
 
 type TestHttpServerArgs = {
   config: ConfigProvider;
-  routerSetup: (router: Router) => void;
+  routerSetup: (router: Router, port: number) => void;
 };
 
-// const basePort = 9200;
-// const idGen = newIdGenerator(1);
-// function nextPortNum(): number {
-//   return basePort + idGen();
-// }
 
-export async function* withHttpTestServer({ config, routerSetup }: TestHttpServerArgs): AsyncGenerator<{ gracefulExit: GracefulExit }, void, any> {
-  // const port = nextPortNum();
-  // const openreviewEndpoint = config.get('openreview:restApi');
-  // const baseUrl = new URL(openreviewEndpoint);
-  // baseUrl.port = port.toString();
-  // putStrLn(`Starting HTTP Server on ${baseUrl}`)
-  // config.set('openreview:restApi', baseUrl.toString());
+type HttpTestServer = {
+  gracefulExit: GracefulExit;
+  httpServer: HttpServer;
+}
+
+export async function* withHttpTestServer({ config, routerSetup }: TestHttpServerArgs): AsyncGenerator<HttpTestServer> {
 
   const openreviewEndpoint = config.get('openreview:restApi');
   const baseUrl = new URL(openreviewEndpoint);
@@ -132,7 +124,7 @@ export async function* withHttpTestServer({ config, routerSetup }: TestHttpServe
       const port = httpServer.port;
       baseUrl.port = port.toString();
       config.set('openreview:restApi', baseUrl.toString());
-      yield { gracefulExit };
+      yield { gracefulExit, httpServer };
     }
   }
 }

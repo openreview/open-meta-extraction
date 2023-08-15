@@ -13,9 +13,9 @@ import { scopedBrowserPool } from '@watr/spider';
 
 describe('Extraction Service', () => {
 
-  setLogEnvLevel('debug');
+  setLogEnvLevel('warn');
 
-  it.only('should run end-to-end', async () => {
+  it('should run end-to-end', async () => {
     const shadowConfig = shadowDBConfig();
     const config = shadowConfig.config;
     const noteCount = 10;
@@ -29,8 +29,8 @@ describe('Extraction Service', () => {
     };
 
     const notes = createFakeNoteList(config, noteCount, fieldFrequencies, startingId);
-    const routerSetup = (r: Router) => {
-      openreviewAPIForNotes({ notes, batchSize })(r)
+    const routerSetup = (r: Router, port: number) => {
+      openreviewAPIForNotes({ notes, batchSize })(r, port)
       spiderableRoutes()(r);
     };
     const postResultsToOpenReview = true;
@@ -44,7 +44,12 @@ describe('Extraction Service', () => {
       expect(c1.noteId).toBe(noteId)
     }
 
-    for await (const { gracefulExit } of withHttpTestServer({ config, routerSetup })) {
+    async function checkCursorUndefined(mdb: MongoQueries, role: CursorRole) {
+      const c1 = await mdb.getCursor(role);
+      expect(c1).toBeUndefined()
+    }
+
+    for await (const { gracefulExit, httpServer } of withHttpTestServer({ config, routerSetup })) {
       for await (const { browserPool } of scopedBrowserPool()({ gracefulExit })) {
         for await (const { fetchService, shadowDB, mongoQueries, mongoDB } of fetchServiceExecScopeWithDeps()(shadowConfig)) {
           for await (const { taskScheduler } of scopedTaskScheduler()({ mongoQueries })) {
@@ -52,7 +57,6 @@ describe('Extraction Service', () => {
             // Init the shadow db
             await fetchService.runFetchLoop(100);
             const noteStatusIds = await listNoteStatusIds(dbModels);
-            prettyPrint({ noteStatusIds })
             expect(noteStatusIds).toMatchObject(fakeNoteIds(startingId, startingId + noteCount - 1));
             for await (const { extractionService } of scopedExtractionService()({ shadowDB, taskScheduler, browserPool, postResultsToOpenReview })) {
 
@@ -74,10 +78,10 @@ describe('Extraction Service', () => {
 
               // Fake a successful extraction
               await shadowDB.updateFieldStatus('note#2', 'abstract', "Ipsem...");
-              mongoQueries.updateUrlStatus('note#2', { hasAbstract: true })
+              await mongoQueries.updateUrlStatus('note#2', { hasAbstract: true })
 
               await taskScheduler.createUrlCursor('extract-fields/newest');
-              await checkCursor(mongoQueries, 'extract-fields/newest', 'note#3');
+              await checkCursorUndefined(mongoQueries, 'extract-fields/newest');
 
               await extractionService.runExtractionLoop(2, false);
               // await checkCursor(mongoQueries, 'extract-fields/newest', 'note#5');

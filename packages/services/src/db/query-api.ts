@@ -71,7 +71,7 @@ export class MongoQueries {
   }
 
   conn() {
-    return this.mongoDB.mongoose.connection;
+    return this.mongoDB.mongoose;
   }
 
   async dropDatabase() {

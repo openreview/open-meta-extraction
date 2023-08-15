@@ -25,9 +25,9 @@ export function mongoConnectionString(config: ConfigProvider, dbNameMod?: string
   return connectUrl;
 }
 
-export async function connectToMongoDB(config: ConfigProvider, dbNameMod?: string): Promise<mg.Mongoose> {
+export async function connectToMongoDB(config: ConfigProvider, dbNameMod?: string): Promise<mg.Connection> {
   const connstr = mongoConnectionString(config, dbNameMod);
-  return mg.connect(connstr, { connectTimeoutMS: 5000 });
+  return mg.createConnection(connstr, { connectTimeoutMS: 5000 });
 }
 
 
@@ -74,13 +74,13 @@ function makeRndStr(len: number): string {
 }
 
 export class MongoDB {
-  mongoose: mg.Mongoose;
+  mongoose: mg.Connection;
   config: ConfigProvider;
   dbModels: DBModels;
   log: Logger;
 
   constructor(
-    mongoose: mg.Mongoose,
+    mongoose: mg.Connection,
     config: ConfigProvider,
     dbModels: DBModels,
     log: Logger
@@ -92,9 +92,9 @@ export class MongoDB {
   }
 
   async dropDatabase() {
-    const dbName = this.mongoose.connection.name;
+    const dbName = this.mongoose.name;
     putStrLn(`dropping MongoDB ${dbName}`);
-    await this.mongoose.connection.dropDatabase();
+    await this.mongoose.dropDatabase();
   }
 
   async createCollections() {
@@ -119,17 +119,17 @@ export const scopedMongoose = () => withScopedExec<MongoDB, 'mongoDB', MongoDBNe
     const isValidTestDB = isEnvMode('test') && isTestDBName;
     const isValidDevDB = isEnvMode('dev') && isDevDBName;
     const isValidProdDB = isProductionDB && isEnvMode('prod') && !(isTestDBName || isDevDBName);
-    const timeOpt = isTestingEnv()? mockCurrentTimeOpt() : undefined;
-    const dbModels = createDBModels(timeOpt);
 
     if (isValidProdDB) {
       log.info(`MongoDB Production Environ`);
       const mongooseConn = await connectToMongoDB(config);
+      const dbModels = createDBModels(mongooseConn);
       return { mongoDB: new MongoDB(mongooseConn, config, dbModels, log) };
     }
     if (isValidDevDB) {
       log.info(`MongoDB Dev Environ`);
       const mongooseConn = await connectToMongoDB(config);
+      const dbModels = createDBModels(mongooseConn);
       return { mongoDB: new MongoDB(mongooseConn, config, dbModels, log) };
     }
 
@@ -141,8 +141,11 @@ export const scopedMongoose = () => withScopedExec<MongoDB, 'mongoDB', MongoDBNe
       }
       const dbSuffix = useUniqTestDB ? '-' + makeRndStr(3) : undefined;
       const mongooseConn = await connectToMongoDB(config, dbSuffix);
-      const dbName = mongooseConn.connection.name;
+      const dbName = mongooseConn.name;
       log.debug(`mongo db ${dbName} connected...`);
+
+      const timeOpt = isTestingEnv()? mockCurrentTimeOpt() : undefined;
+      const dbModels = createDBModels(mongooseConn, timeOpt);
       const mongoDB = new MongoDB(mongooseConn, config, dbModels, log);
       if (useUniqTestDB) {
         await mongoDB.createCollections();
@@ -154,21 +157,21 @@ export const scopedMongoose = () => withScopedExec<MongoDB, 'mongoDB', MongoDBNe
     throw new Error(`Mongo db init: db name is not valid for dev,test,or prod environments`);
   },
   async function destroy({ mongoDB, isProductionDB, useUniqTestDB, retainTestDB }) {
-    const MongoDBName = mongoDB.mongoose.connection.name;
+    const MongoDBName = mongoDB.mongoose.name;
 
     if (isProductionDB) {
       putStrLn(`mongo closing db ${MongoDBName}...`);
-      return mongoDB.mongoose.connection.close();
+      return mongoDB.mongoose.close();
     }
 
     const isTestDBName = /.+test.*/.test(MongoDBName);
     const isValidTestDB = isEnvMode('test') && isTestDBName;
     if (isValidTestDB && useUniqTestDB && !retainTestDB) {
       putStrLn(`mongo dropping db ${MongoDBName}...`);
-      await mongoDB.mongoose.connection.dropDatabase()
+      await mongoDB.mongoose.dropDatabase()
     }
     putStrLn(`mongo closing db ${MongoDBName}...`);
-    await mongoDB.mongoose.connection.close();
+    await mongoDB.mongoose.close();
   }
 )
 

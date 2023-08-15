@@ -216,7 +216,7 @@ export function interceptPageEvents(pageInstance: PageInstance, logger: Logger) 
           // future to preserve compatibility with puppeteer
           const reqId: string = (request as any)._requestId;
           if (resType === 'document') {
-            putStrLn(`Document (request id: ${reqId}) resource url ${url}`)
+            logger.debug(`Document (request id: ${reqId}) resource url ${url}`)
           }
           updateEventMap(reqId, e, e);
           break;

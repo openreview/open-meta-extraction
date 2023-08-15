@@ -2,7 +2,7 @@ import _ from 'lodash';
 
 import { CurrentTimeOpt, DefaultCurrentTimeOpt } from './mongodb';
 import { getServiceLogger, isUrl } from '@watr/commonlib';
-import { Schema, model, Types, Model } from 'mongoose';
+import { Schema, Types, Model, Mongoose, Connection } from 'mongoose';
 
 const log = getServiceLogger('MongoSchema');
 
@@ -13,7 +13,9 @@ export type DBModels = {
   fieldStatus: Model<FieldStatus>;
 }
 
-export function createDBModels(currTimeOpt?: CurrentTimeOpt): DBModels {
+export function createDBModels(
+  mongoose: Connection,
+  currTimeOpt?: CurrentTimeOpt): DBModels {
   const timeOpt = currTimeOpt || DefaultCurrentTimeOpt;
   const NoteStatus = () => {
     const schema = new Schema<NoteStatus>({
@@ -30,7 +32,7 @@ export function createDBModels(currTimeOpt?: CurrentTimeOpt): DBModels {
       log.error('NoteStatus: indexing', error.message);
     });
 
-    const m = model<NoteStatus>('NoteStatus', schema);
+    const m =mongoose.model<NoteStatus>('NoteStatus', schema);
 
     return m;
   }
@@ -54,7 +56,7 @@ export function createDBModels(currTimeOpt?: CurrentTimeOpt): DBModels {
     schema.on('index', error => {
       log.error('UrlStatus: indexing', error.message);
     });
-    return model<UrlStatus>('UrlStatus', schema);
+    return mongoose.model<UrlStatus>('UrlStatus', schema);
   }
 
   const FetchCursor = () => {
@@ -68,7 +70,7 @@ export function createDBModels(currTimeOpt?: CurrentTimeOpt): DBModels {
       timestamps: timeOpt,
     });
 
-    return model<FetchCursor>('FetchCursor', schema);
+    return mongoose.model<FetchCursor>('FetchCursor', schema);
   }
 
   const FieldStatus = () => {
@@ -89,7 +91,7 @@ export function createDBModels(currTimeOpt?: CurrentTimeOpt): DBModels {
       log.error('FieldStatus: indexing', error.message);
     });
 
-    return model<FieldStatus>('FieldStatus', schema);
+    return mongoose.model<FieldStatus>('FieldStatus', schema);
   }
   return {
     noteStatus: NoteStatus(),
