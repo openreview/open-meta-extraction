@@ -8,7 +8,7 @@ import { extractionServiceMonitor, scopedExtractionService } from './extraction-
 import { CursorRole, MongoQueries } from '~/db/query-api';
 import { shadowDBExecScopeWithDeps, shadowDBConfig } from './shadow-db';
 import { Router, withHttpTestServer } from '@watr/spider';
-import { scopedTaskScheduler } from './task-scheduler';
+import { taskSchedulerScope } from './task-scheduler';
 import { scopedBrowserPool } from '@watr/spider';
 
 describe('Extraction Service', () => {
@@ -52,7 +52,7 @@ describe('Extraction Service', () => {
     for await (const { gracefulExit, httpServer } of withHttpTestServer({ config, routerSetup })) {
       for await (const { browserPool } of scopedBrowserPool()({ gracefulExit })) {
         for await (const { fetchService, shadowDB, mongoQueries, mongoDB } of fetchServiceExecScopeWithDeps()(shadowConfig)) {
-          for await (const { taskScheduler } of scopedTaskScheduler()({ mongoQueries })) {
+          for await (const { taskScheduler } of taskSchedulerScope()({ mongoQueries })) {
             const dbModels = mongoDB.dbModels
             // Init the shadow db
             await fetchService.runFetchLoop(100);

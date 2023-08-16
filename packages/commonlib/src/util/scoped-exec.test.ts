@@ -1,12 +1,12 @@
 import _ from 'lodash';
 import * as m from './mock-scopes';
-import { withScopedExec, composeScopes, Yielded } from './scoped-exec';
-import { putStrLn } from './pretty-print';
+import { composeScopes, Yielded } from './scoped-exec';
 
 
 
 describe('Scoped Execution', () => {
-  it.only('should compose', async () => {
+  it('should composeScopes() properly', async () => {
+    const logger = m.loggerExec();
     const alpha = m.alphaExec();
     const beta = m.betaExec();
     const gamma = m.gammaExec();
@@ -15,26 +15,42 @@ describe('Scoped Execution', () => {
     const reqBool = true;
     const reqNumber = 42;
 
-    const alphaBeta = composeScopes(alpha, beta)
+    const logAlpha = composeScopes(logger, alpha);
+    const alphaBeta = composeScopes(logAlpha, beta)
     const alphaBetaGamma = composeScopes(alphaBeta, gamma);
+    const logBuffer1: string[] = [];
 
-    for await (const { betaResource, alphaResource, gammaResource } of alphaBetaGamma({ reqString, reqBool, reqNumber })) {
-      putStrLn({ alphaResource, betaResource, gammaResource });
+    for await (const {} of alphaBetaGamma({ logBuffer: logBuffer1, reqString, reqBool, reqNumber })) {
     }
+
+    expect(logBuffer1).toMatchObject([
+      'alphaResource: init',
+      'alphaResource: construct',
+      'betaResource: init',
+      'betaResource: construct',
+      'gammaResource: init',
+      'gammaResource: construct',
+      'gammaResource: destroy',
+      'betaResource: destroy',
+      'alphaResource: destroy'
+    ]);
 
     const alphaBetaAlpha = composeScopes(alphaBetaGamma, alpha);
 
-    for await (const { betaResource, alphaResource } of alphaBetaAlpha({ reqString, reqBool, reqNumber })) {
-      putStrLn({ alphaResource, betaResource });
+    try {
+      const logBuffer2: string[] = [];
+      for await (const {} of alphaBetaAlpha({ logBuffer: logBuffer2, reqString, reqBool, reqNumber })) {
+      }
+    } catch (error: unknown) {
+      expect(error).toBeDefined();
     }
-
   });
-  it.only('should concat composition', async () => {
+
+  it('should type check composition', async () => {
     const exec_1_2 = composeScopes(
       m.primaryExec(),
       m.secondaryExec()
     );
-    for await (const {} of exec_1_2({})) {}
     type R1_2 = Yielded<ReturnType<typeof exec_1_2>>;
     type P1_2 = Parameters<typeof exec_1_2>[0];
 
@@ -45,7 +61,6 @@ describe('Scoped Execution', () => {
     type R2_3 = Yielded<ReturnType<typeof exec_2_3>>;
     type P2_3 = Parameters<typeof exec_2_3>[0];
     const primary = new m.Primary({});
-    for await (const {} of exec_2_3({ primary })) {}
 
     const exec_1_2_3 = composeScopes(
       exec_1_2,
@@ -59,7 +74,8 @@ describe('Scoped Execution', () => {
     for await (const {} of exec_1_2_3({})) {}
 
   });
-  it('compose', async () => {
+  it('compose using nested generators', async () => {
+    const logger = m.loggerExec();
     const alpha = m.alphaExec();
     const beta = m.betaExec();
     const gamma = m.gammaExec();
@@ -68,13 +84,28 @@ describe('Scoped Execution', () => {
     const reqBool = true;
     const reqNumber = 42;
 
-    for await (const { alphaResource } of alpha({ reqString, reqBool })) {
-      for await (const { betaResource } of beta({ reqBool, reqNumber })) {
-        for await (const { gammaResource } of gamma({ alphaResource, betaResource })) {
-          putStrLn(`gamma= ${gammaResource}`);
-          // yield { reqString, reqBool, reqNumber, alphaResource, betaResource, bammaResource }
+    const logBuffer: string[] = [];
+
+    for await (const { logRecorder } of logger({ logBuffer })) {
+      for await (const { alphaResource } of alpha({ reqString, reqBool, logRecorder })) {
+        for await (const { betaResource } of beta({ reqBool, reqNumber, logRecorder })) {
+          for await (const {} of gamma({ alphaResource, betaResource, logRecorder })) {
+          }
         }
       }
     }
+
+    expect(logBuffer).toMatchObject([
+      'alphaResource: init',
+      'alphaResource: construct',
+      'betaResource: init',
+      'betaResource: construct',
+      'gammaResource: init',
+      'gammaResource: construct',
+      'gammaResource: destroy',
+      'betaResource: destroy',
+      'alphaResource: destroy'
+    ]);
+
   });
 });

@@ -1,6 +1,6 @@
 import _ from 'lodash';
 import { asyncEachOfSeries, setLogEnvLevel } from '@watr/commonlib';
-import { scopedTaskScheduler } from './task-scheduler';
+import { taskSchedulerScope } from './task-scheduler';
 import { createFakeNote } from '~/db/mock-data';
 import { scopedMongoose } from '~/db/mongodb';
 import { mongoQueriesExecScope } from '~/db/query-api';
@@ -26,7 +26,7 @@ describe('Task Scheduling', () => {
     for await (const { mongoDB } of scopedMongoose()(shadowConfig)) {
       for await (const { mongoQueries } of mongoQueriesExecScope()({ mongoDB })) {
         for await (const { shadowDB } of shadowDBExecScope()({ mongoQueries, ...shadowConfig })) {
-          for await (const { taskScheduler } of scopedTaskScheduler()({ mongoQueries })) {
+          for await (const { taskScheduler } of taskSchedulerScope()({ mongoQueries })) {
 
             // Populate db
             await asyncEachOfSeries(_3Notes, async note => await shadowDB.saveNote(note, true));

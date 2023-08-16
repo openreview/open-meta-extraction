@@ -45,12 +45,12 @@
     "@types/jest": "^29.5.3",
     "@types/lodash": "^4.14.197",
     "@types/nconf": "~0.10.3",
-    "@types/node": "^20.4.9",
+    "@types/node": "^20.5.0",
     "@types/split": "^1.0.2",
     "@types/through2": "^2.0.38",
     "@types/yargs": "~17.0.24",
     "@watr/root": "0.1.0",
-    "eslint": "^8.46.0",
+    "eslint": "^8.47.0",
     "jest": "^29.6.2",
     "typescript": "^5.1.6"
   }

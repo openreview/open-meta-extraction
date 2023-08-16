@@ -20,7 +20,7 @@ import { CanonicalFieldRecords, ExtractionEnv, getEnvCanonicalFields, SpiderAndE
 import { Logger } from 'winston';
 import { ShadowDB } from './shadow-db';
 import { DBModels, UrlStatus, WorkflowStatus } from '~/db/schemas';
-import { scopedTaskSchedulerWithDeps, TaskScheduler } from './task-scheduler';
+import { taskSchedulerScopeWithDeps, TaskScheduler } from './task-scheduler';
 import { parseIntOrElse } from '~/util/misc';
 import * as mh from '~/db/mongo-helpers';
 
@@ -52,7 +52,7 @@ export const scopedExtractionService = () => withScopedExec<
 );
 
 export const scopedExtractionServiceWithDeps = () => composeScopes(
-  scopedTaskSchedulerWithDeps(),
+  taskSchedulerScopeWithDeps(),
   scopedExtractionService()
 );
 

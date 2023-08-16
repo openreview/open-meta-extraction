@@ -3,21 +3,21 @@
 
 ** Next Actions
 
-- [ ] Save full abs/pdflink in shadow
-- [ ] Add more stats to monitor (total found, %done)
+- [ ] [TaskScheduler] multi task spidering/extraction
+- [ ] Fix documentation (some sidebar links don't work)
 
 
 ** Tasks
 - [ ] Send notify message when there are critical errors, or on certain events
 - [ ] Reap dead chrome instances, cleanup /tmp files
-- [ ] Fix documentation (some sidebar links don't work)
 - [ ] Bug: when fetch service finishes, it loops around and causes key error on save note
 - [ ] Add cli switch to save artifacts after spidering/extraction (for use when writing new rules)
-- [ ] [TaskScheduler] allow multiple extraction workers when responseUrl is known and hosts can be spread out over time
+- [ ] Save full abs/pdflink in shadow
+- [ ] Add more stats to monitor
+  - [ ] Progress for extraction/re-processing
+- [ ] make notification happen at particular clock times, rather than every X hours
 ** Ideas
 
-- better parameterization of mocktimestamps on testing
 - Notifications when system is generating errors
 
 ** Complete
-- [X] system crashes when openreview rest api fails (e.g., during server restarts)

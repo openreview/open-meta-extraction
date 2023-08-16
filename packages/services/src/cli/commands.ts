@@ -7,7 +7,7 @@ import { scopedExtractionService } from '~/components/extraction-service';
 import { OpenReviewGateway } from '~/components/openreview-gateway';
 import { monitorServiceExecScopeWithDeps } from '~/components/monitor-service';
 import { CursorRoles, isCursorRole, mongoQueriesExecScope } from '~/db/query-api';
-import { scopedTaskSchedulerWithDeps } from '~/components/task-scheduler';
+import { taskSchedulerScopeWithDeps } from '~/components/task-scheduler';
 import { scopedBrowserPool } from '@watr/spider';
 import { shadowDBExecScope, shadowDBConfig } from '~/components/shadow-db';
 
@@ -93,7 +93,7 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
       return;
     }
 
-    for await (const { taskScheduler, mongoQueries } of scopedTaskSchedulerWithDeps()(mongoConfig())) {
+    for await (const { taskScheduler, mongoQueries } of taskSchedulerScopeWithDeps()(mongoConfig())) {
 
       if (_.isNumber(move) && move !== 0) {
         putStrLn(`Moving cursor w/role ${role}`);
@@ -175,7 +175,7 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
     // )
     const composition = composeScopes(
       composeScopes(
-        scopedTaskSchedulerWithDeps(),
+        taskSchedulerScopeWithDeps(),
         shadowDBExecScope()
       ),
       composeScopes(
@@ -207,7 +207,7 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
     const config = shadowDBConfig();
     const composition = composeScopes(
       composeScopes(
-        scopedTaskSchedulerWithDeps(),
+        taskSchedulerScopeWithDeps(),
         shadowDBExecScope()
       ),
       composeScopes(

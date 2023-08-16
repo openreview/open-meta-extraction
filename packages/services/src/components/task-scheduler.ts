@@ -10,7 +10,7 @@ type TaskSchedulerNeeds = {
   mongoQueries: MongoQueries;
 }
 
-export const scopedTaskScheduler = () => withScopedExec<
+export const taskSchedulerScope = () => withScopedExec<
   TaskScheduler,
   'taskScheduler',
   TaskSchedulerNeeds
@@ -19,13 +19,11 @@ export const scopedTaskScheduler = () => withScopedExec<
     const taskScheduler = new TaskScheduler(mongoQueries);
     return { taskScheduler };
   },
-  async function destroy() {
-  },
 );
 
-export const scopedTaskSchedulerWithDeps = () => composeScopes(
+export const taskSchedulerScopeWithDeps = () => composeScopes(
   mongoQueriesExecScopeWithDeps(),
-  scopedTaskScheduler()
+  taskSchedulerScope()
 );
 
 export class TaskScheduler {
