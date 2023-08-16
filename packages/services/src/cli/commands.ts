@@ -169,19 +169,11 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
     const postResultsToOpenReview: boolean = args.postResults;
     const limit: number = args.limit;
 
-    // const composition = composeScopes(
-    //   scopedBrowserPool,
-    //   scopedExtractionServiceWithDeps
-    // )
     const composition = composeScopes(
-      composeScopes(
-        taskSchedulerScopeWithDeps(),
-        shadowDBExecScope()
-      ),
-      composeScopes(
-        scopedBrowserPool(),
-        scopedExtractionService()
-      ),
+      taskSchedulerScopeWithDeps(),
+      shadowDBExecScope(),
+      scopedBrowserPool(),
+      scopedExtractionService()
     );
 
     const config = shadowDBConfig();
@@ -206,14 +198,10 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
 
     const config = shadowDBConfig();
     const composition = composeScopes(
-      composeScopes(
-        taskSchedulerScopeWithDeps(),
-        shadowDBExecScope()
-      ),
-      composeScopes(
-        scopedBrowserPool(),
-        scopedExtractionService()
-      ),
+      taskSchedulerScopeWithDeps(),
+      shadowDBExecScope(),
+      scopedBrowserPool(),
+      scopedExtractionService()
     );
 
     for await (const { extractionService } of composition({

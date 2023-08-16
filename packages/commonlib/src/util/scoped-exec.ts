@@ -23,15 +23,9 @@ type Product<NameT extends string, UsageT> = Record<NameT, UsageT>;
 // The type of AsyncGenerator used
 export type Generate<T> = AsyncGenerator<T, void, any>;
 // The thing that is generated
-export type Yielded<G> = G extends Generate<infer T> ? T : never;
-// export type ContextScope = Parameters<Readonly<Record<s>[0];
-export type ContextFuncParam = Parameters<ContextFunc>[0];
+ export type Yielded<G> = G extends Generate<infer T> ? T : never;
 // Function which defines an execution scope (context)
-
-// export type ContextFunc = (needs: Readonly<Record<string, any>>) => Generate<any>;
-// export type ContextFunc = (needs: Readonly<object>) => Generate<any>;
 export type ContextFunc = (needs: any) => Generate<any>;
-
 // The input (needs) to a context function
 export type ContextNeeds<T> = T extends ((arg: infer A) => Generate<unknown>) ? A : never;
 // Everything provided in execution scope, which is Needs+Product
@@ -146,9 +140,9 @@ export type ComposedContextFuncs<
   F2 extends ContextFunc
 > = (needs: BothNeeds<F1, F2>) => GenerateBothScopes<F1, F2>;
 
-export function composeScopes<
+export function compose2Scopes<
   ANeeds extends Readonly<object>,
-  BNeeds extends  Readonly<object>,
+  BNeeds extends Readonly<object>,
   AScope extends object,
   BScope extends object
 >(
@@ -169,33 +163,41 @@ export function composeScopes<
   return composition;
 }
 
-export function composeNScopes(
+export function composeScopes(
   f1: ContextFunc,
   f2: ContextFunc,
   f3?: ContextFunc,
+  f4?: ContextFunc,
+  f5?: ContextFunc,
+  f6?: ContextFunc,
+  f7?: ContextFunc,
+  f8?: ContextFunc,
+  f9?: ContextFunc,
 ): ComposedContextFuncs<typeof f1, typeof f2> {
 
-  const comp2 = async function* (compneeds: BothNeeds<typeof f1, typeof f2>): GenerateBothScopes<typeof f1, typeof f2> {
-    for await (const aprod of f1(compneeds)) {
-      const bcNeeds = _.merge({}, compneeds, aprod) as any;
-      for await (const bprod of f2(bcNeeds)) {
-        const abcScope = _.merge({}, bcNeeds, bprod);
-        yield abcScope;
-      }
-    }
-  }
+  const comp2: ComposedContextFuncs<typeof f1, typeof f2> = compose2Scopes(f1, f2);
   if (f3 === undefined) return comp2;
 
-  const comp3 = async function* (compneeds: BothNeeds<typeof comp2, typeof f3>): GenerateBothScopes<typeof f1, typeof f2> {
-    for await (const aprod of f1(compneeds)) {
-      const bcNeeds = _.merge({}, compneeds, aprod) as any;
-      for await (const bprod of f2(bcNeeds)) {
-        const abcScope = _.merge({}, bcNeeds, bprod);
-        yield abcScope;
-      }
-    }
-  }
-  return comp3;
+  const comp3: ComposedContextFuncs<typeof comp2, typeof f3> = compose2Scopes(comp2, f3);
+  if (f4 === undefined) return comp3;
+
+  const comp4: ComposedContextFuncs<typeof comp3, typeof f4> = compose2Scopes(comp3, f4);
+  if (f5 === undefined) return comp4;
+
+  const comp5: ComposedContextFuncs<typeof comp4, typeof f5> = compose2Scopes(comp4, f5);
+  if (f6 === undefined) return comp5;
+
+  const comp6: ComposedContextFuncs<typeof comp5, typeof f6> = compose2Scopes(comp5, f6);
+  if (f7 === undefined) return comp6;
+
+  const comp7: ComposedContextFuncs<typeof comp6, typeof f7> = compose2Scopes(comp6, f7);
+  if (f8 === undefined) return comp7;
+
+  const comp8: ComposedContextFuncs<typeof comp7, typeof f8> = compose2Scopes(comp7, f8);
+  if (f9 === undefined) return comp8;
+
+  const comp9: ComposedContextFuncs<typeof comp8, typeof f9> = compose2Scopes(comp8, f9);
+  return comp9;
 }
 
 // Produces unique ids for execution scopes to help with logging

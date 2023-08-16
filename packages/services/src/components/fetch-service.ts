@@ -35,12 +35,9 @@ export const scopedFetchService = () => withScopedExec<
   },
 );
 
-export const fetchServiceDeps = () => composeScopes(
-  mongoQueriesExecScopeWithDeps(),
-  shadowDBExecScope()
-);
 export const fetchServiceExecScopeWithDeps = () => composeScopes(
-  fetchServiceDeps(),
+  mongoQueriesExecScopeWithDeps(),
+  shadowDBExecScope(),
   scopedFetchService()
 );
 

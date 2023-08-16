@@ -2,9 +2,41 @@ import _ from 'lodash';
 import * as m from './mock-scopes';
 import { composeScopes, Yielded } from './scoped-exec';
 
-
-
 describe('Scoped Execution', () => {
+  it('compose composeNScopes properly', async () => {
+    const reqString = 'dude...';
+    const reqBool = true;
+    const reqNumber = 42;
+
+    const comp1 = composeScopes(
+      m.loggerExec(),
+      m.alphaExec(),
+      m.betaExec(),
+      m.gammaExec(),
+      m.gammaExec(),
+      m.betaExec(),
+      m.alphaExec(),
+    );
+
+    const logBuffer1: string[] = [];
+    for await (const {} of comp1({ logBuffer: logBuffer1, reqString, reqBool, reqNumber })) {}
+
+    expect(logBuffer1).toMatchObject([
+      'alphaResource: init', 'alphaResource: construct',
+      'betaResource: init', 'betaResource: construct',
+      'gammaResource: init', 'gammaResource: construct',
+      'gammaResource: init', 'gammaResource: construct',
+      'betaResource: init', 'betaResource: construct',
+      'alphaResource: init', 'alphaResource: construct',
+      'alphaResource: destroy',
+      'betaResource: destroy',
+      'gammaResource: destroy',
+      'gammaResource: destroy',
+      'betaResource: destroy',
+      'alphaResource: destroy'
+    ]);
+  });
+
   it('should composeScopes() properly', async () => {
     const logger = m.loggerExec();
     const alpha = m.alphaExec();
