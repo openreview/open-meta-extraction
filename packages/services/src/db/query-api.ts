@@ -79,7 +79,6 @@ export class MongoQueries {
   }
 
   async createDatabase() {
-    // await createCollections();
     await this.dbModels.noteStatus.createCollection();
     await this.dbModels.urlStatus.createCollection();
     await this.dbModels.fetchCursor.createCollection();

@@ -80,6 +80,10 @@ export class ExtractionService {
   }
 
   // Main Extraction Loop
+  async runMultiTaskingExtractionLoop() {
+    // const generator = this.taskScheduler.genUrlStreamRateLimited(maxRateMS)
+  }
+  // Main Extraction Loop
   async runExtractionLoop(limit: number, rateLimited: boolean) {
     const runForever = limit === 0;
     this.log.info(`Starting extraction loop, runForever=${runForever} postResultsToOpenReview: ${this.postResultsToOpenReview}`);

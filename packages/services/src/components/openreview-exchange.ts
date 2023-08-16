@@ -12,6 +12,7 @@ import axios, {
 
 import {
   ConfigProvider,
+  delay,
   getServiceLogger,
   putStrLn
 } from '@watr/commonlib';
@@ -73,7 +74,10 @@ export class OpenReviewExchange {
     return axios.create(conf);
   }
 
-  async getCredentials(): Promise<Credentials> {
+  async getCredentials(force: boolean): Promise<Credentials> {
+    if (force) {
+      this.credentials = undefined;
+    }
     if (this.credentials !== undefined) {
       return this.credentials;
     }
@@ -124,8 +128,6 @@ export class OpenReviewExchange {
           const totalTime = end - start;
           this.log.debug(`perf: ${totalTime}ms - POST ${url}`);
           return response.data;
-        }).catch((error: Error) => {
-          this.log.error(`POST error: ${error.name}: ${error.message}`);
         });
     };
 
@@ -133,21 +135,26 @@ export class OpenReviewExchange {
   }
 
   async apiAttempt<R>(apiCall: () => Promise<R>, attemptNumber: number = 0): Promise<R | undefined> {
-    if (attemptNumber == 1) {
+    const maxAttempts = 5;
+    if (attemptNumber > maxAttempts) {
+      throw new Error(`Could not complete REST Api request after ${maxAttempts} tries`);
+    }
+    if (attemptNumber > 0) {
+      const waitTime = 10 * 1000;
+      this.log.warn(`Retrying OpenReview API call (attempt=${attemptNumber}) after delay of 10s`);
+      await delay(waitTime);
       this.credentials = undefined;
-      await this.getCredentials()
+      await this.getCredentials(true)
         .catch((error: Error) => {
           this.log.error(`login retry: getCredentials error: ${error.name}: ${error.message}`);
-          throw error;
+          return this.apiAttempt(apiCall, attemptNumber + 1);
         });
     }
-    if (attemptNumber > 1) {
-      throw new Error('Could not login to OpenReview server');
-    }
 
-    await this.getCredentials()
+    await this.getCredentials(false)
       .catch((error: Error) => {
         this.log.error(`getCredentials error: ${error.name}: ${error.message}`);
+        return this.apiAttempt(apiCall, attemptNumber + 1);
       });
     return apiCall()
       .catch(error => {
