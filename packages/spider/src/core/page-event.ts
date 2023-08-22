@@ -4,7 +4,6 @@
  */
 
 import _ from 'lodash';
-import { putStrLn } from '@watr/commonlib';
 
 import {
   HTTPResponse,
@@ -20,6 +19,7 @@ import { Logger } from 'winston';
 
 import { currentlyBlockedResources } from './resource-blocking';
 import { PageInstance } from './browser-instance';
+import { putStrLn } from '@watr/commonlib';
 
 const PageEvents: Array<keyof PageEventObject> = [
   'close',
@@ -34,10 +34,10 @@ const PageEvents: Array<keyof PageEventObject> = [
   'metrics',
   'pageerror',
   'popup',
-  'request',
-  'requestfailed',
-  'requestfinished',
-  'response',
+  // 'request',
+  // 'requestfailed',
+  // 'requestfinished',
+  // 'response',
   'workercreated',
   'workerdestroyed',
 ];
@@ -67,9 +67,8 @@ function _updateMap<K, V>(
   return defaultVal;
 }
 
-export function interceptPageEvents(pageInstance: PageInstance, logger: Logger) {
+function interceptRequestCycleEvents(pageInstance: PageInstance, logger: Logger) {
   const { page } = pageInstance;
-  logger.debug('interceptPageEvents():begin');
 
   const bproc = page.browser().process();
   const pid = bproc?.pid;
@@ -77,6 +76,7 @@ export function interceptPageEvents(pageInstance: PageInstance, logger: Logger) 
     logger.error('interceptPageEvents(): browser.process().pid is undefined');
     return;
   }
+
 
   const eventMap = new Map<string, string[]>();
   const msgMap = new Map<string, string[]>();
@@ -122,52 +122,9 @@ export function interceptPageEvents(pageInstance: PageInstance, logger: Logger) 
     }
   }
 
-  _.each(PageEvents, e => {
+  _.each(RequestCycleEvents, e => {
     page.on(e, (_data: any) => {
       switch (e) {
-        case 'domcontentloaded':
-        case 'load':
-        case 'close': {
-          logger.verbose(`Browser#${pid}/pageEvent: ${e}`);
-          break;
-        }
-        case 'console': {
-          const data: ConsoleMessage = _data;
-          const text = data.text();
-          logger.verbose(`Browser#${pid}/pageEvent: ${e}: ${text}`);
-          break;
-        }
-        case 'dialog': {
-          const data: Dialog = _data;
-          const message = data.message();
-          logger.verbose(`Browser#${pid}/pageEvent: ${e}: ${message}`);
-          break;
-        }
-        case 'pageerror':
-        case 'error': {
-          const data: Error = _data;
-          const { message } = data;
-          const { name } = data;
-          logger.debug(`Browser#${pid}/pageEvent: ${e}: ${name} / ${message}`);
-          break;
-        }
-        case 'frameattached':
-        case 'framedetached':
-        case 'framenavigated': {
-          // const data: Frame = _data;
-          logger.verbose(`Browser#${pid}/pageEvent: ${e}`);
-          break;
-        }
-        case 'metrics': {
-          const data: { title: string, metrics: Metrics } = _data;
-          logger.verbose(`Browser#${pid}/pageEvent: ${e}: ${data.title} / ${data.metrics}`);
-          break;
-        }
-        case 'popup': {
-          logger.warn(`Browser#${pid}/pageEvent: ${e}`);
-          break;
-        }
-
         case 'request': {
           const data: HTTPRequest = _data;
           const resType = data.resourceType();
@@ -216,11 +173,74 @@ export function interceptPageEvents(pageInstance: PageInstance, logger: Logger) 
           // future to preserve compatibility with puppeteer
           const reqId: string = (request as any)._requestId;
           if (resType === 'document') {
-            logger.debug(`Document (request id: ${reqId}) resource url ${url}`)
+            logger.debug(`Response: document (request id: ${reqId}) resource url ${url}`)
           }
           updateEventMap(reqId, e, e);
           break;
         }
+      }
+    })
+  });
+}
+
+export function interceptPageEvents(pageInstance: PageInstance, logger: Logger) {
+  const { page } = pageInstance;
+
+  const bproc = page.browser().process();
+  const pid = bproc?.pid;
+  if (bproc === null || pid === undefined) {
+    logger.error('interceptPageEvents(): browser.process().pid is undefined');
+    return;
+  }
+
+  interceptRequestCycleEvents(pageInstance, logger);
+
+  _.each(PageEvents, e => {
+    page.on(e, (_data: any) => {
+      switch (e) {
+        case 'domcontentloaded':
+        case 'load':
+        case 'close': {
+          logger.verbose(`Browser#${pid}/pageEvent: ${e}`);
+          break;
+        }
+        case 'console': {
+          const data: ConsoleMessage = _data;
+          const text = data.text();
+          logger.verbose(`Browser#${pid}/pageEvent: ${e}: ${text}`);
+          break;
+        }
+        case 'dialog': {
+          const data: Dialog = _data;
+          const message = data.message();
+          logger.verbose(`Browser#${pid}/pageEvent: ${e}: ${message}`);
+          break;
+        }
+        case 'pageerror':
+        case 'error': {
+          const data: Error = _data;
+          const { message } = data;
+          const { name } = data;
+          logger.warn(`Browser#${pid}/pageEvent: ${e}: ${name} / ${message}`);
+          break;
+        }
+        case 'frameattached':
+        case 'framedetached':
+        case 'framenavigated': {
+          // const data: Frame = _data;
+          logger.verbose(`Browser#${pid}/pageEvent: ${e}`);
+          break;
+        }
+        case 'metrics': {
+          const data: { title: string, metrics: Metrics } = _data;
+          logger.verbose(`Browser#${pid}/pageEvent: ${e}: ${data.title} / ${data.metrics}`);
+          break;
+        }
+        case 'popup': {
+          logger.warn(`Browser#${pid}/pageEvent: ${e}`);
+          break;
+        }
+
         case 'workercreated':
         case 'workerdestroyed': {
           const data: WebWorker = _data;
@@ -229,53 +249,10 @@ export function interceptPageEvents(pageInstance: PageInstance, logger: Logger) 
           break;
         }
         default:
-          logger.debug(`Browser#${pid}/Unknown event: ${e}`);
+          logger.warn(`Browser#${pid}/Unknown event: ${e}`);
       }
     });
   });
 }
 
 
-// Optionally abort a request before it is made, if that request is for
-// a blocked resource type, or if the requested URL will be rewritten
-// and the request re-sent
-export function interceptRequestCycle(pageInstance: PageInstance, logger: Logger) {
-  const { page } = pageInstance;
-
-  const bproc = page.browser().process();
-  const pid = bproc?.pid;
-  if (bproc === null || pid === undefined) {
-    return;
-  }
-  _.each(RequestCycleEvents, e => {
-    page.on(e, (_data: any) => {
-      switch (e) {
-        case 'request': {
-          const request: HTTPRequest = _data;
-          const url = request.url();
-          const resType = request.resourceType();
-          const allowedResources = pageInstance.opts.allowedResources;
-          if (!allowedResources.includes(resType)) {
-            request.abort('aborted');
-            break;
-          }
-
-          const isRewritable = pageInstance.opts.rewriteableUrls.some(({ regex }) => {
-            return regex.test(url);
-          });
-
-          if (isRewritable) {
-            logger.debug(`Aborting rewritable url ${url}`);
-            request.abort('blockedbyclient');
-            break;
-          }
-
-          request.continue();
-
-          break;
-        }
-        default:
-      }
-    });
-  });
-}

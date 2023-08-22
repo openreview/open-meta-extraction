@@ -22,7 +22,6 @@ import {
   writeResponseBody,
 } from '@watr/spider';
 
-
 const emptyUrlFetchData: UrlFetchData = {
   responseUrl: '',
   fetchChain: [],

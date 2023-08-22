@@ -11,6 +11,7 @@ export interface UrlChainLink {
   status: string;
   method?: string;
   timestamp: string;
+  contentType?: string;
 }
 
 export type UrlChain = UrlChainLink[];
@@ -20,30 +21,28 @@ export interface UrlFetchData extends UrlChainLink {
   fetchChain: UrlChain;
 }
 
-function getUrlChainFromRequest0(request: HTTPRequest): UrlChain {
-  const reqRedirectChain: HTTPRequest[] = request.redirectChain();
-  const urlChain = _.flatMap(reqRedirectChain, req => {
-    const requestUrl = req.url();
-    const resp = req.response();
+export function getUrlChainFromResponse(response: HTTPResponse): UrlChain {
+  const request = response.request();
+  const requestChain = getUrlChainFromRequest(request);
+  const requestUrl = request.url();
+  const responseUrl = response.url();
+  const status = response.status().toString();
+  const method = request.method();
+  const responseHeaders = response.headers();
+  const { date } = responseHeaders;
+  prettyPrint({ responseHeaders })
+  const contentType = responseHeaders['content-type'];
 
-    if (resp === null) {
-      return [];
-    }
+  const chainLink: UrlChainLink = {
+    requestUrl,
+    responseUrl,
+    method,
+    status,
+    timestamp: date,
+    contentType
+  };
 
-    const responseChainHeaders = resp.headers();
-    const status = resp.status().toString();
-
-    const { location, date } = responseChainHeaders;
-
-    const chainLink: UrlChainLink = {
-      requestUrl,
-      responseUrl: location,
-      status,
-      timestamp: date
-    };
-    return [chainLink];
-  });
-  return urlChain;
+  return _.concat(requestChain, [chainLink]);
 }
 
 function getUrlChainFromRequest(request: HTTPRequest): UrlChain {
@@ -51,7 +50,6 @@ function getUrlChainFromRequest(request: HTTPRequest): UrlChain {
   const urlChain = _.flatMap(reqRedirectChain, req => {
     const requestUrl = req.url();
     const method = req.method();
-    const requestHeaders = req.headers();
     const resp = req.response();
 
 
@@ -63,38 +61,16 @@ function getUrlChainFromRequest(request: HTTPRequest): UrlChain {
     const responseHeaders = resp.headers();
     const status = resp.status().toString();
 
-    const statusText = resp.statusText();
     const { location, date } = responseHeaders;
-    prettyPrint({ requestUrl, method, location, status, statusText, responseHeaders, requestHeaders })
 
     const chainLink: UrlChainLink = {
       requestUrl,
       responseUrl: location,
+      method,
       status,
       timestamp: date
     };
     return [chainLink];
   });
   return urlChain;
-}
-
-
-export function getFetchDataFromResponse(requestUrl: string, response: HTTPResponse): UrlFetchData {
-  const request: HTTPRequest = response.request();
-  const fetchChain = getUrlChainFromRequest(request);
-
-  const responseUrl = response.url();
-  const status = response.status().toString();
-  const statusText = response.statusText();
-  const { date } = response.headers();
-  prettyPrint({ requestUrl, responseUrl, status, statusText })
-
-  const fetchData: UrlFetchData = {
-    requestUrl,
-    responseUrl,
-    status,
-    fetchChain,
-    timestamp: date,
-  };
-  return fetchData;
 }

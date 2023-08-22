@@ -228,6 +228,11 @@ const runHtmlTidy: Transform<string, string> = through((artifactPath, env) => {
 
 
 const verifyFileType: (urlTest: RegExp) => FilterTransform<string> = (typeTest: RegExp) => filter((filename, env) => {
+  const responseHeaderContentType = env.urlFetchData.contentType;
+  if (responseHeaderContentType && typeTest.test(responseHeaderContentType)) {
+    env.log.debug(`verifyFileType matched header['content-type']`)
+    return true;
+  }
   const file = path.resolve(env.entryPath(), filename);
 
   const test = runFileCmd(file).then(a => typeTest.test(a));

@@ -39,14 +39,14 @@ export async function launchBrowser(): Promise<Browser> {
   useStealthPlugin();
   useAnonPlugin();
   return puppeteer.launch({
-    headless: 'new',
+    headless: true, // WARNING: setting this to 'new' (recommended by puppeteer), causes an error intercepting requests
     // channel: 'chrome',
     // These arguments seem to be required to avoid bug where chrome doesn't shutdown on browser.close()
     // executablePath: process.env.CHROME_EXECUTABLE,
     // devtools: true,
 
     args: [
-      //'--single-process', '--no-zygote', '--no-sandbox'
+      // '--single-process', '--no-zygote', '--no-sandbox',
       // Disable all cached/tmp files
       // '--aggressive-cache-discard',
       // '--disable-cache',

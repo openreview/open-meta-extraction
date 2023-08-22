@@ -35,7 +35,7 @@ import {
   writeHttpResponseFrames,
 } from './scraper';
 
-import { UrlFetchData, getFetchDataFromResponse } from '~/core/url-fetch-chains';
+import { UrlFetchData } from '~/core/url-fetch-chains';
 import { Logger } from 'winston';
 import { cleanArtifactDir, makeHashEncodedPath, purgeArtifactDirs, taskflow } from '@watr/commonlib';
 import { DefaultPageInstanceOptions, GotoUrlResponse, PageInstance, PageInstanceOptions } from '~/core/browser-instance';
@@ -114,7 +114,6 @@ export const fetchUrl: (pageOpts?: PageInstanceOptions) => Transform<URL, GotoUr
 export const httpResponseToUrlFetchData: Transform<GotoUrlResponse, UrlFetchData> =
   through((gotoUrlResponse, env) => {
 
-
     const fetchChain = gotoUrlResponse.requestChain;
     const head =  fetchChain[0];
     const last =  fetchChain[fetchChain.length-1];
@@ -126,11 +125,11 @@ export const httpResponseToUrlFetchData: Transform<GotoUrlResponse, UrlFetchData
       fetchChain,
       requestUrl: head.requestUrl,
       responseUrl: last.responseUrl || '',
+      contentType: last.contentType,
       status: last.status,
       timestamp:''
     }
     return fetchData;
-    // return getFetchDataFromResponse(requestUrl, httpResponse);
   });
 
 

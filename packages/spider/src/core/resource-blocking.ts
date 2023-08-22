@@ -61,6 +61,7 @@ export interface RewritableUrl extends BlockableUrl {
   rewrite(inurl: string): string | undefined;
 }
 
+// TODO these might be better as configurations rather than hard-coded
 export const RewritableUrls: RewritableUrl[] = [
   {
     regex: new RegExp('/arxiv.org/abs'),

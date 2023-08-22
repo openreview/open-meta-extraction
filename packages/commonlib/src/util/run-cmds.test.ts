@@ -1,7 +1,7 @@
 import _ from 'lodash';
 import path from 'path';
 
-import { runFileCmd, runTidyCmd, runTidyCmdBuffered, runPandocHtmlToMarkdown } from './shell-commands';
+import { runFileCmd, runTidyCmd, runTidyCmdBuffered } from './shell-commands';
 import { throughFunc } from './stream-utils';
 
 describe('run command-line utils', () => {

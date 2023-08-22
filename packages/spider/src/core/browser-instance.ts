@@ -13,11 +13,10 @@ import { getServiceLogger, putStrLn } from '@watr/commonlib';
 import {
   Browser, Page,
 } from 'puppeteer';
-import { interceptRequestCycle, interceptPageEvents } from './page-event';
 
 import { BlockableResource, RewritableUrl, RewritableUrls } from './resource-blocking';
 import { Logger } from 'winston';
-import { UrlChainLink } from './url-fetch-chains';
+import { UrlChainLink, getUrlChainFromResponse } from './url-fetch-chains';
 
 export type GotoUrlResponse = {
   response: HTTPResponse;
@@ -56,23 +55,15 @@ export class BrowserInstance {
   }
 
   async newPage(opts: PageInstanceOptions): Promise<PageInstance> {
-    this.log.debug('newPage:begin');
-    this.log.debug(`newPage:browser.isConnected()=${this.browser.isConnected()}`);
-
     const page = await this.browser.newPage();
-    this.log.debug('newPage:acquired');
     page.setDefaultNavigationTimeout(opts.defaultNavigationTimeout);
     page.setDefaultTimeout(opts.defaultTimeout);
     page.setJavaScriptEnabled(opts.javaScriptEnabled);
-    // TODO: this is a problem
-    page.setRequestInterception(opts.requestInterception);
-    this.log.debug('newPage:setProps');
-
+    await page.setRequestInterception(opts.requestInterception);
     const pageInstance = new PageInstance(page, opts);
-    // TODO: and these are a problem
-    interceptPageEvents(pageInstance, this.log);
-    interceptRequestCycle(pageInstance, this.log);
-    this.log.debug('newPage:done');
+    pageInstance.initRequestInterception();
+    // interceptRequestCycle(pageInstance, this.log);
+    // interceptPageEvents(pageInstance, this.log);
     return pageInstance;
   }
 
@@ -168,16 +159,82 @@ export class PageInstance {
   logPrefix: string;
   createdAt: Date;
   opts: PageInstanceOptions;
+  log: Logger;
 
-  constructor(page: Page, opts: PageInstanceOptions) {
+  constructor(
+    page: Page,
+    opts: PageInstanceOptions
+  ) {
     this.page = page;
     this.createdAt = new Date();
     this.opts = opts;
     this.logPrefix = '';
+    this.log = getServiceLogger('Page');
+  }
+
+  initRequestInterception() {
+    // Optionally abort a request before it is made, if that request is for
+    // a blocked resource type, or if the requested URL will be rewritten
+    // and the request re-sent
+
+    const bproc = this.page.browser().process();
+    const pid = bproc?.pid;
+    if (bproc === null || pid === undefined) {
+      return;
+    }
+
+    // request.abort(e: ErrorCode)
+    //   declare type ErrorCode =
+    //     'aborted' | 'accessdenied' | 'addressunreachable' | 'blockedbyclient'
+    //   | 'blockedbyresponse' | 'connectionaborted' | 'connectionclosed'
+    //   | 'connectionfailed' | 'connectionrefused' | 'connectionreset'
+    //   | 'internetdisconnected' | 'namenotresolved' | 'timedout' | 'failed';
+    this.page.on('request', async (request) => {
+      if (request.isInterceptResolutionHandled()) return;
+      const url = request.url();
+      const resType = request.resourceType();
+      const allowedResources = this.opts.allowedResources;
+      if (!allowedResources.includes(resType)) {
+        putStrLn(`Blocking request for resource ${url}`);
+        request.abort('aborted' /* = ErrorCode*/);
+        return;
+      }
+
+      const isRewritable = this.opts.rewriteableUrls.some(({ regex }) => {
+        return regex.test(url);
+      });
+
+      if (isRewritable) {
+        this.log.debug(`Aborting rewritable url ${url}`);
+        request.abort('blockedbyclient');
+        return;
+      }
+
+
+      // TODO options arg may be used here to implement the rewritable url system
+      await request.continue(
+        request.continueRequestOverrides(),
+        0
+      );
+    });
   }
 
   async gotoUrl(url: string): Promise<E.Either<string, GotoUrlResponse>> {
-    return gotoUrlSimpleVersion(this, url);
+    const page = this.page;
+    const waitUntil = this.opts.waitUntil;
+
+    return await page.goto(url, { waitUntil })
+      .then(response => {
+        if (response === null) {
+          return E.left(`null HTTPResponse to ${url}`);
+        }
+        const requestChain = getUrlChainFromResponse(response);
+        return E.right({ response, requestChain });
+      })
+      .catch((error: Error) => {
+        return E.left(`${error.name}: ${error.message}`);
+      })
+      ;
   }
 }
 
@@ -214,62 +271,3 @@ export const ScriptablePageInstanceOptions: PageInstanceOptions = {
   waitUntil: 'networkidle0',
   requestInterception: true,
 };
-
-// TODO move this func
-async function gotoUrlSimpleVersion(pageInstance: PageInstance, url: string): Promise<E.Either<string, GotoUrlResponse>> {
-  const { page, opts } = pageInstance;
-  const { waitUntil } = opts;
-
-  const urlChain: UrlChainLink[] = [];
-  page.on('request', req => {
-    if (req.resourceType() === 'document') {
-      putStrLn(`=> ${req.method()}  ${req.url()})`);
-      const link: UrlChainLink = {
-        requestUrl: req.url(),
-        responseUrl: '',
-        method: req.method(),
-        status: '',
-        timestamp: ''
-      }
-      urlChain.push(link);
-    }
-  });
-  page.on('response', resp => {
-    const req = resp.request();
-
-    if (resp.request().resourceType() === 'document') {
-      const is3xx = 300 <= resp.status() && resp.status() < 400;
-      const location = is3xx? resp.headers()['location'] : '';
-      console.log(`!!!  <=  ${resp.status()}  ${location} <- ${resp.request().url()} `);
-    }
-    if (req.resourceType() === 'document') {
-      const link = urlChain[urlChain.length - 1];
-      const isLinkResponse = req.url() === link.requestUrl;
-      putStrLn(`request =? resp.request: ${req.url()} =? ${link.requestUrl}`)
-      if (isLinkResponse) {
-        const { location, date } = resp.headers();
-        putStrLn(`<= ${resp.status()}  ${location}  (was ${resp.url()})`);
-        link.responseUrl = location;
-        link.status = resp.status().toString();
-        link.timestamp = date;
-        return;
-      }
-    }
-  });
-  page.on('requestfinished', req => {
-    if (req.resourceType() === 'document') {
-      putStrLn(`done request => ${req.method()}  ${req.url()} ${req.response()?.url()}`);
-    }
-  });
-  return await page.goto(url, { waitUntil })
-    .then(response => {
-      if (response === null) {
-        return E.left(`null HTTPResponse to ${url}`);
-      }
-      return E.right({ response, requestChain: urlChain });
-    })
-    .catch((error: Error) => {
-      return E.left(`${error.name}: ${error.message}`);
-    })
-    ;
-}

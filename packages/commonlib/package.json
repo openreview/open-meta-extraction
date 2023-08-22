@@ -31,7 +31,7 @@
     "signal-exit": "~4.1.0",
     "split": "^1.0.1",
     "through2": "^4.0.2",
-    "tslib": "~2.6.1",
+    "tslib": "~2.6.2",
     "winston": "^3.10.0",
     "yargs": "^17.7.2",
     "winston-transport": "~4.5.0"
@@ -42,16 +42,16 @@
     "@types/crypto-js": "^4.1.1",
     "@types/diff": "^5.0.3",
     "@types/fs-extra": "^11.0.1",
-    "@types/jest": "^29.5.3",
+    "@types/jest": "^29.5.4",
     "@types/lodash": "^4.14.197",
     "@types/nconf": "~0.10.3",
-    "@types/node": "^20.5.0",
+    "@types/node": "^20.5.3",
     "@types/split": "^1.0.2",
     "@types/through2": "^2.0.38",
     "@types/yargs": "~17.0.24",
     "@watr/root": "0.1.0",
     "eslint": "^8.47.0",
-    "jest": "^29.6.2",
+    "jest": "^29.6.3",
     "typescript": "^5.1.6"
   }
 }

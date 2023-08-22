@@ -5,10 +5,23 @@ const puppeteer = require('puppeteer');
     'headless': 'new'
   });
   const page = await browser.newPage();
-  page.on('request', r => {
+  // await page.setRequestInterception(true);
+
+  page.on('request', async r => {
+    console.log(`=>  ${r.method()}  ${r.url()}`);
     if (r.resourceType() === 'document') {
-      console.log(`=>  ${r.method()}  ${r.url()}`);
+      // console.log(`=>  ${r.method()}  ${r.url()}`);
     }
+
+    const url = r.url();
+    if (url.startsWith('https://link')) {
+      // fake abort
+
+      // await page.close();
+      // const newPage = await browser.newPage();
+    }
+
+    // await r.continue();
   });
   page.on('response', r => {
     if (r.request().resourceType() === 'document') {
