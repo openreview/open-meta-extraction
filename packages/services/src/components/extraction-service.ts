@@ -143,8 +143,8 @@ export class ExtractionService {
 
 
     if (E.isLeft(fieldExtractionResults)) {
-      const asdf = fieldExtractionResults.left;
-      const urlFetchData = asdf[1].urlFetchData;
+      const errorResult = fieldExtractionResults.left;
+      const urlFetchData = errorResult[1].urlFetchData;
       if (noteId) {
         await this.recordExtractionFailure(noteId, urlFetchData);
       }

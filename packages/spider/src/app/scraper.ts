@@ -5,8 +5,6 @@ import {
   writeCorpusJsonFile,
   writeCorpusTextFile,
   asyncMapSeries,
-  putStrLn,
-  prettyFormat,
   prettyPrint,
 } from '@watr/commonlib';
 
@@ -20,6 +18,7 @@ import {
 } from '~/core/url-fetch-chains';
 
 import {
+  GotoUrlResponse,
   PageInstance
 } from '~/core/browser-instance';
 
@@ -30,7 +29,7 @@ export async function gotoUrlWithRewrites(
   pageInstance: PageInstance,
   url: string,
   logger: Logger,
-): Promise<E.Either<string, HTTPResponse>> {
+): Promise<E.Either<string, GotoUrlResponse>> {
   const urlRewrites = pageInstance.opts.rewriteableUrls;
 
   logger.debug(`gotoUrlWithRewrites(): initialGoto`)

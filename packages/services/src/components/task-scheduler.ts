@@ -61,13 +61,13 @@ export class TaskScheduler {
   }
   async* genUrlStreamRateLimited(maxRateMs: number): AsyncGenerator<UrlStatus, void, void> {
     for await (const url of this.genUrlStream()) {
-      const requestUrl = url.requestUrl;
       // TODO keep track of url hosts; only delay when there is risk of host collision
       const startTime = new Date();
 
       // Yield
       yield url;
 
+      // const requestUrl = url.requestUrl;
       // const updatedUrl = await this.mdb.findUrlStatusById(url.noteId);
       // const responseUrl = updatedUrl? updatedUrl.response : requestUrl;
       // updatedUrl?.httpStatus

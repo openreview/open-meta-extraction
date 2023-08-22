@@ -17,6 +17,7 @@ import {
   runFileCmd,
   toUrl,
   Change,
+  prettyFormat,
 } from '@watr/commonlib';
 
 import {
@@ -177,7 +178,7 @@ const loadXML: Transform<string, any> = through((artifactPath, env) => {
   if (maybeCachedContent) {
     return pipe(
       TE.right({}),
-      TE.bind('parsed', ({ }) => () => xml2js.parseStringPromise(maybeCachedContent).then(E.right)),
+      TE.bind('parsed', ({}) => () => xml2js.parseStringPromise(maybeCachedContent).then(E.right)),
       TE.bind('cacheKey', ({ parsed }) => {
         fileContentCache[cacheKey] = parsed;
         return TE.right(cacheKey);
@@ -340,7 +341,7 @@ const urlMatcher: (urlTest: RegExp) => Transform<unknown, unknown> = (regex) => 
 
 export const statusFilter: Transform<unknown, unknown> = compose(
   through((_a, env) => env.urlFetchData.status),
-  filter((a) => a === '200', 'HttpStatus==200'),
+  filter((a) => a === '200', 'HttpStatus ==? 200'),
 );
 
 export const normalizeHtmls: Transform<unknown, string[]> = compose(
@@ -360,6 +361,11 @@ export const urlFilter: (urlTest: RegExp) => Transform<unknown, unknown> = (rege
 
 export const checkStatusAndNormalize = compose(
   log('info', (_0, env) => `Processing ${env.urlFetchData.responseUrl}`),
+  log('info', (_0, env) => {
+    const urlFetchData = env.urlFetchData;
+    const fetchData = prettyFormat({ urlFetchData })
+    return `Processing ${fetchData}`;
+  }),
   statusFilter,
   normalizeHtmls,
   filter((a) => a.length > 0),
@@ -409,7 +415,7 @@ function validateAndCleanAbstract(field: FieldRecord, log: Logger): void {
 
 function validateAndCleanPdfLinks(field: FieldRecord, pageUrl: string): void {
   const maybeUrl = toUrl(field.value, pageUrl)
-  field.value = typeof maybeUrl === 'string'? '' : maybeUrl.toString();
+  field.value = typeof maybeUrl === 'string' ? '' : maybeUrl.toString();
 }
 
 export const validateEvidence: (mapping: Record<string, string>) => Transform<unknown, unknown> =

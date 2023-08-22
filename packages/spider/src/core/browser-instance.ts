@@ -8,7 +8,7 @@ import {
   BrowserEmittedEvents,
 } from 'puppeteer';
 
-import { getServiceLogger, prettyPrint, putStrLn } from '@watr/commonlib';
+import { getServiceLogger, putStrLn } from '@watr/commonlib';
 
 import {
   Browser, Page,
@@ -17,10 +17,16 @@ import { interceptRequestCycle, interceptPageEvents } from './page-event';
 
 import { BlockableResource, RewritableUrl, RewritableUrls } from './resource-blocking';
 import { Logger } from 'winston';
+import { UrlChainLink } from './url-fetch-chains';
+
+export type GotoUrlResponse = {
+  response: HTTPResponse;
+  requestChain: UrlChainLink[];
+}
 
 function browserStringId(browser: Browser): string {
   const proc = browser.process();
-  const pid = proc? proc.pid :  '?pid?';
+  const pid = proc ? proc.pid : '?pid?';
   return `Browser#${pid}`;
 }
 
@@ -33,7 +39,7 @@ export class BrowserInstance {
 
   constructor(b: Browser) {
     this.browser = b;
-    this.logPrefix = browserStringId(b) ;
+    this.logPrefix = browserStringId(b);
     this.createdAt = new Date();
     this.log = getServiceLogger(browserStringId(b))
   }
@@ -58,10 +64,12 @@ export class BrowserInstance {
     page.setDefaultNavigationTimeout(opts.defaultNavigationTimeout);
     page.setDefaultTimeout(opts.defaultTimeout);
     page.setJavaScriptEnabled(opts.javaScriptEnabled);
+    // TODO: this is a problem
     page.setRequestInterception(opts.requestInterception);
     this.log.debug('newPage:setProps');
 
     const pageInstance = new PageInstance(page, opts);
+    // TODO: and these are a problem
     interceptPageEvents(pageInstance, this.log);
     interceptRequestCycle(pageInstance, this.log);
     this.log.debug('newPage:done');
@@ -168,7 +176,7 @@ export class PageInstance {
     this.logPrefix = '';
   }
 
-  async gotoUrl(url: string): Promise<E.Either<string, HTTPResponse>> {
+  async gotoUrl(url: string): Promise<E.Either<string, GotoUrlResponse>> {
     return gotoUrlSimpleVersion(this, url);
   }
 }
@@ -208,16 +216,57 @@ export const ScriptablePageInstanceOptions: PageInstanceOptions = {
 };
 
 // TODO move this func
-async function gotoUrlSimpleVersion(pageInstance: PageInstance, url: string): Promise<E.Either<string, HTTPResponse>> {
+async function gotoUrlSimpleVersion(pageInstance: PageInstance, url: string): Promise<E.Either<string, GotoUrlResponse>> {
   const { page, opts } = pageInstance;
   const { waitUntil } = opts;
 
-  return page.goto(url, { waitUntil })
-    .then(resp => {
-      if (resp === null) {
+  const urlChain: UrlChainLink[] = [];
+  page.on('request', req => {
+    if (req.resourceType() === 'document') {
+      putStrLn(`=> ${req.method()}  ${req.url()})`);
+      const link: UrlChainLink = {
+        requestUrl: req.url(),
+        responseUrl: '',
+        method: req.method(),
+        status: '',
+        timestamp: ''
+      }
+      urlChain.push(link);
+    }
+  });
+  page.on('response', resp => {
+    const req = resp.request();
+
+    if (resp.request().resourceType() === 'document') {
+      const is3xx = 300 <= resp.status() && resp.status() < 400;
+      const location = is3xx? resp.headers()['location'] : '';
+      console.log(`!!!  <=  ${resp.status()}  ${location} <- ${resp.request().url()} `);
+    }
+    if (req.resourceType() === 'document') {
+      const link = urlChain[urlChain.length - 1];
+      const isLinkResponse = req.url() === link.requestUrl;
+      putStrLn(`request =? resp.request: ${req.url()} =? ${link.requestUrl}`)
+      if (isLinkResponse) {
+        const { location, date } = resp.headers();
+        putStrLn(`<= ${resp.status()}  ${location}  (was ${resp.url()})`);
+        link.responseUrl = location;
+        link.status = resp.status().toString();
+        link.timestamp = date;
+        return;
+      }
+    }
+  });
+  page.on('requestfinished', req => {
+    if (req.resourceType() === 'document') {
+      putStrLn(`done request => ${req.method()}  ${req.url()} ${req.response()?.url()}`);
+    }
+  });
+  return await page.goto(url, { waitUntil })
+    .then(response => {
+      if (response === null) {
         return E.left(`null HTTPResponse to ${url}`);
       }
-      return E.right(resp);
+      return E.right({ response, requestChain: urlChain });
     })
     .catch((error: Error) => {
       return E.left(`${error.name}: ${error.message}`);

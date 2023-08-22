@@ -52,7 +52,7 @@ describe('scraping primitives', () => {
           initArg(url, env),
           fetchUrl(),
           through((response) => {
-            expect(response.ok()).toBe(true);
+            expect(response.response.ok()).toBe(true);
           })
         );
 

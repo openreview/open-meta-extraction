@@ -26,7 +26,7 @@ import {
   writeResponseBody,
   writePageFrames
 } from './scraping-primitives';
-import { HTTPResponse } from 'puppeteer';
+import { GotoUrlResponse } from '..';
 
 const {
   opt,
@@ -57,7 +57,7 @@ export function registerCommands(yargv: arglib.YArgsT) {
 
     const env: SpiderEnv = await createSpiderEnv(log, browserPool, corpusRoot, url);
 
-    let spiderPipeline: Transform<URL, HTTPResponse> = compose(
+    let spiderPipeline: Transform<URL, GotoUrlResponse> = compose(
       fetchUrl(),
     );
 
@@ -67,6 +67,7 @@ export function registerCommands(yargv: arglib.YArgsT) {
         spiderPipeline,
       );
     }
+
 
     if (write) {
       spiderPipeline = compose(

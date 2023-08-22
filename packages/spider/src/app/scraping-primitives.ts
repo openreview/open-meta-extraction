@@ -38,7 +38,7 @@ import {
 import { UrlFetchData, getFetchDataFromResponse } from '~/core/url-fetch-chains';
 import { Logger } from 'winston';
 import { cleanArtifactDir, makeHashEncodedPath, purgeArtifactDirs, taskflow } from '@watr/commonlib';
-import { DefaultPageInstanceOptions, PageInstance, PageInstanceOptions } from '~/core/browser-instance';
+import { DefaultPageInstanceOptions, GotoUrlResponse, PageInstance, PageInstanceOptions } from '~/core/browser-instance';
 
 // Initialize SpiderEnv
 export async function createSpiderEnv(
@@ -88,11 +88,11 @@ export const urlFilterAny: (urlTests: RegExp[]) => FilterTransform<unknown> =
   }
 
 // Fetch an HTTPResponse for the given URL
-export const fetchUrl: (pageOpts?: PageInstanceOptions) => Transform<URL, HTTPResponse> =
+export const fetchUrl: (pageOpts?: PageInstanceOptions) => Transform<URL, GotoUrlResponse> =
   (pageOpts = DefaultPageInstanceOptions) => through((url, env) => {
     const { browserInstance, log, browserPageCache, initialUrl } = env;
 
-    const scrapingTask: TE.TaskEither<string, HTTPResponse> = async () => {
+    const scrapingTask: TE.TaskEither<string, GotoUrlResponse> = async () => {
       log.debug(`FetchUrl(): newPage`);
       const pageInstance = await browserInstance.newPage(pageOpts);
       browserPageCache[initialUrl] = pageInstance;
@@ -111,10 +111,26 @@ export const fetchUrl: (pageOpts?: PageInstanceOptions) => Transform<URL, HTTPRe
   });
 
 
-export const httpResponseToUrlFetchData: Transform<HTTPResponse, UrlFetchData> =
-  through((httpResponse, env) => {
+export const httpResponseToUrlFetchData: Transform<GotoUrlResponse, UrlFetchData> =
+  through((gotoUrlResponse, env) => {
+
+
+    const fetchChain = gotoUrlResponse.requestChain;
+    const head =  fetchChain[0];
+    const last =  fetchChain[fetchChain.length-1];
     const requestUrl = env.initialUrl
-    return getFetchDataFromResponse(requestUrl, httpResponse);
+    if (head.requestUrl !== requestUrl) {
+      env.log.error(`Fetch chain head !== specified request URL`);
+    }
+    const fetchData: UrlFetchData = {
+      fetchChain,
+      requestUrl: head.requestUrl,
+      responseUrl: last.responseUrl || '',
+      status: last.status,
+      timestamp:''
+    }
+    return fetchData;
+    // return getFetchDataFromResponse(requestUrl, httpResponse);
   });
 
 
@@ -127,10 +143,10 @@ export const getHttpResponseBody: Transform<HTTPResponse, string> =
     );
   });
 
-export const writeResponseBody: Transform<HTTPResponse, HTTPResponse> =
-  tap((httpResponse, env) => {
+export const writeResponseBody: Transform<GotoUrlResponse, GotoUrlResponse> =
+  tap(({ response }, env) => {
     const entryPath = env.entryPath();
-    return writeHttpResponseBody(httpResponse, entryPath);
+    return writeHttpResponseBody(response, entryPath);
   }, 'Writing Response Body');
 
 export const writePageFrames: <A>() => Transform<A, A> =

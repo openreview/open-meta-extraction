@@ -106,7 +106,7 @@ export function interceptPageEvents(pageInstance: PageInstance, logger: Logger) 
       const currMsg = msgMap.get(reqId) || [];
       const isBlocked = currMsg.some(m => /blocked/.test(m));
       if (isBlocked) {
-        logger.verbose(`B<${pid}> / Fail<${reqId}> ${currMsg.join(', ')} `);
+        logger.debug(`B<${pid}> / Fail<${reqId}> ${currMsg.join(', ')} `);
       } else {
         logger.debug(`B<${pid}> / Fail<${reqId}> ${currMsg.join(', ')} `);
       }
