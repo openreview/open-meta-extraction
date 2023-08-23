@@ -35,7 +35,6 @@ export class TaskScheduler {
     this.mdb = mdb;
   }
 
-
   async* genUrlStream(): AsyncGenerator<UrlStatus, void, void> {
     let done = false
     while (!done) {
