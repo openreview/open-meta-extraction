@@ -6,10 +6,6 @@ collections of  downloaded pages, and  extensive logging for  monitoring browser
 events.
 
 
-## Example Include
-
-[include headtag-scripts.ts](packages/field-extractors/src/core/headtag-scripts.ts ':include :type=code typescript :fragment=DEMO')
-
 # _API Usage_
 
 _A basic fetch function might look like the following:_
@@ -34,9 +30,4 @@ const tryAlternates = eachOrElse( // try each function, stopping at first succes
 );
 ```
 
-A working example is available in `📄 packages/spider/src/app/cli.ts`,
-
-Scraping primitives are defined in `📄 packages/spider/src/app/scraping-primitives.ts`, and control-flow primitives are defined in `📄 packages/spider/src/core/taskflow-defs.ts`.
-
 <br/>
-

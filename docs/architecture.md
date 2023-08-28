@@ -1,5 +1,7 @@
 # Architecture
 
+The following diagram is an overview of the system created by the Services module.
+
 <img
-    width="200"
+    width="50%"
     src="architecture.svg" />

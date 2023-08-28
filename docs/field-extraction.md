@@ -40,9 +40,6 @@ CSS-style query selectors are defined here:
 [html-query-primitives.ts](packages/field-extractors/src/core/html-query-primitives.ts)
 
 
-[headtag-scripts.ts](packages/field-extractors/src/core/headtag-scripts.ts ':include :type=code :fragment=dublinCore')
-
-
 ### Case sensitivity in attribute queries
 When  selecting a  tag with  a selector  that relies  on a  particular attribute
 value,  e.g.,  query=`'meta[name=DC.Creator]'`  to find  elements  like:  `<meta

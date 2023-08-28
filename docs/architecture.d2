@@ -7,8 +7,16 @@ or: OpenReview {
 svc: Services {
   FetchService <- _.gate: Fetch new records
   FetchService -> _.db: Populate
-  ExtractionService <- _.db: Get next URL
-  ExtractionService -> _.db: Update local
+  ExtractionService -> _.db: Update shadow
+  TaskScheduler --> ExtractionService: Yield task stream
+  TaskScheduler --- _.db: Generate tasks
+  MonitorService {
+    note: |`
+    - Exec monitor queries
+    - Send notifications
+    - Run Monitor REST  Server
+    `|
+  }
 }
 
 gate: OpenGateway {

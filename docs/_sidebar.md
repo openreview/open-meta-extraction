@@ -1,12 +1,14 @@
-- Modules
+- Overview
+  - [Description](README.md)
+  - [Usage](command-line-usage.md)
   - [Architecture](architecture.md)
+- Modules
   - [Spider/scraper](spiderscraper.md)
   - [Field Extraction](field-extraction.md)
   - [Common Utils](common-utils.md)
   - [Services](service-installation.md)
 - Extension and Usage
   - [Adding new URL Rules](adding-a-url-specific-rule.md)
-  - [Command-line Usage](command-line-usage.md)
   - [Building Documentation](documentation.md)
   - [TODO/Feature Wishlist](feature-wishlist.md)
 

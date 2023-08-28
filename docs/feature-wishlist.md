@@ -2,11 +2,8 @@
 
 ## Desired Features
 
-- [ ] Use new query params
 - [ ] report on disk usage, job timeouts, query profiles, uptime/day
-- [ ] don't retain htmls and/or cleanup disk space
-- [ ] move top-level pm2 jobs into bree scheduler (for consistency)
-- [ ] chrome/puppeteer zombie reaper job
+- [X] don't retain htmls and/or cleanup disk space
 
 Note on PM2 usage:
   - logging facilities
