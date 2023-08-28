@@ -1,11 +1,11 @@
-* Open Extraction Works
+# Open Extraction Works
 A set of services to spider and extract metadata (abstracts, titles, authors, pdf links) from given URLs.
 
 Services may be run individually as command line applications, or as service that runs on a schedule (using PM2)
 
-[Full Documentation](https://adamchandra.github.io/open-meta-extraction/#/)
+[Full Documentation](https://openreview.github.io/open-meta-extraction/#/)
 
-** Overview
+## Overview
 This project provides a set of services to take the URL of a webpage for a
 research paper, and extract metadata for that paper. Metadata includes the
 abstract, title, authors, and a URL for a PDF version of the paper. Spidering is
@@ -20,11 +20,10 @@ spidering and/or extractor, such that re-running the system produces different
 results, that fact is returned along with the results.
 
 
-** Dev/Production machine setup
+## Dev/Production machine setup
 
-*** Requirements
+### Requirements
 - node >= v16.15
-  I recommend using nvm node version management
 - rush
   > npm install -g @microsoft/rush
 - pm2
@@ -36,21 +35,23 @@ results, that fact is returned along with the results.
 - HTML Tidy
   - > sudo apt install tidy
 - dotenv (optional, helps with development)
-- MongoDB, tested against v4.4.14
+- MongoDB, tested against v5.0
 
-*** Project install/update/building
+### Project install/update/building
 Run 'rush' commands from project root
-- Initial installation
-  - > rush install
+      ```
+      - Initial installation
+  > rush install
 
 - Update dependencies after version bump in package.json
-  - > rush update
+ > rush update
 
 - Build/Full rebuild
-  - > rush build
-  - > rush build:watch
-  - > rush rebuild
+  > rush build
+  > rush build:watch
+  > rush rebuild
 
 - Run tests
-  - > rush test
+  > rush test
 
+     ```
