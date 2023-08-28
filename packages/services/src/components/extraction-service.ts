@@ -80,10 +80,6 @@ export class ExtractionService {
   }
 
   // Main Extraction Loop
-  async runMultiTaskingExtractionLoop() {
-    // const generator = this.taskScheduler.genUrlStreamRateLimited(maxRateMS)
-  }
-  // Main Extraction Loop
   async runExtractionLoop(limit: number, rateLimited: boolean) {
     const runForever = limit === 0;
     this.log.info(`Starting extraction loop, runForever=${runForever} postResultsToOpenReview: ${this.postResultsToOpenReview}`);
@@ -240,6 +236,8 @@ export interface ExtractionServiceMonitor {
   newPdfLinks: mh.CountPerDay[];
   abstractCount: number;
   pdfCount: number;
+  onlyAbstractCount: number;
+  onlyPdfCount: number;
 }
 
 export async function extractionServiceMonitor(dbModels: DBModels): Promise<ExtractionServiceMonitor> {
@@ -266,7 +264,9 @@ export async function extractionServiceMonitor(dbModels: DBModels): Promise<Extr
   const fsAbstractCount = await dbModels.fieldStatus.countDocuments({ fieldType: 'abstract' })
   const fsPdfCount = await dbModels.fieldStatus.countDocuments({ fieldType: 'pdf' })
   const usAbstractCount = await dbModels.urlStatus.countDocuments({ hasAbstract: true })
+  const usOnlyAbstractCount = await dbModels.urlStatus.countDocuments({ hasAbstract: true, hasPdfLink: false })
   const usPdfCount = await dbModels.urlStatus.countDocuments({ hasPdfLink: true })
+  const usOnlyPdfCount = await dbModels.urlStatus.countDocuments({ hasPdfLink: true, hasAbstract: false })
 
   if (fsAbstractCount != usAbstractCount) {
     putStrLn(`Warning: FieldStatus:abstractCount(${fsAbstractCount}) != UrlStatus.abstractCount(${usAbstractCount})`);
@@ -287,6 +287,8 @@ export async function extractionServiceMonitor(dbModels: DBModels): Promise<Extr
     newAbstracts,
     newPdfLinks,
     abstractCount: usAbstractCount,
-    pdfCount: usPdfCount
+    pdfCount: usPdfCount,
+    onlyAbstractCount: usOnlyAbstractCount,
+    onlyPdfCount: usOnlyPdfCount,
   };
 }

@@ -146,7 +146,6 @@ function formatMonitorSummaries(summaries?: MonitorSummaries): string {
     return 'Error: No Monitor Summary Available';
   }
 
-  summaries.fetchSummary.notesWithValidURLCount
   function fmtCountsPerDay(cpd: CountPerDay[]): string {
     return cpd.map((v) => `    ${v.day}: ${v.count}`).join('\n');
   }
@@ -154,8 +153,8 @@ function formatMonitorSummaries(summaries?: MonitorSummaries): string {
 Overview
   Total note count: ${summaries.fetchSummary.totalNoteCount}
   Notes with valid URL: ${summaries.fetchSummary.notesWithValidURLCount}
-  Notes with Abstract: ${summaries.extractionSummary.abstractCount}
-  Notes with PDF Link: ${summaries.extractionSummary.pdfCount}
+  Notes with Abstract: ${summaries.extractionSummary.abstractCount} (only Abstract: ${summaries.extractionSummary.onlyAbstractCount})
+  Notes with PDF Link: ${summaries.extractionSummary.pdfCount} (only PDF: ${summaries.extractionSummary.onlyPdfCount})
 
 Daily Activity
 
