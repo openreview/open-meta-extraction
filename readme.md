@@ -25,33 +25,31 @@ results, that fact is returned along with the results.
 ### Requirements
 - node >= v16.15
 - rush
-  > npm install -g @microsoft/rush
+  `npm install -g @microsoft/rush`
 - pm2
-  > npm install -g pm2
+  `npm install -g pm2`
 - docsify-cli
-  > npm install -g docsify-cli
+  `npm install -g docsify-cli`
 - Chrome dependencies (runs headless via puppeteer)
-  - > sudo apt install libnss3-dev libatk1.0-0 libatk-bridge2.0-0 libcups2 libgbm1 libpangocairo-1.0-0 libgtk-3-0
+  `sudo apt install libnss3-dev libatk1.0-0 libatk-bridge2.0-0 libcups2 libgbm1 libpangocairo-1.0-0 libgtk-3-0`
 - HTML Tidy
-  - > sudo apt install tidy
+  `sudo apt install tidy`
 - dotenv (optional, helps with development)
 - MongoDB, tested against v5.0
 
 ### Project install/update/building
-Run 'rush' commands from project root
-      ```
-      - Initial installation
-  > rush install
+Run `rush` commands from project root
+
+  - Initial installation
+`rush install`
 
 - Update dependencies after version bump in package.json
- > rush update
+`rush update`
 
 - Build/Full rebuild
-  > rush build
-  > rush build:watch
-  > rush rebuild
+`rush build`
+`rush build:watch`
+`rush rebuild`
 
 - Run tests
-  > rush test
-
-     ```
+`rush test`
