@@ -1,6 +1,6 @@
 import _ from 'lodash';
 
-import { getServiceLogger, withScopedExec, putStrLn, composeScopes, ConfigProvider } from '@watr/commonlib';
+import { getServiceLogger, withScopedExec, composeScopes, ConfigProvider } from '@watr/commonlib';
 import { OpenReviewGateway } from '~/components/openreview-gateway';
 import { ExtractionServiceMonitor, extractionServiceMonitor } from './extraction-service';
 import { FetchServiceMonitor, fetchServiceMonitor } from './fetch-service';
@@ -107,7 +107,6 @@ export class MonitorService {
     this.log.info(`Subject> ${subject}`);
     this.log.info(`Body>\n${summary}`);
     this.log.info(`/Status Summary`);
-    this.log.info(summary);
   }
 
   async postNotifications(message: string) {

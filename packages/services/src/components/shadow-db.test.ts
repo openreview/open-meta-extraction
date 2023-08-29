@@ -17,7 +17,7 @@ describe('Shadow DB', () => {
     for await (const { mongoDB } of scopedMongoose()(shadowConfig)) {
       for await (const { mongoQueries } of mongoQueriesExecScope()({ mongoDB })) {
         for await (const { shadowDB } of shadowDBExecScope()({ mongoQueries, ...shadowConfig })) {
-          const note1 = createFakeNote({ config, noteNumber: 1, hasAbstract: true, hasHTMLLink: true, hasPDFLink: false });
+          const note1 = createFakeNote({ config, noteNumber: 1, hasAbstract: 'Abs. 1', hasHTMLLink: true, hasPDFLink: 'http://foo.bar' });
           expect(await shadowDB.findNote(note1.id)).toBeUndefined();
           await shadowDB.saveNote(note1, true);
           expect(await shadowDB.findNote(note1.id)).toMatchObject({ id: note1.id, validUrl: true });

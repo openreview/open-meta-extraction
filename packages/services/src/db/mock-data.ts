@@ -48,9 +48,9 @@ export const numberSeries = (start: number, end?: number) =>
 type CreateFakeNote = {
   config: ConfigProvider;
   noteNumber: number;
-  hasAbstract: boolean;
+  hasAbstract?: string;
   hasHTMLLink: boolean;
-  hasPDFLink: boolean;
+  hasPDFLink?: string;
 };
 
 export function createFakeNote({
@@ -126,8 +126,8 @@ export function createFakeNoteList(config: ConfigProvider, count: number, fieldF
   return _.map(ids, (i) => {
     const occurances = fieldsOccur(fieldFrequencies, i-startingNumber);
     const hasHTMLLink = occurances.validHtmlLinkFreq;
-    const hasAbstract = hasHTMLLink && occurances.abstractFreq;
-    const hasPDFLink = hasHTMLLink && occurances.pdfLinkFreq;
+    const hasAbstract = hasHTMLLink && occurances.abstractFreq? 'Abstract #': undefined;
+    const hasPDFLink = hasHTMLLink && occurances.pdfLinkFreq? 'http://foo.bar/paper' : undefined;
 
     return createFakeNote({
       config,

@@ -23,6 +23,7 @@ import { DBModels, UrlStatus, WorkflowStatus } from '~/db/schemas';
 import { taskSchedulerScopeWithDeps, TaskScheduler } from './task-scheduler';
 import { parseIntOrElse } from '~/util/misc';
 import * as mh from '~/db/mongo-helpers';
+import { PipelineStage } from 'mongoose';
 
 type ExtractionServiceNeeds = {
   shadowDB: ShadowDB,
@@ -268,6 +269,39 @@ export async function extractionServiceMonitor(dbModels: DBModels): Promise<Extr
   const usPdfCount = await dbModels.urlStatus.countDocuments({ hasPdfLink: true })
   const usOnlyPdfCount = await dbModels.urlStatus.countDocuments({ hasPdfLink: true, hasAbstract: false })
 
+  // Top success domains
+  //       withAbstractsByDomain: [selectValidResponse, (200 http status) groupByDomainHasAbstract, { $sort: { _id: 1 } }],
+  // Top failed/partial missing domains
+
+  const sortGroupIDAscending: PipelineStage.Sort = {
+    $sort: { _id: 1 }
+  };
+  const selectValidResponseURL: PipelineStage.Match = {
+    $match: {
+      validResponseUrl: true,
+    }
+  };
+  const groupByDomainHasAbstract: PipelineStage.Group = {
+    $group: {
+      _id: {
+        $concat: ['$responseHost', '__', { $toString: '$hasAbstract' }]
+      },
+      count: {
+        $sum: 1
+      },
+    }
+  };
+
+  const responseHostsWithAbstract = await dbModels.urlStatus.aggregate([{
+    $facet: {
+      withAbstracts: [selectValidResponseURL, groupByDomainHasAbstract, sortGroupIDAscending],
+    }
+  }]);
+
+  const withAbstractGroups: GroupingRec[] = responseHostsWithAbstract[0]['withAbstracts']
+
+  const withAbstractDict = groupDict(withAbstractGroups);
+
   if (fsAbstractCount != usAbstractCount) {
     putStrLn(`Warning: FieldStatus:abstractCount(${fsAbstractCount}) != UrlStatus.abstractCount(${usAbstractCount})`);
   }
@@ -291,4 +325,32 @@ export async function extractionServiceMonitor(dbModels: DBModels): Promise<Extr
     onlyAbstractCount: usOnlyAbstractCount,
     onlyPdfCount: usOnlyPdfCount,
   };
+}
+
+interface GroupingRec {
+  _id: string;
+  count: number;
+}
+
+interface GroupCounts {
+  id: string;
+  trueCount: number;
+  falseCount: number;
+}
+
+function groupDict(groupingRecs: GroupingRec[]): Record<string, GroupCounts> {
+  const gcounts: Record<string, GroupCounts> = {};
+  _.forEach(groupingRecs, ({ _id, count }) => {
+    const [id, idVal] = _id.split('__');
+    const gc = gcounts[id] || {
+        id, trueCount: 0, falseCount: 0
+    };
+    if (idVal === 'true') {
+      gc.trueCount = count;
+    } else {
+      gc.falseCount = count;
+    }
+    gcounts[id] = gc;
+  });
+  return gcounts;
 }

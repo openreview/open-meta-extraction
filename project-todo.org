@@ -3,12 +3,12 @@
 
 ** Next Actions
 
-- [ ] Fix documentation (some sidebar links don't work)
+- [ ] Bug: note iterator continually serves final paper
 - [ ] Reprocessing logic
 - [ ] Use Grobid to get abstracts from PDF when not available in html
 
-- [ ] <Monitor> Add more stats to monitor
-  - [ ] Num pdf w/o abstract (done)
+- [-] <Monitor> Add more stats to monitor
+  - [X] Num pdf w/o abstract (done)
   - [ ] Progress for extraction/re-processing
   - [ ] monitor disk usage
 
@@ -30,3 +30,6 @@
 - [ ] [TaskScheduler] multi task spidering/extraction (not doing for now, doesn't seem worthwhile)
 - Error incorrectly logged when rewriting URLs (e.g., doi.org/arxiv..)
    error [ExtractionService] [] Fetch chain head !== specified request URL
+
+** Done
+- [X] Fix documentation (some sidebar links don't work)

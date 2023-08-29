@@ -14,8 +14,8 @@ describe('Task Scheduling', () => {
   const _3Notes = _.map(_.range(1, 4), (i) => createFakeNote({
     config,
     noteNumber: i,
-    hasAbstract: false,
-    hasPDFLink: false,
+    hasAbstract: undefined,
+    hasPDFLink: undefined,
     hasHTMLLink: true
   }));
 

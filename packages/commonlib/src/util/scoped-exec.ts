@@ -23,7 +23,7 @@ type Product<NameT extends string, UsageT> = Record<NameT, UsageT>;
 // The type of AsyncGenerator used
 export type Generate<T> = AsyncGenerator<T, void, any>;
 // The thing that is generated
- export type Yielded<G> = G extends Generate<infer T> ? T : never;
+export type Yielded<G> = G extends Generate<infer T> ? T : never;
 // Function which defines an execution scope (context)
 export type ContextFunc = (needs: any) => Generate<any>;
 // The input (needs) to a context function
@@ -163,17 +163,84 @@ export function compose2Scopes<
   return composition;
 }
 
+export function composeScopes<
+  ANeeds extends Readonly<object>,
+  BNeeds extends Readonly<object>,
+  AScope extends object,
+  BScope extends object
+>(
+  ab: (an: ANeeds) => Generate<AScope>,
+  bc: (bn: BNeeds) => Generate<BScope>,
+): ComposedContextFuncs<typeof ab, typeof bc>;
+
+export function composeScopes<
+  ANeeds extends Readonly<object>,
+  BNeeds extends Readonly<object>,
+  CNeeds extends Readonly<object>,
+  AScope extends object,
+  BScope extends object,
+  CScope extends object
+>(
+  fa: (n: ANeeds) => Generate<AScope>,
+  fb: (n: BNeeds) => Generate<BScope>,
+  fc: (n: CNeeds) => Generate<CScope>,
+):
+  ComposedContextFuncs<
+    ComposedContextFuncs<typeof fa, typeof fb>, typeof fc>;
+
+export function composeScopes<
+  ANeeds extends Readonly<object>,
+  BNeeds extends Readonly<object>,
+  CNeeds extends Readonly<object>,
+  DNeeds extends Readonly<object>,
+  AScope extends object,
+  BScope extends object,
+  CScope extends object,
+  DScope extends object
+>(
+  fa: (n: ANeeds) => Generate<AScope>,
+  fb: (n: BNeeds) => Generate<BScope>,
+  fc: (n: CNeeds) => Generate<CScope>,
+  fd: (n: DNeeds) => Generate<DScope>,
+):
+  ComposedContextFuncs<
+    ComposedContextFuncs<
+      ComposedContextFuncs<typeof fa, typeof fb>, typeof fc>, typeof fd>;
+
+export function composeScopes<
+  ANeeds extends Readonly<object>,
+  BNeeds extends Readonly<object>,
+  CNeeds extends Readonly<object>,
+  DNeeds extends Readonly<object>,
+  ENeeds extends Readonly<object>,
+  AScope extends object,
+  BScope extends object,
+  CScope extends object,
+  DScope extends object,
+  EScope extends object
+>(
+  fa: (n: ANeeds) => Generate<AScope>,
+  fb: (n: BNeeds) => Generate<BScope>,
+  fc: (n: CNeeds) => Generate<CScope>,
+  fd: (n: DNeeds) => Generate<DScope>,
+  fe: (n: ENeeds) => Generate<EScope>,
+):
+  ComposedContextFuncs<
+    ComposedContextFuncs<
+      ComposedContextFuncs<
+        ComposedContextFuncs<typeof fa, typeof fb>, typeof fc>, typeof fd>, typeof fe>;
+
 export function composeScopes(
   f1: ContextFunc,
   f2: ContextFunc,
   f3?: ContextFunc,
   f4?: ContextFunc,
   f5?: ContextFunc,
-  f6?: ContextFunc,
-  f7?: ContextFunc,
-  f8?: ContextFunc,
-  f9?: ContextFunc,
-): ComposedContextFuncs<typeof f1, typeof f2> {
+  // f6?: ContextFunc,
+  // f7?: ContextFunc,
+  // f8?: ContextFunc,
+  // f9?: ContextFunc,
+): ComposedContextFuncs<typeof f1, any> {
 
   const comp2: ComposedContextFuncs<typeof f1, typeof f2> = compose2Scopes(f1, f2);
   if (f3 === undefined) return comp2;
@@ -185,19 +252,20 @@ export function composeScopes(
   if (f5 === undefined) return comp4;
 
   const comp5: ComposedContextFuncs<typeof comp4, typeof f5> = compose2Scopes(comp4, f5);
-  if (f6 === undefined) return comp5;
+  return comp5;
+  // if (f6 === undefined) return comp5;
 
-  const comp6: ComposedContextFuncs<typeof comp5, typeof f6> = compose2Scopes(comp5, f6);
-  if (f7 === undefined) return comp6;
+  // const comp6: ComposedContextFuncs<typeof comp5, typeof f6> = compose2Scopes(comp5, f6);
+  // if (f7 === undefined) return comp6;
 
-  const comp7: ComposedContextFuncs<typeof comp6, typeof f7> = compose2Scopes(comp6, f7);
-  if (f8 === undefined) return comp7;
+  // const comp7: ComposedContextFuncs<typeof comp6, typeof f7> = compose2Scopes(comp6, f7);
+  // if (f8 === undefined) return comp7;
 
-  const comp8: ComposedContextFuncs<typeof comp7, typeof f8> = compose2Scopes(comp7, f8);
-  if (f9 === undefined) return comp8;
+  // const comp8: ComposedContextFuncs<typeof comp7, typeof f8> = compose2Scopes(comp7, f8);
+  // if (f9 === undefined) return comp8;
 
-  const comp9: ComposedContextFuncs<typeof comp8, typeof f9> = compose2Scopes(comp8, f9);
-  return comp9;
+  // const comp9: ComposedContextFuncs<typeof comp8, typeof f9> = compose2Scopes(comp8, f9);
+  // return comp9;
 }
 
 // Produces unique ids for execution scopes to help with logging

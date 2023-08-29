@@ -1,6 +1,6 @@
 import _ from 'lodash';
 import * as m from './mock-scopes';
-import { composeScopes, Yielded } from './scoped-exec';
+import { composeScopes, compose2Scopes, Yielded } from './scoped-exec';
 
 describe('Scoped Execution', () => {
   it('compose composeNScopes properly', async () => {
@@ -13,9 +13,9 @@ describe('Scoped Execution', () => {
       m.alphaExec(),
       m.betaExec(),
       m.gammaExec(),
-      m.gammaExec(),
-      m.betaExec(),
-      m.alphaExec(),
+      // m.gammaExec(),
+      // m.betaExec(),
+      // m.alphaExec(),
     );
 
     const logBuffer1: string[] = [];
@@ -76,6 +76,21 @@ describe('Scoped Execution', () => {
     } catch (error: unknown) {
       expect(error).toBeDefined();
     }
+  });
+  it('should type check composition', async () => {
+    const exec_1_2 = compose2Scopes(
+      m.primaryExec(),
+      m.secondaryExec()
+    );
+    type R1_2 = Yielded<ReturnType<typeof exec_1_2>>;
+    type P1_2 = Parameters<typeof exec_1_2>[0];
+
+    const exec_2_3 = compose2Scopes(
+      m.secondaryExec(),
+      m.tertiaryExec()
+    );
+    type R2_3 = Yielded<ReturnType<typeof exec_2_3>>;
+    type P2_3 = Parameters<typeof exec_2_3>[0];
   });
 
   it('should type check composition', async () => {

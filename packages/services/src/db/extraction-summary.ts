@@ -50,7 +50,7 @@ function collateStrIDCounts(recs: StrIDCounts[]): string[] {
   return _.map(recs, ({ _id, count }) => {
     return `    ${_id}: ${count}`;
   });
-}
+};
 
 function formatAbstractStatusByDomain(title: string, byDomain: StrIDCounts[]): string[] {
   const byDomain1: DomainPresentOrMissing[] = _.map(byDomain, ({ _id, count }) => {
@@ -88,7 +88,7 @@ function formatAbstractStatusByDomain(title: string, byDomain: StrIDCounts[]): s
   });
   const allMissingAsStrings = _.map(sort(withAllMissing), (rec) => {
     const { present, missing } = rec;
-    return `    0/${present+missing}: ${rec.domain}`;
+    return `    0/${present + missing}: ${rec.domain}`;
   });
   const somePresentAsStrings = _.map(sort(withSomePresent), (rec) => {
     const { present, missing } = rec;
