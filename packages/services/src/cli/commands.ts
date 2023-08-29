@@ -1,6 +1,6 @@
 import _ from 'lodash';
 
-import { arglib, composeScopes, loadConfig, oneHour, putStrLn } from '@watr/commonlib';
+import { arglib, composeScopes, delay, loadConfig, oneHour, putStrLn } from '@watr/commonlib';
 import { mongoConnectionString, mongoConfig, scopedMongoose } from '~/db/mongodb';
 import { fetchServiceExecScopeWithDeps } from '~/components/fetch-service';
 import { scopedExtractionService } from '~/components/extraction-service';
@@ -35,7 +35,7 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
     'run-fetch-service',
     'Fetch new OpenReview URLs into local DB for spidering/extraction',
     opt.num('limit: Only fetch the specified # of notes before exiting', 0),
-    opt.flag('pause-before-exit: Only fetch the specified # of notes before exiting', false),
+    opt.flag('pause-before-exit: pause before exiting to avoid immediate PM2 restart', false),
   )(async (args: any) => {
     const { limit, pauseBeforeExit } = args;
 
@@ -165,9 +165,11 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
     'Spider new URLs, extract metadata, and POST results back to OpenReview API',
     opt.num('limit: Only extract the specified # of notes before exiting', 0),
     opt.flag('post-results'),
+    opt.flag('pause-before-exit: pause before exiting to avoid immediate PM2 restart', false),
   )(async (args: any) => {
     const postResultsToOpenReview: boolean = args.postResults;
     const limit: number = args.limit;
+    const pauseBeforeExit: number = args.pauseBeforeExit;
 
     const composition = composeScopes(
       taskSchedulerScopeWithDeps(),
@@ -183,6 +185,14 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
       postResultsToOpenReview // TODO merge this with 'writeChangesToOpenReview'
     })) {
       await extractionService.runExtractionLoop(limit, true);
+    }
+
+    if (pauseBeforeExit) {
+      const oneSecond = 1000;
+      const oneMinute = 60 * oneSecond;
+      const oneHour = 60 * oneMinute;
+      putStrLn('Delaying for 1 hour before restart');
+      await delay(oneHour)
     }
   });
 

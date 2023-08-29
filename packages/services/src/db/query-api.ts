@@ -239,16 +239,6 @@ export class MongoQueries {
     return ret === null ? undefined : ret;
   }
 
-  // async lockCursor(cursorId: CursorID): Promise<FetchCursor | undefined> {
-  //   const c = await FetchCursor.findByIdAndUpdate(cursorId, { lockStatus: 'locked' }, { new: true });
-  //   if (c) return c;
-  // }
-
-  // async unlockCursor(cursorId: CursorID): Promise<FetchCursor | undefined> {
-  //   const c = await FetchCursor.findByIdAndUpdate(cursorId, { lockStatus: 'released' }, { new: true });
-  //   if (c) return c;
-  // }
-
 
   async advanceCursor(cursorId: CursorID): Promise<FetchCursor | undefined> {
     const current = await this.dbModels.fetchCursor.findById(cursorId);
@@ -256,6 +246,7 @@ export class MongoQueries {
     const { noteNumber } = current;
     const nextNote = await this.getNextNoteWithValidURL(noteNumber);
     if (!nextNote) {
+      await current.deleteOne();
       return;
     };
 

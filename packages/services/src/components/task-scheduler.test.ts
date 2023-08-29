@@ -65,8 +65,13 @@ describe('Task Scheduling', () => {
             }
             expect(schedulerOrder).toMatchObject(['note#3', 'note#1', 'note#2', 'note#3']);
 
-
+            // Generator should be exhausted, this next iteration should be a noop
+            for await (const url of taskScheduler.genUrlStream()) {
+              schedulerOrder.push(url.noteId);
+            }
+            expect(schedulerOrder).toMatchObject(['note#3', 'note#1', 'note#2', 'note#3']);
           }
+
         }
       }
     }

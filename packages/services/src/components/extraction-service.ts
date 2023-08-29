@@ -84,7 +84,7 @@ export class ExtractionService {
   async runExtractionLoop(limit: number, rateLimited: boolean) {
     const runForever = limit === 0;
     this.log.info(`Starting extraction loop, runForever=${runForever} postResultsToOpenReview: ${this.postResultsToOpenReview}`);
-    const maxRateMS = rateLimited ? 2000 : 0;
+    const maxRateMS = rateLimited ? 4000 : 0;
     const generator = this.taskScheduler.genUrlStreamRateLimited(maxRateMS)
 
     let currCount = 0;
