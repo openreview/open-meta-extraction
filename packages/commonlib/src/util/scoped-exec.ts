@@ -5,9 +5,17 @@ import { getServiceLogger } from './basic-logging';
 import { Logger } from 'winston';
 
 /**
- * Provides  composable  manage  execution  scopes, within  which  services  are
- * available, and cleanup/shutdown is guaranteed when the scope is exited
+ * Provides  composable  managed execution  scopes,  within  which services  are
+ * available,  and  cleanup/shutdown is  guaranteed  when  the scope  is  exited
  * Similar to python context manager
+ *
+ * Example:
+ *                        NameT: UsageT
+ *     for await (const { mongoDB } of mongoDBScope()({})) {
+ *         //
+ *     }
+ *
+ * ----------------------------------
  *
  * Naming Conventions:
  *    - UsageT: the type of the resource which will be available in scope

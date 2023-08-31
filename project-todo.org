@@ -3,33 +3,53 @@
 
 ** Next Actions
 
-- [ ] Bug: note iterator continually serves final paper
-- [ ] Reprocessing logic
-- [ ] Use Grobid to get abstracts from PDF when not available in html
+- [ ] Multi-task support
+  - [ ] Task Cursor changes
+    - [ ] states
+      - next,
+      - current (ids for multiprocessing support),
+      - complete (),
+      - begin/end-token(either finished or awaiting next item)
+    - [ ] Monitor outstanding tasks, execution time, parallelization
 
-- [-] <Monitor> Add more stats to monitor
-  - [X] Num pdf w/o abstract (done)
-  - [ ] Progress for extraction/re-processing
-  - [ ] monitor disk usage
-
+  - [ ] Task Types
+    - [ ] Fill in missing responseUrl/httpStatus fields in UrlStatus
+    - [ ] Extract/fill in missing fields from HTML
 
 ** Tasks
+
+  - [ ] Task Types
+    - [ ] Fill in missing responseUrl/httpStatus fields in UrlStatus
+    - [ ] Extract/fill in missing fields from HTML
+    - [ ] Extract fields from PDF (Grobid integration)
+    - [ ] auto Q/A report on comparison between PDF/HTML derived fields
+      - [ ] Mark suspicious records
+    - [ ] Fix errors where UrlStatus doesn't match FieldStatus (counts are different)
+    - [ ] Reprocessing/fill-in-the-gaps logic
+
+- [ ] Get rid of 'halt'|'continue'
+
 - [ ] Bug: corpus artifacts are not always cleaned up (only on extraction success)
 - [ ] Feature: Send notify message when there are critical errors, or on certain events
 - [ ] Improvement: Reap dead chrome instances, cleanup /tmp files
 - [ ] Bug: when fetch service finishes, it loops around and causes key error on save note
 - [ ] Feature: Add cli switch to save artifacts after spidering/extraction (for use when writing new rules)
 - [ ] Feature: Save full abs/pdflink in shadow
-- [ ] regularize status update send times
 - [ ] Improvement: make notification happen at particular clock times, rather than every X hours
-- [ ] Ability to re-process entire corpus from beginning to fill in gaps
-- [ ] Create Q/A system for checking abstracts
-- [ ] Scheduled db backup
+- [ ] Create human-driven Q/A system for checking abstracts/links
+- [ ] Scheduled db backup, report on last backup time
+  - don't necessarily need to snapshot everything
 
-** Ideas
-- [ ] [TaskScheduler] multi task spidering/extraction (not doing for now, doesn't seem worthwhile)
-- Error incorrectly logged when rewriting URLs (e.g., doi.org/arxiv..)
-   error [ExtractionService] [] Fetch chain head !== specified request URL
+- [ ] Report # of known authors, titles
+- [ ] <Monitor> Add more stats to monitor
+  - [ ] Progress for extraction/re-processing
+  - [ ] Pause/run/last exec time of extraction/fetching
+  - [ ] monitor disk usage
+
+- [ ] Bug: Error incorrectly logged when rewriting URLs (e.g., doi.org/arxiv..)
+    - error [ExtractionService] [] Fetch chain head !== specified request URL
+- [ ] response/responseHost might be combined
+- [ ] eliminate workflow status
+
 
 ** Done
-- [X] Fix documentation (some sidebar links don't work)

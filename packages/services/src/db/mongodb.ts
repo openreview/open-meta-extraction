@@ -100,7 +100,7 @@ export class MongoDB {
   async createCollections() {
     await this.dbModels.noteStatus.createCollection();
     await this.dbModels.urlStatus.createCollection();
-    await this.dbModels.fetchCursor.createCollection();
+    await this.dbModels.taskCursor.createCollection();
     await this.dbModels.fieldStatus.createCollection();
   }
   async unsafeResetD() {

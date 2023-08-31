@@ -3,7 +3,7 @@ import _ from 'lodash';
 import { getServiceLogger, withScopedExec, shaEncodeAsHex, composeScopes, isTestingEnv } from '@watr/commonlib';
 
 import { Logger } from 'winston';
-import { FetchCursor, NoteStatus, WorkflowStatus } from '~/db/schemas';
+import { TaskCursor, NoteStatus, WorkflowStatus } from '~/db/schemas';
 
 import {
   MongoQueries,
@@ -78,7 +78,7 @@ export class ShadowDB {
     }
   }
 
-  async getUrlStatusForCursor(cursor: FetchCursor): Promise<UrlStatusDocument | undefined> {
+  async getUrlStatusForCursor(cursor: TaskCursor): Promise<UrlStatusDocument | undefined> {
     return this.mongoQueries.findUrlStatusById(cursor.noteId);
   }
 

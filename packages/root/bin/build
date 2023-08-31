@@ -1,0 +1,49 @@
+#!/bin/bash
+    # "clean": "rm -r dist/",
+    # "tsc": "tsc",
+    # "tsc:watch": "tsc --watch",
+    # "alias": "./node_modules/.bin/babel --config-file ./.babelrc-path-alias ./dist -d ./dist",
+    # "lint": "eslint src/",
+    # "tsup": "tsup --onSuccess 'run-p alias lint'",
+    # "tsup:watch": "tsup --watch src/ --onSuccess 'run-p alias lint'",
+    # "watch": "run-p tsc:watch tsup:watch",
+    # "build": "run-p tsc tsup",
+    # "bundle": "NODE_ENV=prod tsup --clean",
+    # "rebuild": "run-s clean build"
+
+# Check if a command is given
+if [ $# -eq 0 ]; then
+    echo "No command given"
+    exit 1
+fi
+
+# Function to add lock
+function build() {
+    echo "Building"
+    rushx compile
+}
+function clean() {
+    rm -r dist/
+}
+function alias() {
+    ./node_modules/.bin/babel --config-file ./.babelrc-path-alias ./dist -d ./dist
+}
+function watch() {
+    run-p tsc:watch tsup:watch
+}
+function rebuild() {
+    run-s clean builf
+}
+
+# Check which command was given and call the appropriate function
+case $1 in
+    "build") build ;;
+    "rebuild") rebuild ;;
+    "clean") clean ;;
+    "alias") alias ;;
+    "watch") watch ;;
+    *)
+        echo "Invalid command. Usage: ./script.sh {addlock|removelock}"
+        exit 1
+        ;;
+esac

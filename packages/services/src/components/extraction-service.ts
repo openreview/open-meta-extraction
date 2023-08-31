@@ -13,9 +13,9 @@ import {
 } from '@watr/commonlib';
 
 
-import { BrowserPool, createSpiderEnv, UrlFetchData } from '@watr/spider';
+import { BrowserPool, createSpiderEnv } from '@watr/spider';
 
-import { CanonicalFieldRecords, ExtractionEnv, getEnvCanonicalFields, SpiderAndExtractionTransform } from '@watr/field-extractors';
+import { CanonicalFieldRecords, ExtractionEnv, ExtractionResult, getEnvCanonicalFields, SpiderAndExtractionTransform } from '@watr/field-extractors';
 
 import { Logger } from 'winston';
 import { ShadowDB } from './shadow-db';
@@ -114,23 +114,12 @@ export class ExtractionService {
     }
   }
 
-  async extractUrl(url: URL, noteId?: string) {
-
-    if (noteId) {
-      await this.updateWorkflowStatus(noteId, 'processing');
-    }
-
+  async extractUrl(url: URL): Promise<ExtractionResult<any>> {
     const spiderEnv = await createSpiderEnv(this.log, this.browserPool, this.corpusRoot, url);
 
-    if (noteId) {
-      await this.updateWorkflowStatus(noteId, 'spider:begun');
-    }
     const fieldExtractionResults = await SpiderAndExtractionTransform(TE.right([url, spiderEnv]))()
       .catch(async (error: any) => {
         prettyPrint({ error })
-        if (noteId) {
-          await this.updateWorkflowStatus(noteId, 'extractor:fail');
-        }
         throw error;
       }).finally(async () => {
         const { browserPool, browserInstance } = spiderEnv;
@@ -138,18 +127,8 @@ export class ExtractionService {
         browserPool.report();
       });
 
+    return fieldExtractionResults;
 
-    if (E.isLeft(fieldExtractionResults)) {
-      const errorResult = fieldExtractionResults.left;
-      const urlFetchData = errorResult[1].urlFetchData;
-      if (noteId) {
-        await this.recordExtractionFailure(noteId, urlFetchData);
-      }
-      return;
-    }
-
-    const [, extractionEnv] = fieldExtractionResults.right;
-    return extractionEnv
   }
 
 
@@ -161,17 +140,27 @@ export class ExtractionService {
     return !!update;
   }
 
-  // Record successful extraction results
-  async recordExtractionResults(noteId: string, extractionEnv: ExtractionEnv) {
-    this.log.debug(`Extraction succeeded, continuing...`);
-
+  async recordExtractionResults(noteId: string, result: ExtractionResult<any>) {
+    const extractionEnv = E.isLeft(result)? result.left[1] : result.right[1];
     const { status, responseUrl } = extractionEnv.urlFetchData;
     const httpStatus = parseIntOrElse(status, 0);
+    await this.shadowDB.mongoQueries.updateUrlStatus(noteId, {
+      httpStatus,
+      response: responseUrl
+    });
+
+    if (E.isLeft(result)) {
+      return;
+    }
+
+    await this.recordExtractionSuccess(noteId,  extractionEnv);
+  }
+
+  async recordExtractionSuccess(noteId: string, extractionEnv: ExtractionEnv) {
+    this.log.debug(`Extraction succeeded, continuing...`);
 
     const canonicalFields = getEnvCanonicalFields(extractionEnv);
 
-
-    await this.updateWorkflowStatus(noteId, 'extractor:success');
     const theAbstract = chooseCanonicalAbstract(canonicalFields);
     const hasAbstract = theAbstract !== undefined;
     const pdfLink = chooseCanonicalPdfLink(canonicalFields);
@@ -186,30 +175,14 @@ export class ExtractionService {
       if (hasPdfLink) {
         await this.shadowDB.updateFieldStatus(noteId, 'pdf', pdfLink);
       }
-      await this.updateWorkflowStatus(noteId, 'fields:posted');
     }
 
     await this.shadowDB.mongoQueries.updateUrlStatus(noteId, {
       hasAbstract,
       hasPdfLink,
-      httpStatus,
-      response: responseUrl
     });
   }
 
-  async recordExtractionFailure(noteId: string, urlFetchData: UrlFetchData) {
-    this.log.debug(`Extraction Failed, exiting...`);
-
-    const { status } = urlFetchData;
-    const httpStatus = parseIntOrElse(status, 0);
-
-    await this.shadowDB.mongoQueries.updateUrlStatus(noteId, {
-      httpStatus,
-    });
-    prettyPrint({ urlFetchData });
-
-    await this.updateWorkflowStatus(noteId, 'extractor:fail');
-  }
 }
 
 function chooseCanonicalAbstract(canonicalFields: CanonicalFieldRecords): string | undefined {
@@ -300,6 +273,7 @@ export async function extractionServiceMonitor(dbModels: DBModels): Promise<Extr
 
   const withAbstractGroups: GroupingRec[] = responseHostsWithAbstract[0]['withAbstracts']
 
+  // TODO finish reporting hosts with and w/o abstracts, pdf links
   const withAbstractDict = groupDict(withAbstractGroups);
 
   if (fsAbstractCount != usAbstractCount) {

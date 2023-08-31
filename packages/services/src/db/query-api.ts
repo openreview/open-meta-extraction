@@ -2,18 +2,18 @@ import _ from 'lodash';
 import * as E from 'fp-ts/Either';
 import { Document, Types } from 'mongoose';
 import {
-  asyncMapSeries,
   getServiceLogger,
   withScopedExec,
   shaEncodeAsHex,
   validateUrl,
-  composeScopes
+  composeScopes,
+  asyncMapSeries
 } from '@watr/commonlib';
 
 import { Logger } from 'winston';
 
 import {
-  FetchCursor,
+  TaskCursor,
   FieldStatus,
   UrlStatus,
   UrlStatusUpdateFields,
@@ -28,7 +28,7 @@ import { UpdatableField } from '~/components/openreview-gateway';
 export type CursorID = Types.ObjectId;
 export type UrlStatusDocument = Document<unknown, any, UrlStatus> & UrlStatus;
 export type NoteStatusDocument = Document<unknown, any, NoteStatus> & NoteStatus;
-export type FetchCursorDocument = Document<unknown, any, FetchCursor> & FetchCursor;
+export type TaskCursorDocument = Document<unknown, any, TaskCursor> & TaskCursor;
 
 type upsertNoteStatusArgs = {
   noteId: string,
@@ -81,7 +81,8 @@ export class MongoQueries {
   async createDatabase() {
     await this.dbModels.noteStatus.createCollection();
     await this.dbModels.urlStatus.createCollection();
-    await this.dbModels.fetchCursor.createCollection();
+    await this.dbModels.taskCursor.createCollection();
+    await this.dbModels.taskCursorX.createCollection();
     await this.dbModels.fieldStatus.createCollection();
   }
 
@@ -240,8 +241,8 @@ export class MongoQueries {
   }
 
 
-  async advanceCursor(cursorId: CursorID): Promise<FetchCursor | undefined> {
-    const current = await this.dbModels.fetchCursor.findById(cursorId);
+  async advanceCursor(cursorId: CursorID): Promise<TaskCursor | undefined> {
+    const current = await this.dbModels.taskCursor.findById(cursorId);
     if (!current) return;
     const { noteNumber } = current;
     const nextNote = await this.getNextNoteWithValidURL(noteNumber);
@@ -250,7 +251,7 @@ export class MongoQueries {
       return;
     };
 
-    const nextCursor = await this.dbModels.fetchCursor.findByIdAndUpdate(cursorId,
+    const nextCursor = await this.dbModels.taskCursor.findByIdAndUpdate(cursorId,
       {
         noteId: nextNote.id,
         noteNumber: nextNote.number
@@ -260,11 +261,11 @@ export class MongoQueries {
       return;
     };
 
-    const c = await this.dbModels.fetchCursor.findById(cursorId);
+    const c = await this.dbModels.taskCursor.findById(cursorId);
     if (c) return c;
   }
 
-  async moveCursor(cursorId: CursorID, distance: number): Promise<FetchCursor | string> {
+  async moveCursor(cursorId: CursorID, distance: number): Promise<TaskCursor | string> {
     if (distance === 0) {
       return 'Cannot move cursor a distance of 0';
     }
@@ -272,7 +273,7 @@ export class MongoQueries {
     const absDist = Math.abs(distance);
     this.log.info(`Moving Cursor ${direction} by ${absDist}`);
 
-    const current = await this.dbModels.fetchCursor.findById(cursorId);
+    const current = await this.dbModels.taskCursor.findById(cursorId);
     if (!current) return `No cursor w/id ${cursorId}`;
 
     const { noteNumber } = current;
@@ -301,7 +302,7 @@ export class MongoQueries {
       throw Error('Error: notes are empty');
     }
 
-    const nextCursor = await this.dbModels.fetchCursor.findByIdAndUpdate(cursorId,
+    const nextCursor = await this.dbModels.taskCursor.findByIdAndUpdate(cursorId,
       {
         noteId: lastNote.id,
         noteNumber: lastNote.number
@@ -314,41 +315,41 @@ export class MongoQueries {
     return nextCursor;
   }
 
-  async getCursor(role: CursorRole): Promise<FetchCursor | undefined> {
-    const cursor = await this.dbModels.fetchCursor.findOne({ role });
+  async getCursor(role: CursorRole): Promise<TaskCursor | undefined> {
+    const cursor = await this.dbModels.taskCursor.findOne({ role });
     if (cursor === null || cursor === undefined) {
       return;
     }
     return cursor;
   }
 
-  async getCursors(): Promise<FetchCursor[]> {
-    return this.dbModels.fetchCursor.find();
+  async getCursors(): Promise<TaskCursor[]> {
+    return this.dbModels.taskCursor.find();
   }
 
   async deleteCursor(role: CursorRole): Promise<boolean> {
-    const cursor = await this.dbModels.fetchCursor.findOneAndRemove({ role });
+    const cursor = await this.dbModels.taskCursor.findOneAndRemove({ role });
     return cursor !== null;
   }
 
   async deleteCursors(): Promise<void> {
-    const cursors = await this.dbModels.fetchCursor.find();
+    const cursors = await this.dbModels.taskCursor.find();
     this.log.info(`Deleting ${cursors.length} cursors`);
     await Promise.all(cursors.map(async c => c.deleteOne()))
   }
 
-  async updateCursor(role: CursorRole, noteId: string): Promise<FetchCursor> {
-    return this.dbModels.fetchCursor.findOneAndUpdate(
+  async updateCursor(role: CursorRole, noteId: string): Promise<TaskCursor> {
+    return this.dbModels.taskCursor.findOneAndUpdate(
       { role },
       { role, noteId },
       { new: true, upsert: true }
     );
   }
 
-  async createCursor(role: CursorRole, noteId: string): Promise<FetchCursor | undefined> {
+  async createCursor(role: CursorRole, noteId: string): Promise<TaskCursor | undefined> {
     const noteStatus = await this.findNoteStatusById(noteId);
     if (!noteStatus) return;
-    const c = await this.dbModels.fetchCursor.create(
+    const c = await this.dbModels.taskCursor.create(
       { role, noteId, noteNumber: noteStatus.number },
     );
 

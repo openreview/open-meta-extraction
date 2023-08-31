@@ -16,6 +16,9 @@ import {
 
 import { generateFromBatch } from '~/util/generators';
 import { ShadowDB, shadowDBExecScope } from './shadow-db';
+import * as mh from '~/db/mongo-helpers';
+import { mongoQueriesExecScopeWithDeps } from '~/db/query-api';
+import { DBModels } from '~/db/schemas';
 
 type FetchServiceNeeds = {
   shadowDB: ShadowDB,
@@ -115,16 +118,14 @@ export class FetchService {
 
 }
 
-import * as mh from '~/db/mongo-helpers';
-import { mongoQueriesExecScopeWithDeps } from '~/db/query-api';
-import { DBModels } from '~/db/schemas';
 
 export interface FetchServiceMonitor {
   newNotesPerDay: mh.CountPerDay[]
   totalNoteCount: number;
   notesWithValidURLCount: number;
 }
-// How many new note records, per day, over past week (histogram)
+// How many new note records, per day, over past week
+// TODO report pause interval/state?
 export async function fetchServiceMonitor(dbModels: DBModels): Promise<FetchServiceMonitor> {
   const matchLastWeek = mh.matchCreatedAtDaysFromToday(-7);
 

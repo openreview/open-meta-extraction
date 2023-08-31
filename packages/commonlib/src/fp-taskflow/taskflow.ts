@@ -147,6 +147,10 @@ function initArg<A, Env extends BaseEnv>(a: A, env: Env): TE.TaskEither<CIWithEn
   return TE.right(valueEnvPair(a, env));
 }
 
+export type TaskFailure<Env extends BaseEnv> = WithEnv<ControlInstruction, Env>; // TODO replace CIWithEnv w/Failure
+export type TaskSuccess<A, Env extends BaseEnv> = WithEnv<A, Env>;
+export type TaskResult<A, Env extends BaseEnv> = E.Either<TaskFailure<Env>, TaskSuccess<A, Env>>;
+
 export type CIWithEnv<Env extends BaseEnv> = WithEnv<ControlInstruction, Env>;
 function controlEnvPair<Env extends BaseEnv>(ci: ControlInstruction, w: Env): CIWithEnv<Env> {
   return [ci, w];

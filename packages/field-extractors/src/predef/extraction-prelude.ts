@@ -48,6 +48,10 @@ export type ControlInstruction = ft.ControlInstruction;
 type EnvT = ExtractionEnv;
 
 
+type ExtractionSuccess<A> = ft.TaskSuccess<A, EnvT>
+type ExtractionFailure = ft.TaskFailure<EnvT>
+export type ExtractionResult<A> = ft.TaskResult<A, EnvT>
+
 export type ExtractionTask<A> = ft.ExtractionTask<A, EnvT>;
 export type PerhapsW<A> = ft.PerhapsWithEnv<A, EnvT>;
 export type ClientFunc<A, B> = ft.ClientFunc<A, B, EnvT>;

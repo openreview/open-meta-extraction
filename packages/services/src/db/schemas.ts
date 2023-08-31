@@ -2,14 +2,17 @@ import _ from 'lodash';
 
 import { CurrentTimeOpt, DefaultCurrentTimeOpt } from './mongodb';
 import { getServiceLogger, isUrl } from '@watr/commonlib';
-import { Schema, Types, Model, Mongoose, Connection } from 'mongoose';
+import { Schema, Types, Model, Connection, PipelineStage } from 'mongoose';
+
 
 const log = getServiceLogger('MongoSchema');
 
 export type DBModels = {
   noteStatus: Model<NoteStatus>;
   urlStatus: Model<UrlStatus>;
-  fetchCursor: Model<FetchCursor>;
+  taskCursor: Model<TaskCursor>;
+  taskCursorX: Model<TaskCursorX>;
+  task: Model<Task>;
   fieldStatus: Model<FieldStatus>;
 }
 
@@ -32,7 +35,7 @@ export function createDBModels(
       log.error('NoteStatus: indexing', error.message);
     });
 
-    const m =mongoose.model<NoteStatus>('NoteStatus', schema);
+    const m = mongoose.model<NoteStatus>('NoteStatus', schema);
 
     return m;
   }
@@ -59,18 +62,49 @@ export function createDBModels(
     return mongoose.model<UrlStatus>('UrlStatus', schema);
   }
 
-  const FetchCursor = () => {
-    const schema = new Schema<FetchCursor>({
-      noteId: { type: String, required: true },
-      noteNumber: { type: Number, required: true },
-      role: { type: String, required: true, unique: true },
-      // lockStatus: { type: String },
+  const Task = () => {
+    const schema = new Schema<Task>({
+      taskName: { type: String, required: true },
+      collectionName: { type: String, required: true },
+      match: { type: Schema.Types.Mixed, required: true },
+      // Repeat once, every X h:m:s, at time H:M:S.ms, etc
+      // repeat: { type: string, required: true },
     }, {
-      collection: 'fetch_cursor',
+      collection: 'task',
       timestamps: timeOpt,
     });
 
-    return mongoose.model<FetchCursor>('FetchCursor', schema);
+    return mongoose.model<Task>('Task', schema);
+  }
+
+  const TaskCursorX = () => {
+    const schema = new Schema<TaskCursorX>({
+      noteId: { type: String, required: true },
+      noteNumber: { type: Number, required: true },
+      taskName: { type: String, required: true },
+      lockStatus: { type: String, required: true },
+      // taskName: { type: String }, 'extract-grobid/new|all|amend', 'extract-html/new|all|amend'
+      // lockStatus: { type: String }, 'next', 'locked:#id-of-holder', 'complete', 'last', 'begin'
+    }, {
+      collection: 'task_cursor_x',
+      timestamps: timeOpt,
+    });
+    schema.index({ taskName: 1, lockStatus: 1 });
+
+    return mongoose.model<TaskCursorX>('TaskCursorX', schema);
+  }
+
+  const TaskCursor = () => {
+    const schema = new Schema<TaskCursor>({
+      noteId: { type: String, required: true },
+      noteNumber: { type: Number, required: true },
+      role: { type: String, required: true, unique: true },
+    }, {
+      collection: 'task_cursor',
+      timestamps: timeOpt,
+    });
+
+    return mongoose.model<TaskCursor>('TaskCursor', schema);
   }
 
   const FieldStatus = () => {
@@ -97,10 +131,12 @@ export function createDBModels(
     noteStatus: NoteStatus(),
     urlStatus: UrlStatus(),
     fieldStatus: FieldStatus(),
-    fetchCursor: FetchCursor(),
+    taskCursor: TaskCursor(),
+    taskCursorX: TaskCursorX(),
+    task: Task(),
   }
-
 }
+
 export interface NoteStatus {
   _id: Types.ObjectId;
   id: string;
@@ -176,12 +212,28 @@ function NonNullable(v: unknown): boolean {
 }
 
 
-export interface FetchCursor {
+export interface TaskCursor {
   _id: Types.ObjectId;
   noteId: string;
   noteNumber: number;
   role: string;
-  // lockStatus: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface Task {
+  _id: Types.ObjectId;
+  taskName: string;
+  collectionName: string;
+  match: PipelineStage.Match;
+}
+
+export interface TaskCursorX {
+  _id: Types.ObjectId;
+  noteId: string;
+  noteNumber: number;
+  taskName: string;
+  lockStatus: string;
   createdAt: Date;
   updatedAt: Date;
 }
