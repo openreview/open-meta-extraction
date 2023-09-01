@@ -57,6 +57,8 @@ export const scopedExtractionServiceWithDeps = () => composeScopes(
   scopedExtractionService()
 );
 
+const ExtractionTaskName = 'spider/extract-fields';
+
 export class ExtractionService {
   log: Logger;
   shadowDB: ShadowDB;
@@ -80,16 +82,33 @@ export class ExtractionService {
     this.browserPool = browserPool;
   }
 
+  async initTasks() {
+    const task = await this.taskScheduler.initTask(
+      ExtractionTaskName,
+      this.shadowDB.mongoQueries.dbModels.urlStatus,
+      'noteNumber',
+      -1
+    );
+    prettyPrint({ task })
+
+  }
   // Main Extraction Loop
   async runExtractionLoop(limit: number, rateLimited: boolean) {
     const runForever = limit === 0;
     this.log.info(`Starting extraction loop, runForever=${runForever} postResultsToOpenReview: ${this.postResultsToOpenReview}`);
     const maxRateMS = rateLimited ? 4000 : 0;
-    const generator = this.taskScheduler.genUrlStreamRateLimited(maxRateMS)
+    // const generatorx = this.taskScheduler.genUrlStreamRateLimited(maxRateMS)
+    const generator = this.taskScheduler.taskStreamRateLimited(ExtractionTaskName, maxRateMS);
 
     let currCount = 0;
-    for await (const urlStatus of generator) {
+    for await (const noteNumber of generator) {
+      const urlStatus = await this.shadowDB.mongoQueries.dbModels.urlStatus.findOne({ noteNumber });
+      if (!urlStatus) {
+        this.log.error(`No UrlStatus found for noteNumber ${noteNumber}`);
+        return;
+      }
       await this.extractUrlStatus(urlStatus);
+
       if (runForever) {
         continue;
       }
@@ -141,7 +160,7 @@ export class ExtractionService {
   }
 
   async recordExtractionResults(noteId: string, result: ExtractionResult<any>) {
-    const extractionEnv = E.isLeft(result)? result.left[1] : result.right[1];
+    const extractionEnv = E.isLeft(result) ? result.left[1] : result.right[1];
     const { status, responseUrl } = extractionEnv.urlFetchData;
     const httpStatus = parseIntOrElse(status, 0);
     await this.shadowDB.mongoQueries.updateUrlStatus(noteId, {
@@ -153,7 +172,7 @@ export class ExtractionService {
       return;
     }
 
-    await this.recordExtractionSuccess(noteId,  extractionEnv);
+    await this.recordExtractionSuccess(noteId, extractionEnv);
   }
 
   async recordExtractionSuccess(noteId: string, extractionEnv: ExtractionEnv) {
@@ -317,7 +336,7 @@ function groupDict(groupingRecs: GroupingRec[]): Record<string, GroupCounts> {
   _.forEach(groupingRecs, ({ _id, count }) => {
     const [id, idVal] = _id.split('__');
     const gc = gcounts[id] || {
-        id, trueCount: 0, falseCount: 0
+      id, trueCount: 0, falseCount: 0
     };
     if (idVal === 'true') {
       gc.trueCount = count;

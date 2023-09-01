@@ -1,6 +1,7 @@
 import _ from 'lodash';
-import { PipelineStage } from 'mongoose';
 import { addDays } from 'date-fns';
+import { PipelineStage, Schema, Types, Model } from 'mongoose';
+import { MongoDB } from './mongodb';
 
 
 export interface CountPerDay {
@@ -49,3 +50,20 @@ export function countByDay(dateField: string): PipelineStage.Group {
   return countByDayStage;
 }
 
+
+// Fake collection for testing
+export interface MyColl {
+  _id: Types.ObjectId;
+  number: number;
+  isValid: boolean;
+}
+
+export function initMyColl(mongoDB: MongoDB): Model<MyColl> {
+  const schema = new Schema<MyColl>({
+    number: { type: Number, required: true, unique: true },
+    isValid: { type: Boolean, required: true },
+  }, {
+    collection: 'my_coll',
+  });
+  return mongoDB.mongoose.model<MyColl>('MyColl', schema);
+}

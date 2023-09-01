@@ -1,5 +1,5 @@
 import _ from 'lodash';
-import { ConfigProvider, asyncEachOfSeries, prettyPrint } from '@watr/commonlib';
+import { ConfigProvider, asyncEachOfSeries } from '@watr/commonlib';
 import * as fc from 'fast-check';
 import { MongoQueries } from './query-api';
 import { WorkflowStatuses } from './schemas';

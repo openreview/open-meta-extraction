@@ -64,11 +64,11 @@ export function createDBModels(
 
   const Task = () => {
     const schema = new Schema<Task>({
-      taskName: { type: String, required: true },
+      taskName: { type: String, required: true, unique: true },
       collectionName: { type: String, required: true },
       match: { type: Schema.Types.Mixed, required: true },
-      // Repeat once, every X h:m:s, at time H:M:S.ms, etc
-      // repeat: { type: string, required: true },
+      cursorField: { type: String, required: true },
+      cursorValue: { type: Number, required: true },
     }, {
       collection: 'task',
       timestamps: timeOpt,
@@ -226,6 +226,8 @@ export interface Task {
   taskName: string;
   collectionName: string;
   match: PipelineStage.Match;
+  cursorField: string;
+  cursorValue: number;
 }
 
 export interface TaskCursorX {

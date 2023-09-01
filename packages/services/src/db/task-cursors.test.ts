@@ -1,58 +1,60 @@
-
+import _ from 'lodash';
 import { prettyPrint, setLogEnvLevel } from '@watr/commonlib';
 import { mongoQueriesExecScopeWithDeps } from '~/db/query-api';
-import { DBModels } from '~/db/schemas';
-import { MongoDBNeeds, mongoConfig } from '~/db/mongodb';
-import { TaskCursors } from './task-cursors';
+import { MongoDB, mongoConfig } from '~/db/mongodb';
+import { TaskCursors, taskCursorExecScope } from './task-cursors';
+
+import { Schema, Types, Model } from 'mongoose';
+import { initMyColl } from './mongo-helpers';
 
 describe('Task Cursors', () => {
 
   setLogEnvLevel('debug');
 
-  it.only('should define tasks', async () => {
+
+
+  it('should define tasks', async () => {
     const taskName = 'extract-fields/grobid';
-    for await (const { mongoQueries, mongoDB } of mongoQueriesExecScopeWithDeps()(mongoConfig())) {
-      const taskCursors = new TaskCursors(mongoDB);
-      await taskCursors.defineTask(
-        taskName,
-        mongoQueries.dbModels.noteStatus,
-        { $match: { validUrl: true } },
-      );
-      const tasks = await taskCursors.getTasks(taskName)
+    for await (const { mongoDB } of mongoQueriesExecScopeWithDeps()(mongoConfig())) {
+      for await (const { taskCursors } of taskCursorExecScope()({ mongoDB })) {
+        const myColl = initMyColl(mongoDB)
+        const records = _.map(_.range(10), (i) => ({ number: i, isValid: i % 2 === 0 }))
+        await myColl.insertMany(records);
+        await taskCursors.defineTask(
+          taskName,
+          myColl,
+          'number',
+          -1,
+          { $match: { number: { $mod: [2, 0] } } },
+        );
+        const tasks = await taskCursors.getTasks()
+        prettyPrint({ tasks })
+        const advanced0 = await taskCursors.advanceCursor(taskName);
+        const advanced1 = await taskCursors.advanceCursor(taskName);
+        const advanced2 = await taskCursors.advanceCursor(taskName);
+        prettyPrint({ advanced0, advanced1, advanced2 })
 
-      const cursor = await taskCursors.createCursor(taskName);
+      }
     }
-    // Sample iteration loop for extraction:
-    // - Acquire lock on Task record
-    // - if cursor/last for task exists
-    //   - if valid next item:
-    //     - create cursor/processing w/uniq lock for next available item (use task.match)
-    //     - move cursor/last to cursor/processing
-    //     - unlock cursor/last
-    //   - else no valid next:
-    //     - unlock cursor/last (keep it where it is)
-    //     - advance task state, e.g., running -> waiting
-    // - if cursor/last for task does not exist
-    //   - exit (tasks will periodically re-init and create cursor/last )
-    //   - advance cursor state,e.g.,
 
-    // Sample Task Management init:
-    // - create tasks e.g., { extract-all, 'url_status' { $match: from beginning } } 'stopped'
-    // - foreach task
-    //   - init cursor/last to (first valid match) - 1 (can be phantom item)
-    //   - set task state='waiting'
+  });
+  it.only('should allow empty match in task', async () => {
+    const taskName = 'extract-fields/grobid';
+    for await (const { mongoDB } of mongoQueriesExecScopeWithDeps()(mongoConfig())) {
+      for await (const { taskCursors } of taskCursorExecScope()({ mongoDB })) {
+        const myColl = initMyColl(mongoDB)
+        const newTask = await taskCursors.defineTask(
+          taskName,
+          myColl,
+          'number',
+          -1
+        );
+        prettyPrint({ newTask })
+      }
+    }
   });
   // it('should create a task/cursor that indicates `wait for more items to process`', async () => {});
   // it('should create a task/cursor for respidering/all/some/missing', async () => {});
-  // it('should', async () => {});
-  // it('should', async () => {});
-  // it('should', async () => {});
-  // it('should', async () => {});
-  // it('should', async () => {});
-  // it('should', async () => {});
-  // it('should', async () => {});
-  // it('should', async () => {});
-  // it('should', async () => {});
 
 
   it('should create/update/delete fetch cursors', async () => {

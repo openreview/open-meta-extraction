@@ -1,38 +1,92 @@
 import _ from 'lodash';
 import { Logger } from 'winston';
-import { composeScopes, delay, getServiceLogger, withScopedExec } from '@watr/commonlib';
+import { composeScopes, delay, getServiceLogger, prettyPrint, putStrLn, withScopedExec } from '@watr/commonlib';
 import { NoteStatus, UrlStatus } from '~/db/schemas';
 import { CursorRole, MongoQueries, mongoQueriesExecScopeWithDeps } from '~/db/query-api';
 import differenceInMilliseconds from 'date-fns/differenceInMilliseconds';
+import { TaskCursors, taskCursorExecScope } from '~/db/task-cursors';
+import { Model, PipelineStage } from 'mongoose';
 
 
 type TaskSchedulerNeeds = {
   mongoQueries: MongoQueries;
+  taskCursors: TaskCursors
 }
 
-export const taskSchedulerScope = () => withScopedExec<
+const taskSchedulerScope = () => withScopedExec<
   TaskScheduler,
   'taskScheduler',
   TaskSchedulerNeeds
 >(
-  async function init({ mongoQueries }) {
-    const taskScheduler = new TaskScheduler(mongoQueries);
+  async function init({ mongoQueries, taskCursors }) {
+    const taskScheduler = new TaskScheduler({ mongoQueries, taskCursors });
     return { taskScheduler };
   },
 );
 
+export const taskSchedulerExecScope = () => composeScopes(
+  taskCursorExecScope(),
+  taskSchedulerScope()
+);
+
 export const taskSchedulerScopeWithDeps = () => composeScopes(
   mongoQueriesExecScopeWithDeps(),
-  taskSchedulerScope()
+  taskSchedulerExecScope(),
 );
 
 export class TaskScheduler {
   log: Logger;
-  mdb: MongoQueries;
+  mongoQueries: MongoQueries;
+  taskCursors: TaskCursors;
 
-  constructor(mdb: MongoQueries) {
+  constructor({ mongoQueries, taskCursors }: TaskSchedulerNeeds) {
     this.log = getServiceLogger('TaskScheduler');
-    this.mdb = mdb;
+    this.mongoQueries = mongoQueries;
+    this.taskCursors = taskCursors;
+  }
+
+  async initTask<M>(
+    taskName: string,
+    model: Model<M>,
+    cursorField: string,
+    initCursorValue: number,
+    matchFilter?: PipelineStage.Match
+  ) {
+    const task = await this.taskCursors.defineTask(
+      taskName,
+      model,
+      cursorField,
+      initCursorValue,
+      matchFilter
+    );
+    return task;
+  }
+
+  async* taskStream(taskName: string): AsyncGenerator<number, void, void> {
+    putStrLn('Advancing cursor')
+    // TODO Acquire lock on Task record
+    let nextTask = await this.taskCursors.advanceCursor(taskName);
+    while (nextTask) {
+      // TODO unlock task
+      yield nextTask.cursorValue;
+      nextTask = await this.taskCursors.advanceCursor(taskName);
+    }
+  }
+  async* taskStreamRateLimited(taskName: string, maxRateMs: number): AsyncGenerator<number, void, void> {
+    for await (const url of this.taskStream(taskName)) {
+      const startTime = new Date();
+
+      yield url;
+
+      const endTime = new Date();
+      const elapsedMs = differenceInMilliseconds(endTime, startTime);
+      this.log.debug(`RateLimiter: ${elapsedMs}ms processing time`);
+      const waitTime = maxRateMs - elapsedMs;
+      if (waitTime > 0) {
+        this.log.info(`RateLimiter: delaying ${waitTime / 1000} seconds...`);
+        await delay(waitTime);
+      }
+    }
   }
 
   async* genUrlStream(): AsyncGenerator<UrlStatus, void, void> {
@@ -77,16 +131,16 @@ export class TaskScheduler {
   }
 
   async* urlStatusGenerator(role: CursorRole): AsyncGenerator<UrlStatus, string, void> {
-    let current = await this.mdb.getCursor(role);
+    let current = await this.mongoQueries.getCursor(role);
 
     while (current) {
-      const urlStatus = await this.mdb.findUrlStatusById(current.noteId);
+      const urlStatus = await this.mongoQueries.findUrlStatusById(current.noteId);
       if (!urlStatus) {
         return 'error:inconsistent-state';
       }
       try {
         // Advance cursor before yielding
-        current = await this.mdb.advanceCursor(current._id);
+        current = await this.mongoQueries.advanceCursor(current._id);
         //
         yield urlStatus;
       }
@@ -108,7 +162,7 @@ export class TaskScheduler {
   }
 
   async createUrlCursor(role: CursorRole) {
-    const existing = await this.mdb.getCursor(role);
+    const existing = await this.mongoQueries.getCursor(role);
     if (existing) {
       this.log.info(`Cursor ${role} already exists. Delete first to run create.`)
       return;
@@ -118,15 +172,15 @@ export class TaskScheduler {
 
     switch (role) {
       case 'extract-fields/all':
-        startingNote = await this.mdb.getNextNoteWithValidURL(0);
+        startingNote = await this.mongoQueries.getNextNoteWithValidURL(0);
         break;
 
       case 'extract-fields/newest':
-        const lastSuccess = await this.mdb.getLastNoteWithSuccessfulExtractionV2();
+        const lastSuccess = await this.mongoQueries.getLastNoteWithSuccessfulExtractionV2();
         if (!lastSuccess) {
           return;
         }
-        startingNote = await this.mdb.getNextNoteWithValidURL(lastSuccess.number)
+        startingNote = await this.mongoQueries.getNextNoteWithValidURL(lastSuccess.number)
         break;
     }
 
@@ -135,13 +189,13 @@ export class TaskScheduler {
       return;
     }
     this.log.info(`Creating cursor ${role} for note ${startingNote.id}/#${startingNote.number}`);
-    await this.mdb.createCursor(role, startingNote.id);
+    await this.mongoQueries.createCursor(role, startingNote.id);
     this.log.info('Done');
   }
 
   async deleteUrlCursor(role: CursorRole) {
     this.log.info(`Deleting Cursor ${role}`);
-    const didDelete = await this.mdb.deleteCursor(role);
+    const didDelete = await this.mongoQueries.deleteCursor(role);
     const msg = didDelete ? 'deleted' : 'not deleted';
     this.log.info(`  Cursor was ${msg}`);
   }

@@ -50,6 +50,7 @@
     - error [ExtractionService] [] Fetch chain head !== specified request URL
 - [ ] response/responseHost might be combined
 - [ ] eliminate workflow status
+- [ ] [build system] compare tsup/tsc vs rush build/watch speeds
 
 
 ** Done

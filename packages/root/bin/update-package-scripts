@@ -1,0 +1,25 @@
+#!/bin/bash
+
+declare -A scripts
+
+# tsup/tsc build scripts
+# scripts["clean"]="rm -r dist/"
+# scripts["tsc"]="tsc"
+# scripts["tsc:watch"]="tsc --watch"
+# scripts["alias"]="./node_modules/.bin/babel --config-file ./.babelrc-path-alias ./dist -d ./dist"
+# scripts["lint"]="eslint src/"
+# scripts["tsup"]="tsup --onSuccess 'run-p alias lint'"
+# scripts["tsup:watch"]="tsup --watch src/ --onSuccess 'run-p alias lint'"
+# scripts["watch"]="run-p tsc:watch tsup:watch"
+# scripts["build"]="run-p tsc tsup"
+# scripts["rebuild"]="run-s clean build"
+
+jqscript=""
+for key in "${!scripts[@]}"; do
+    value="${scripts[$key]}"
+    jqscript="${jqscript} | .${key} |= \"$value\""
+done
+
+echo $jqscript
+
+jq ".scripts ${jqscript}" package.json
