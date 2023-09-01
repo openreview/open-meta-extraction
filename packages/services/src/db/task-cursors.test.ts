@@ -1,86 +1,94 @@
 import _ from 'lodash';
-import { prettyPrint, setLogEnvLevel } from '@watr/commonlib';
-import { mongoQueriesExecScopeWithDeps } from '~/db/query-api';
-import { MongoDB, mongoConfig } from '~/db/mongodb';
-import { TaskCursors, taskCursorExecScope } from './task-cursors';
-
-import { Schema, Types, Model } from 'mongoose';
+import { asyncMapSeries, composeScopes, setLogEnvLevel } from '@watr/commonlib';
+import { MongoDB, mongoConfig, mongooseExecScopeWithDeps } from '~/db/mongodb';
+import { TaskCursors, taskCursorExecScope, taskCursorExecScopeWithDeps } from './task-cursors';
 import { initMyColl } from './mongo-helpers';
 
 describe('Task Cursors', () => {
 
   setLogEnvLevel('debug');
 
+  const taskCursorScope = () => {
+    const scopes = taskCursorExecScopeWithDeps();
+    return scopes(mongoConfig())
+  }
 
+  const mkTaskName = (i: number) => `my-task/${i}`;
 
-  it('should define tasks', async () => {
-    const taskName = 'extract-fields/grobid';
-    for await (const { mongoDB } of mongoQueriesExecScopeWithDeps()(mongoConfig())) {
-      for await (const { taskCursors } of taskCursorExecScope()({ mongoDB })) {
-        const myColl = initMyColl(mongoDB)
-        const records = _.map(_.range(10), (i) => ({ number: i, isValid: i % 2 === 0 }))
-        await myColl.insertMany(records);
-        await taskCursors.defineTask(
-          taskName,
-          myColl,
-          'number',
-          -1,
-          { $match: { number: { $mod: [2, 0] } } },
-        );
-        const tasks = await taskCursors.getTasks()
-        prettyPrint({ tasks })
-        const advanced0 = await taskCursors.advanceCursor(taskName);
-        const advanced1 = await taskCursors.advanceCursor(taskName);
-        const advanced2 = await taskCursors.advanceCursor(taskName);
-        prettyPrint({ advanced0, advanced1, advanced2 })
+  async function initColl(mongoDB: MongoDB) {
+    const myColl = await initMyColl(mongoDB)
+    const records = _.map(_.range(10), (i) => ({ number: i, isValid: i % 2 === 0 }))
+    await myColl.insertMany(records);
+    return myColl;
+  }
 
-      }
-    }
+  async function advanceCursor(taskCursors: TaskCursors, taskname: string, count: number) {
+    return await asyncMapSeries(_.range(count), async () => {
+      const t = await taskCursors.advanceCursor(taskname)
+      const i = t ? t.cursorValue : -1;
+      return i;
+    });
+  }
 
-  });
-  it.only('should allow empty match in task', async () => {
-    const taskName = 'extract-fields/grobid';
-    for await (const { mongoDB } of mongoQueriesExecScopeWithDeps()(mongoConfig())) {
-      for await (const { taskCursors } of taskCursorExecScope()({ mongoDB })) {
-        const myColl = initMyColl(mongoDB)
-        const newTask = await taskCursors.defineTask(
-          taskName,
-          myColl,
-          'number',
-          -1
-        );
-        prettyPrint({ newTask })
-      }
+  it('should define/initialize tasks', async () => {
+    const task1 = mkTaskName(1);
+
+    for await (const { mongoDB, taskCursors } of taskCursorScope()) {
+
+      const myColl = await initColl(mongoDB);
+      const matchFilter = { $match: { number: { $mod: [2, 0] } } };
+      await taskCursors.defineTask(task1, myColl, 'number', -1, matchFilter);
+
+      const cursorValues = await advanceCursor(taskCursors, task1, 3);
+      expect(cursorValues).toMatchObject([0, 2, 4])
+
+      const cursorValues2 = await advanceCursor(taskCursors, task1, 3);
+      expect(cursorValues2).toMatchObject([6, 8, -1])
     }
   });
-  // it('should create a task/cursor that indicates `wait for more items to process`', async () => {});
-  // it('should create a task/cursor for respidering/all/some/missing', async () => {});
 
+  it('should throw error if name of task/collection/cursorField is invalid', async () => {
+    const task1 = mkTaskName(1);
+    const task2 = mkTaskName(2);
+    for await (const { mongoDB, taskCursors } of taskCursorScope()) {
+      const myColl = await initColl(mongoDB);
+      const matchFilter = { $match: { number: { $mod: [2, 0] } } };
+      await taskCursors.defineTask(task1, myColl, 'number', -1, matchFilter);
 
-  it('should create/update/delete fetch cursors', async () => {
+      const advance = () => taskCursors.advanceCursor('non-existant-task');
+      expect(advance).rejects.toThrow(Error);
 
-    // for await (const { mongoQueries } of mongoQueriesExecScopeWithDeps()(mongoConfig())) {
-    //   expect(await mongoQueries.getCursor('extract-fields/all')).toBeUndefined();
-    //   expect(await mongoQueries.updateCursor('extract-fields/all', '1')).toMatchObject({ role: 'extract-fields/all', noteId: '1' });
-    //   expect(await mongoQueries.updateCursor('extract-fields/newest', '2')).toMatchObject({ role: 'extract-fields/newest', noteId: '2' });
-    //   expect(await mongoQueries.deleteCursor('extract-fields/all')).toBe(true);
-    //   expect(await mongoQueries.deleteCursor('extract-fields/all')).toBe(false);
-    //   expect(await mongoQueries.getCursor('extract-fields/all')).toBeUndefined();
+      // invalid field
+      await taskCursors.defineTask(task2, myColl, 'bad_field', -1, matchFilter);
+      expect(
+        async () => taskCursors.advanceCursor(task2)
+      ).rejects.toThrow();
+
+    }
   });
 
-  it('should advance cursors', async () => {
-    // for await (const { mongoQueries } of mongoQueriesExecScopeWithDeps()(mongoConfig())) {
-    //   const nocursor = await mongoQueries.createCursor('extract-fields/all', 'note#1');
-    //   expect(nocursor).toBeUndefined();
+  it('should allow multiple active tasks', async () => {
+    const task1 = mkTaskName(1);
+    const task2 = mkTaskName(2);
+    const task3 = mkTaskName(3);
+    for await (const { mongoDB, taskCursors } of taskCursorScope()) {
+      const myColl = await initColl(mongoDB);
+      const matchFilter1 = { $match: { number: { $mod: [2, 0] } } };
+      const matchFilter2 = { $match: { number: { $mod: [3, 0] } } };
+      const matchFilter3 = undefined;
 
-    //   await populateDBHostNoteStatus(mongoQueries, 20);
-    //   const cursor = await mongoQueries.createCursor('extract-fields/all', 'note#1');
-    //   expect(cursor).toBeDefined();
-    //   if (!cursor) return;
+      await taskCursors.defineTask(task1, myColl, 'number', -1, matchFilter1);
+      await taskCursors.defineTask(task2, myColl, 'number', -1, matchFilter2);
+      await taskCursors.defineTask(task3, myColl, 'number', -1, matchFilter3);
 
-    //   prettyPrint({ cursor });
+      const cursorValues1 = await advanceCursor(taskCursors, task1, 3);
+      const cursorValues2 = await advanceCursor(taskCursors, task2, 3);
+      const cursorValues3 = await advanceCursor(taskCursors, task3, 3);
 
-    // }
+      expect(cursorValues1).toMatchObject([0, 2, 4])
+      expect(cursorValues2).toMatchObject([0, 3, 6])
+      expect(cursorValues3).toMatchObject([0, 1, 2])
+    }
   });
 
 });

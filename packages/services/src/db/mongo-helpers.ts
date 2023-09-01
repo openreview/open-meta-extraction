@@ -58,12 +58,15 @@ export interface MyColl {
   isValid: boolean;
 }
 
-export function initMyColl(mongoDB: MongoDB): Model<MyColl> {
+export async function initMyColl(mongoDB: MongoDB): Promise<Model<MyColl>> {
   const schema = new Schema<MyColl>({
     number: { type: Number, required: true, unique: true },
     isValid: { type: Boolean, required: true },
   }, {
     collection: 'my_coll',
   });
-  return mongoDB.mongoose.model<MyColl>('MyColl', schema);
+
+  const model = mongoDB.mongoose.model<MyColl>('MyColl', schema);
+  await model.createCollection();
+  return model
 }

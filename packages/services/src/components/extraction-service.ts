@@ -32,31 +32,6 @@ type ExtractionServiceNeeds = {
   postResultsToOpenReview: boolean
 };
 
-export const scopedExtractionService = () => withScopedExec<
-  ExtractionService,
-  'extractionService',
-  ExtractionServiceNeeds
->(
-  async function init({ shadowDB, taskScheduler, browserPool, postResultsToOpenReview }) {
-    const corpusRoot = getCorpusRootDir();
-    const extractionService = new ExtractionService(
-      corpusRoot,
-      shadowDB,
-      taskScheduler,
-      browserPool,
-      postResultsToOpenReview
-    );
-    return { extractionService };
-  },
-  async function destroy() {
-  },
-);
-
-export const scopedExtractionServiceWithDeps = () => composeScopes(
-  taskSchedulerScopeWithDeps(),
-  scopedExtractionService()
-);
-
 const ExtractionTaskName = 'spider/extract-fields';
 
 export class ExtractionService {
@@ -203,6 +178,32 @@ export class ExtractionService {
   }
 
 }
+
+export const scopedExtractionService = () => withScopedExec<
+  ExtractionService,
+  'extractionService',
+  ExtractionServiceNeeds
+>(
+  async function init({ shadowDB, taskScheduler, browserPool, postResultsToOpenReview }) {
+    const corpusRoot = getCorpusRootDir();
+    const extractionService = new ExtractionService(
+      corpusRoot,
+      shadowDB,
+      taskScheduler,
+      browserPool,
+      postResultsToOpenReview
+    );
+    return { extractionService };
+  },
+  async function destroy() {
+  },
+);
+
+export const scopedExtractionServiceWithDeps = () => composeScopes(
+  taskSchedulerScopeWithDeps(),
+  scopedExtractionService()
+);
+
 
 function chooseCanonicalAbstract(canonicalFields: CanonicalFieldRecords): string | undefined {
   const abstracts = _.filter(canonicalFields.fields, (field) => field.name === 'abstract');

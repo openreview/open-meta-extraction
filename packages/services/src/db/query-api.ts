@@ -78,6 +78,7 @@ export class MongoQueries {
     await this.conn().dropDatabase();
   }
 
+
   async createDatabase() {
     await this.dbModels.noteStatus.createCollection();
     await this.dbModels.urlStatus.createCollection();
@@ -241,120 +242,120 @@ export class MongoQueries {
   }
 
 
-  async advanceCursor(cursorId: CursorID): Promise<TaskCursor | undefined> {
-    const current = await this.dbModels.taskCursor.findById(cursorId);
-    if (!current) return;
-    const { noteNumber } = current;
-    const nextNote = await this.getNextNoteWithValidURL(noteNumber);
-    if (!nextNote) {
-      await current.deleteOne();
-      return;
-    };
+  // async advanceCursor(cursorId: CursorID): Promise<TaskCursor | undefined> {
+  //   const current = await this.dbModels.taskCursor.findById(cursorId);
+  //   if (!current) return;
+  //   const { noteNumber } = current;
+  //   const nextNote = await this.getNextNoteWithValidURL(noteNumber);
+  //   if (!nextNote) {
+  //     await current.deleteOne();
+  //     return;
+  //   };
 
-    const nextCursor = await this.dbModels.taskCursor.findByIdAndUpdate(cursorId,
-      {
-        noteId: nextNote.id,
-        noteNumber: nextNote.number
-      }, { new: true });
+  //   const nextCursor = await this.dbModels.taskCursor.findByIdAndUpdate(cursorId,
+  //     {
+  //       noteId: nextNote.id,
+  //       noteNumber: nextNote.number
+  //     }, { new: true });
 
-    if (!nextCursor) {
-      return;
-    };
+  //   if (!nextCursor) {
+  //     return;
+  //   };
 
-    const c = await this.dbModels.taskCursor.findById(cursorId);
-    if (c) return c;
-  }
+  //   const c = await this.dbModels.taskCursor.findById(cursorId);
+  //   if (c) return c;
+  // }
 
-  async moveCursor(cursorId: CursorID, distance: number): Promise<TaskCursor | string> {
-    if (distance === 0) {
-      return 'Cannot move cursor a distance of 0';
-    }
-    const direction = distance > 0 ? 'forward' : 'back';
-    const absDist = Math.abs(distance);
-    this.log.info(`Moving Cursor ${direction} by ${absDist}`);
+  // async moveCursor(cursorId: CursorID, distance: number): Promise<TaskCursor | string> {
+  //   if (distance === 0) {
+  //     return 'Cannot move cursor a distance of 0';
+  //   }
+  //   const direction = distance > 0 ? 'forward' : 'back';
+  //   const absDist = Math.abs(distance);
+  //   this.log.info(`Moving Cursor ${direction} by ${absDist}`);
 
-    const current = await this.dbModels.taskCursor.findById(cursorId);
-    if (!current) return `No cursor w/id ${cursorId}`;
+  //   const current = await this.dbModels.taskCursor.findById(cursorId);
+  //   if (!current) return `No cursor w/id ${cursorId}`;
 
-    const { noteNumber } = current;
-    let currNote = noteNumber;
-    let notes = await asyncMapSeries(_.range(absDist), async () => {
-      if (distance > 0) {
-        const n = await this.getNextNoteWithValidURL(currNote);
-        if (!n) return undefined;
-        currNote = n.number;
-        return n;
-      }
-      const n = await this.getPrevNoteWithValidURL(currNote);
-      if (!n) return undefined;
-      currNote = n.number;
-      return n;
-    });
+  //   const { noteNumber } = current;
+  //   let currNote = noteNumber;
+  //   let notes = await asyncMapSeries(_.range(absDist), async () => {
+  //     if (distance > 0) {
+  //       const n = await this.getNextNoteWithValidURL(currNote);
+  //       if (!n) return undefined;
+  //       currNote = n.number;
+  //       return n;
+  //     }
+  //     const n = await this.getPrevNoteWithValidURL(currNote);
+  //     if (!n) return undefined;
+  //     currNote = n.number;
+  //     return n;
+  //   });
 
-    notes = _.flatMap(notes, (n) => _.isUndefined(n) ? [] : [n]);
+  //   notes = _.flatMap(notes, (n) => _.isUndefined(n) ? [] : [n]);
 
-    if (notes.length < absDist) {
-      return `Too few notes (${notes.length} found) to move ${direction} from note:${current.noteId}, #${current.noteNumber}`;
-    }
+  //   if (notes.length < absDist) {
+  //     return `Too few notes (${notes.length} found) to move ${direction} from note:${current.noteId}, #${current.noteNumber}`;
+  //   }
 
-    const lastNote = notes.at(-1);
-    if (!lastNote) {
-      throw Error('Error: notes are empty');
-    }
+  //   const lastNote = notes.at(-1);
+  //   if (!lastNote) {
+  //     throw Error('Error: notes are empty');
+  //   }
 
-    const nextCursor = await this.dbModels.taskCursor.findByIdAndUpdate(cursorId,
-      {
-        noteId: lastNote.id,
-        noteNumber: lastNote.number
-      }, { new: true });
+  //   const nextCursor = await this.dbModels.taskCursor.findByIdAndUpdate(cursorId,
+  //     {
+  //       noteId: lastNote.id,
+  //       noteNumber: lastNote.number
+  //     }, { new: true });
 
-    if (!nextCursor) {
-      return 'No next cursor';
-    };
+  //   if (!nextCursor) {
+  //     return 'No next cursor';
+  //   };
 
-    return nextCursor;
-  }
+  //   return nextCursor;
+  // }
 
-  async getCursor(role: CursorRole): Promise<TaskCursor | undefined> {
-    const cursor = await this.dbModels.taskCursor.findOne({ role });
-    if (cursor === null || cursor === undefined) {
-      return;
-    }
-    return cursor;
-  }
+  // async getCursor(role: CursorRole): Promise<TaskCursor | undefined> {
+  //   const cursor = await this.dbModels.taskCursor.findOne({ role });
+  //   if (cursor === null || cursor === undefined) {
+  //     return;
+  //   }
+  //   return cursor;
+  // }
 
-  async getCursors(): Promise<TaskCursor[]> {
-    return this.dbModels.taskCursor.find();
-  }
+  // async getCursors(): Promise<TaskCursor[]> {
+  //   return this.dbModels.taskCursor.find();
+  // }
 
-  async deleteCursor(role: CursorRole): Promise<boolean> {
-    const cursor = await this.dbModels.taskCursor.findOneAndRemove({ role });
-    return cursor !== null;
-  }
+  // async deleteCursor(role: CursorRole): Promise<boolean> {
+  //   const cursor = await this.dbModels.taskCursor.findOneAndRemove({ role });
+  //   return cursor !== null;
+  // }
 
-  async deleteCursors(): Promise<void> {
-    const cursors = await this.dbModels.taskCursor.find();
-    this.log.info(`Deleting ${cursors.length} cursors`);
-    await Promise.all(cursors.map(async c => c.deleteOne()))
-  }
+  // async deleteCursors(): Promise<void> {
+  //   const cursors = await this.dbModels.taskCursor.find();
+  //   this.log.info(`Deleting ${cursors.length} cursors`);
+  //   await Promise.all(cursors.map(async c => c.deleteOne()))
+  // }
 
-  async updateCursor(role: CursorRole, noteId: string): Promise<TaskCursor> {
-    return this.dbModels.taskCursor.findOneAndUpdate(
-      { role },
-      { role, noteId },
-      { new: true, upsert: true }
-    );
-  }
+  // async updateCursor(role: CursorRole, noteId: string): Promise<TaskCursor> {
+  //   return this.dbModels.taskCursor.findOneAndUpdate(
+  //     { role },
+  //     { role, noteId },
+  //     { new: true, upsert: true }
+  //   );
+  // }
 
-  async createCursor(role: CursorRole, noteId: string): Promise<TaskCursor | undefined> {
-    const noteStatus = await this.findNoteStatusById(noteId);
-    if (!noteStatus) return;
-    const c = await this.dbModels.taskCursor.create(
-      { role, noteId, noteNumber: noteStatus.number },
-    );
+  // async createCursor(role: CursorRole, noteId: string): Promise<TaskCursor | undefined> {
+  //   const noteStatus = await this.findNoteStatusById(noteId);
+  //   if (!noteStatus) return;
+  //   const c = await this.dbModels.taskCursor.create(
+  //     { role, noteId, noteNumber: noteStatus.number },
+  //   );
 
-    return c;
-  }
+  //   return c;
+  // }
 
   async upsertFieldStatus(
     noteId: string,
@@ -382,16 +383,16 @@ export class MongoQueries {
 
 export type ExtractedFieldName = UpdatableField;
 
-export type CursorRole =
-  'extract-fields/newest'
-  | 'extract-fields/all'
-  ;
+// export type CursorRole =
+//   'extract-fields/newest'
+//   | 'extract-fields/all'
+//   ;
 
-export const CursorRoles: CursorRole[] = [
-  'extract-fields/newest',
-  'extract-fields/all'
-];
+// export const CursorRoles: CursorRole[] = [
+//   'extract-fields/newest',
+//   'extract-fields/all'
+// ];
 
-export function isCursorRole(s: unknown): s is CursorRole {
-  return typeof s === 'string' && _.includes(CursorRoles, s)
-}
+// export function isCursorRole(s: unknown): s is CursorRole {
+//   return typeof s === 'string' && _.includes(CursorRoles, s)
+// }

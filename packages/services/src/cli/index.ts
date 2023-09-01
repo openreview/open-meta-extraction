@@ -6,7 +6,7 @@ import 'source-map-support/register';
 (async () => {
   registerAllClis();
   await runCli()
-    .then(() => {
+    .then(()  => {
       putStrLn(`Exiting process`);
       process.exit(0);
     })
@@ -14,4 +14,7 @@ import 'source-map-support/register';
       putStrLn(`Error: exiting process`);
       process.exit(1);
     });
-})();
+})().catch(error => {
+  putStrLn(`Error: exiting process`);
+  process.exit(1);
+});

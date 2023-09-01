@@ -14,8 +14,7 @@
     "build": "rushx compile && rushx path-rewrite",
     "build:watch": "rushx build",
     "rebuild": "rushx clean && rushx build",
-    "lint": "eslint ./src",
-    "lint:fix": "eslint src/ --fix",
+    "lint": "eslint --no-eslintrc -c ../root/.eslintrc-devtime.js ./src",
     "test": "jest --runInBand"
   },
   "dependencies": {

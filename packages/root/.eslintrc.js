@@ -19,7 +19,6 @@ module.exports = {
                 'plugin:promise/recommended',
                 'plugin:unicorn/recommended',
                 'plugin:import/recommended'
-                // 'prettier',
         ],
 
         plugins: [

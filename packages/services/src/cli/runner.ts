@@ -20,7 +20,7 @@ export async function runCli() {
 
       if (err !== undefined) {
         errorMessage += `
-        Error was: ${err}
+          Error was: ${err.toString()}
         `;
       }
       putStrLn(errorMessage);
