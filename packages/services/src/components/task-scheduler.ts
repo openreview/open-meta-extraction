@@ -1,14 +1,39 @@
 import _ from 'lodash';
 import { Logger } from 'winston';
-import { composeScopes, delay, getServiceLogger, putStrLn, withScopedExec } from '@watr/commonlib';
-import { MongoQueries, mongoQueriesExecScopeWithDeps } from '~/db/query-api';
+import { composeScopes, delay, getServiceLogger, prettyPrint, putStrLn, withScopedExec } from '@watr/commonlib';
 import differenceInMilliseconds from 'date-fns/differenceInMilliseconds';
 import { TaskCursors, taskCursorExecScope } from '~/db/task-cursors';
 import { Model, PipelineStage } from 'mongoose';
+import { MongoDB, mongooseExecScopeWithDeps } from '~/db/mongodb';
 
+
+// TODO move or use ts-toolbelt
+export type Class<T extends object = {}, Arguments extends unknown[] = any[]> = {
+  prototype: T;
+  new(...arguments_: Arguments): T;
+};
+
+export type Instance<C extends Class> =
+  C extends Class<infer T, any[]>
+  ? T : any;
+
+type ClassMethod<
+  T extends object
+> = {
+  [K in keyof T]: T[K] extends Function ? T[K] : never;
+}[keyof T];
+
+
+type Method<
+  T extends object,
+  C extends Class<T>,
+  I extends Instance<C>
+> = {
+  [K in keyof I]: I[K] extends Function ? I[K] : never;
+}[keyof I];
 
 type TaskSchedulerNeeds = {
-  mongoQueries: MongoQueries;
+  mongoDB: MongoDB;
   taskCursors: TaskCursors
 }
 
@@ -17,8 +42,8 @@ const taskSchedulerScope = () => withScopedExec<
   'taskScheduler',
   TaskSchedulerNeeds
 >(
-  async function init({ mongoQueries, taskCursors }) {
-    const taskScheduler = new TaskScheduler({ mongoQueries, taskCursors });
+  async function init({ mongoDB, taskCursors }) {
+    const taskScheduler = new TaskScheduler({ mongoDB, taskCursors });
     return { taskScheduler };
   },
 );
@@ -30,19 +55,52 @@ export const taskSchedulerExecScope = () => composeScopes(
 );
 
 export const taskSchedulerScopeWithDeps = () => composeScopes(
-  mongoQueriesExecScopeWithDeps(),
+  mongooseExecScopeWithDeps(),
   taskSchedulerExecScope(),
 );
 
 export class TaskScheduler {
   log: Logger;
-  mongoQueries: MongoQueries;
+  mongoDB: MongoDB;
   taskCursors: TaskCursors;
 
-  constructor({ mongoQueries, taskCursors }: TaskSchedulerNeeds) {
+  constructor({ mongoDB, taskCursors }: TaskSchedulerNeeds) {
     this.log = getServiceLogger('TaskScheduler');
-    this.mongoQueries = mongoQueries;
+    this.mongoDB = mongoDB;
     this.taskCursors = taskCursors;
+  }
+
+  async registerTask<
+    T extends object,
+    C extends Class<T>,
+    I extends Instance<C>,
+    M extends Method<T, C, I>,
+    Coll
+  >(
+    executor: I,
+    method: M,
+    model: Model<Coll>,
+    cursorField: string,
+    initCursorValue: number,
+    matchFilter?: PipelineStage.Match
+  ) {
+    const name = executor.constructor.name;
+    const taskName = `${name}#${method.name}`;
+    this.log.info(`Registering task ${taskName}`);
+    const existing = await this.taskCursors.getTask(taskName);
+    if (existing) {
+      this.log.info(`Task ${taskName} exists`);
+      prettyPrint({ existing });
+      return;
+    }
+    const task = await this.taskCursors.defineTask(
+      taskName,
+      model,
+      cursorField,
+      initCursorValue,
+      matchFilter
+    );
+    return task;
   }
 
   async initTask<M>(
@@ -60,6 +118,7 @@ export class TaskScheduler {
       matchFilter
     );
     return task;
+
   }
 
   async* taskStream(taskName: string): AsyncGenerator<number, void, void> {

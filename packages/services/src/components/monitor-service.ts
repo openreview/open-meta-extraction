@@ -6,7 +6,7 @@ import { ExtractionServiceMonitor, extractionServiceMonitor } from './extraction
 import { FetchServiceMonitor, fetchServiceMonitor } from './fetch-service';
 import { Router, httpServerExecScopeWithDeps, respondWithPlainText } from '@watr/spider';
 import { Logger } from 'winston';
-import { CountPerDay } from '~/db/mongo-helpers';
+import { CountPerDay } from '~/db/query-clauses';
 import { MongoDB, mongooseExecScopeWithDeps } from '~/db/mongodb';
 
 

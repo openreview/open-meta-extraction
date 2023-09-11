@@ -16,7 +16,7 @@ import {
 
 import { generateFromBatch } from '~/util/generators';
 import { ShadowDB, shadowDBExecScope } from './shadow-db';
-import * as mh from '~/db/mongo-helpers';
+import * as mh from '~/db/query-clauses';
 import { mongoQueriesExecScopeWithDeps } from '~/db/query-api';
 import { DBModels } from '~/db/schemas';
 
@@ -64,6 +64,7 @@ export class FetchService {
     this.config = config
   }
 
+  // Fetch batches of notes from OpenReview
   async* createNoteBatchGenerator(startingNoteId?: string): AsyncGenerator<Note[], void, void> {
     let curNoteId = startingNoteId;
     while (true) {
@@ -81,6 +82,7 @@ export class FetchService {
     }
   }
 
+  // Flatten Note[] batches into stream of Note items
   createNoteGenerator(limit: number, startingNoteId?: string): AsyncGenerator<Note, number, void> {
     return generateFromBatch<Note>(this.createNoteBatchGenerator(startingNoteId), limit);
   }
@@ -95,12 +97,10 @@ export class FetchService {
     }
 
     const noteGenerator = this.createNoteGenerator(limit, startingNoteId);
-
-    let cur = await noteGenerator.next();
-    for (; !cur.done; cur = await noteGenerator.next()) {
-      const note = cur.value;
+    for await (const note of noteGenerator) {
       await this.shadow.saveNote(note, true);
     }
+
     this.log.info('FetchLoop complete');
 
     if (pauseBeforeExiting) {

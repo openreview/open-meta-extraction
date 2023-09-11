@@ -14,22 +14,6 @@ import { shadowDBExecScope, shadowDBConfig } from '~/components/shadow-db';
 const { opt, config, registerCmd } = arglib;
 
 export function registerCLICommands(yargv: arglib.YArgsT) {
-  // registerCmd(
-  //   yargv,
-  //   'extraction-summary',
-  //   'Show A Summary of Spidering/Extraction Progress',
-  //   config(
-  //   )
-  // )(async () => {
-  //   putStrLn('Extraction Summary');
-  //   const config = loadConfig();
-  //   const mongoose = await connectToMongoDB(config);
-  //   const summaryMessages = await showStatusSummary();
-  //   const formatted = formatStatusMessages(summaryMessages);
-  //   putStrLn(formatted);
-  //   await mongoose.connection.close();
-  // });
-
   registerCmd(
     yargv,
     'run-fetch-service',
@@ -45,87 +29,64 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
     }
   });
 
-  // registerCmd(
-  //   yargv,
-  //   'list-cursors',
-  //   'Show all current cursors',
-  //   config(
-  //     opt.flag('delete: delete all cursors', false),
-  //   )
-  // )(async (args: any) => {
-  //   const del = args.delete;
 
-  //   for await (const { mongoDB } of scopedMongoose()(mongoConfig())) {
-  //     for await (const { mongoQueries } of mongoQueriesExecScope()({ mongoDB })) {
-  //       const cursors = await mongoQueries.getCursors()
-  //       cursors.forEach(c => {
-  //         putStrLn(`> ${c.role} = id:${c.noteId} number:${c.noteNumber} created:${c.createdAt}`);
-  //       });
+  registerCmd(
+    yargv,
+    'manage-tasks',
+    'Create/delete extraction tasks and show status',
+    config(
+      opt.str('role: the cursor role to operate on'),
+      opt.flag('create: delete the named cursor', false),
+      opt.flag('delete: delete the named cursor', false),
+      opt.num('move: Move the cursor forward/backward by the specified number', 0),
+    )
+  )(async (args: any) => {
+    //   const role = args.role;
+    //   const del = args.delete;
+    //   const create = args.create;
+    //   const move = args.move;
 
-  //       if (_.isBoolean(del) && del) {
-  //         await mongoQueries.deleteCursors();
-  //       }
-  //     }
-  //   }
-  // });
+    //   if (!isCursorRole(role)) {
+    //     putStrLn(`Not a valid cursor role: ${role}`)
+    //     const r = CursorRoles.join(', ')
+    //     putStrLn(`Roles are: ${r}`)
+    //     return;
+    //   }
 
+    for await (const { taskScheduler } of taskSchedulerScopeWithDeps()(mongoConfig())) {
+    }
 
-  // registerCmd(
-  //   yargv,
-  //   'update-cursor',
-  //   'Create/update/delete pointers to last fetched/extracted',
-  //   config(
-  //     opt.str('role: the cursor role to operate on'),
-  //     opt.flag('create: delete the named cursor', false),
-  //     opt.flag('delete: delete the named cursor', false),
-  //     opt.num('move: Move the cursor forward/backward by the specified number', 0),
-  //   )
-  // )(async (args: any) => {
-  //   const role = args.role;
-  //   const del = args.delete;
-  //   const create = args.create;
-  //   const move = args.move;
+    //     if (_.isNumber(move) && move !== 0) {
+    //       putStrLn(`Moving cursor w/role ${role}`);
+    //       const cursor = await mongoQueries.getCursor(role);
+    //       if (cursor) {
+    //         putStrLn(`Moving cursor ${cursor.noteId}`);
+    //         const movedCursor = await mongoQueries.moveCursor(cursor._id, move);
+    //         if (_.isString(movedCursor)) {
+    //           putStrLn(`Did Not move cursor: ${movedCursor}`);
+    //           return;
+    //         }
+    //         putStrLn(`Moved cursor ${cursor.noteId} to ${movedCursor.noteId}`);
+    //       } else {
+    //         putStrLn(`No cursor with role ${role}`);
+    //       }
+    //       return;
+    //     }
 
-  //   if (!isCursorRole(role)) {
-  //     putStrLn(`Not a valid cursor role: ${role}`)
-  //     const r = CursorRoles.join(', ')
-  //     putStrLn(`Roles are: ${r}`)
-  //     return;
-  //   }
+    //     if (_.isBoolean(del) && del) {
+    //       await taskScheduler.deleteUrlCursor(role);
+    //       return;
+    //     }
 
-  //   for await (const { taskScheduler, mongoQueries } of taskSchedulerScopeWithDeps()(mongoConfig())) {
+    //     if (_.isBoolean(create) && create) {
+    //       await taskScheduler.createUrlCursor(role);
+    //       return;
+    //     }
 
-  //     if (_.isNumber(move) && move !== 0) {
-  //       putStrLn(`Moving cursor w/role ${role}`);
-  //       const cursor = await mongoQueries.getCursor(role);
-  //       if (cursor) {
-  //         putStrLn(`Moving cursor ${cursor.noteId}`);
-  //         const movedCursor = await mongoQueries.moveCursor(cursor._id, move);
-  //         if (_.isString(movedCursor)) {
-  //           putStrLn(`Did Not move cursor: ${movedCursor}`);
-  //           return;
-  //         }
-  //         putStrLn(`Moved cursor ${cursor.noteId} to ${movedCursor.noteId}`);
-  //       } else {
-  //         putStrLn(`No cursor with role ${role}`);
-  //       }
-  //       return;
-  //     }
+    //     putStrLn('No operation specifed...');
+    //   }
 
-  //     if (_.isBoolean(del) && del) {
-  //       await taskScheduler.deleteUrlCursor(role);
-  //       return;
-  //     }
-
-  //     if (_.isBoolean(create) && create) {
-  //       await taskScheduler.createUrlCursor(role);
-  //       return;
-  //     }
-
-  //     putStrLn('No operation specifed...');
-  //   }
-
-  // });
+  });
 
   registerCmd(
     yargv,
@@ -173,6 +134,7 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
 
     const composition = composeScopes(
       taskSchedulerScopeWithDeps(),
+      mongoQueriesExecScope(),
       shadowDBExecScope(),
       scopedBrowserPool(),
       scopedExtractionService()
@@ -209,6 +171,7 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
     const config = shadowDBConfig();
     const composition = composeScopes(
       taskSchedulerScopeWithDeps(),
+      mongoQueriesExecScope(),
       shadowDBExecScope(),
       scopedBrowserPool(),
       scopedExtractionService()

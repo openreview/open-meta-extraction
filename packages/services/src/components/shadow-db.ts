@@ -78,9 +78,6 @@ export class ShadowDB {
     }
   }
 
-  async getUrlStatusForCursor(cursor: TaskCursor): Promise<UrlStatusDocument | undefined> {
-    return this.mongoQueries.findUrlStatusById(cursor.noteId);
-  }
 
   async findNote(noteId: string): Promise<NoteStatus | undefined> {
     return this.mongoQueries.findNoteStatusById(noteId);

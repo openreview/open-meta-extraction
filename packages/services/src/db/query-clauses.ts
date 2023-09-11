@@ -1,8 +1,6 @@
 import _ from 'lodash';
 import { addDays } from 'date-fns';
-import { PipelineStage, Schema, Types, Model } from 'mongoose';
-import { MongoDB } from './mongodb';
-
+import { PipelineStage } from 'mongoose';
 
 export interface CountPerDay {
   day: Date;
@@ -16,6 +14,7 @@ export const sortByDay: PipelineStage.Sort = {
 export function matchAll(head: PipelineStage.Match, ...clauses: PipelineStage.Match[]): PipelineStage.Match {
   return _.merge({}, head, ...clauses);
 }
+
 export function daysfromToday(numOfDays: number): Date {
   return addDays(new Date(), numOfDays);
 }
@@ -25,6 +24,7 @@ export function matchCreatedAtDaysFromToday(numOfDays: number): PipelineStage.Ma
   const clause: PipelineStage.Match = { $match: { createdAt: { $gte: fromDate } } };
   return clause;
 }
+
 export function matchFieldVal(field: string, value: string): PipelineStage.Match {
   const obj: Record<string, string> = {};
   obj[field] = value;
@@ -48,25 +48,4 @@ export function countByDay(dateField: string): PipelineStage.Group {
   };
   _.set(countByDayStage, ['$group', '_id', '$dateToString', 'date'], `$${dateField}`);
   return countByDayStage;
-}
-
-
-// Fake collection for testing
-export interface MyColl {
-  _id: Types.ObjectId;
-  number: number;
-  isValid: boolean;
-}
-
-export async function initMyColl(mongoDB: MongoDB): Promise<Model<MyColl>> {
-  const schema = new Schema<MyColl>({
-    number: { type: Number, required: true, unique: true },
-    isValid: { type: Boolean, required: true },
-  }, {
-    collection: 'my_coll',
-  });
-
-  const model = mongoDB.mongoose.model<MyColl>('MyColl', schema);
-  await model.createCollection();
-  return model
 }

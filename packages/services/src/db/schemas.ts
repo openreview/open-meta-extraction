@@ -66,7 +66,8 @@ export function createDBModels(
     const schema = new Schema<Task>({
       taskName: { type: String, required: true, unique: true },
       collectionName: { type: String, required: true },
-      match: { type: Schema.Types.Mixed, required: true },
+      matchFirst: { type: Schema.Types.Mixed, required: true },
+      matchNext: { type: Schema.Types.Mixed, required: true },
       cursorField: { type: String, required: true },
       cursorValue: { type: Number, required: true },
     }, {
@@ -225,7 +226,8 @@ export interface Task {
   _id: Types.ObjectId;
   taskName: string;
   collectionName: string;
-  match: PipelineStage.Match;
+  matchFirst: PipelineStage.Match;
+  matchNext: PipelineStage.Match;
   cursorField: string;
   cursorValue: number;
 }

@@ -22,7 +22,7 @@ import { ShadowDB } from './shadow-db';
 import { DBModels, UrlStatus, WorkflowStatus } from '~/db/schemas';
 import { taskSchedulerScopeWithDeps, TaskScheduler } from './task-scheduler';
 import { parseIntOrElse } from '~/util/misc';
-import * as mh from '~/db/mongo-helpers';
+import * as mh from '~/db/query-clauses';
 import { PipelineStage } from 'mongoose';
 
 type ExtractionServiceNeeds = {
@@ -57,6 +57,20 @@ export class ExtractionService {
     this.browserPool = browserPool;
   }
 
+  async runDummy() {
+  }
+  async registerTasks() {
+    const svc: ExtractionService = this;
+
+    this.taskScheduler.registerTask(
+      svc,
+      svc.runDummy,
+      this.shadowDB.mongoQueries.dbModels.urlStatus,
+      'noteNumber',
+      -1
+    );
+  }
+
   async initTasks() {
     const task = await this.taskScheduler.initTask(
       ExtractionTaskName,
@@ -64,15 +78,13 @@ export class ExtractionService {
       'noteNumber',
       -1
     );
-    prettyPrint({ task })
-
   }
+
   // Main Extraction Loop
   async runExtractionLoop(limit: number, rateLimited: boolean) {
     const runForever = limit === 0;
     this.log.info(`Starting extraction loop, runForever=${runForever} postResultsToOpenReview: ${this.postResultsToOpenReview}`);
     const maxRateMS = rateLimited ? 4000 : 0;
-    // const generatorx = this.taskScheduler.genUrlStreamRateLimited(maxRateMS)
     const generator = this.taskScheduler.taskStreamRateLimited(ExtractionTaskName, maxRateMS);
 
     let currCount = 0;

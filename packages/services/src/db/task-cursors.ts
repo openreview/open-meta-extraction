@@ -1,7 +1,19 @@
+/**
+ * Keep track of the  progress of tasks operating on a  sequence of items stored
+ * in a mongodb collection
+ *
+ * The Task definition consists of
+ * - The name of the collection holding the items to be processed
+ * - The field name in the collection used to identify the task
+ * - A Match expression that will be used to filter the collection
+ *
+ */
+
 import _ from 'lodash';
 import { Logger } from 'winston';
 import { Model } from 'mongoose';
 import { MongoDB, mongooseExecScopeWithDeps } from './mongodb';
+
 
 import {
   composeScopes,
@@ -18,6 +30,14 @@ import {
 export type TaskCursorNeeds = {
   mongoDB: MongoDB;
 }
+type DefineTaskArgs<M> = {
+    taskName: string,
+    model: Model<M>,
+    cursorField: string,
+    initCursorValue: number,
+    matchFirstQ?: PipelineStage.Match,
+    matchNextQ?: PipelineStage.Match
+};
 
 export const taskCursorExecScope = () => withScopedExec<TaskCursors, 'taskCursors', TaskCursorNeeds>(
   function init({ mongoDB }) {
@@ -30,7 +50,6 @@ export const taskCursorExecScopeWithDeps = () => composeScopes(
   mongooseExecScopeWithDeps(),
   taskCursorExecScope()
 );
-
 
 export class TaskCursors {
   log: Logger;
@@ -47,19 +66,23 @@ export class TaskCursors {
     return this.mongoDB.mongoose;
   }
 
-  async defineTask<M>(
-    taskName: string,
-    model: Model<M>,
-    cursorField: string,
-    initCursorValue: number,
-    matchFilter?: PipelineStage.Match
-  ): Promise<Task> {
+  async defineTask<M>({
+    taskName,
+    model,
+    cursorField,
+    initCursorValue,
+    matchFirstQ,
+    matchNextQ
+  }: DefineTaskArgs<M>): Promise<Task> {
     const collectionName = model.collection.name;
-    const match = matchFilter ? matchFilter : { $match: { _id: true } };
+    const matchFirst = matchFirstQ ? matchFirstQ : { $match: { _id: true } };
+    const matchNext = matchNextQ ? matchNextQ : { $match: { _id: true } };
+
     const created = await this.dbModels.task.create({
       taskName,
       collectionName,
-      match,
+      matchFirst,
+      matchNext,
       cursorField,
       cursorValue: initCursorValue
     });
@@ -85,14 +108,14 @@ export class TaskCursors {
     if (!task) {
       throw new Error(`advanceCursor(): no task named ${taskName} found`);
     }
-    const { match, cursorField, cursorValue } = task;
+    const { matchFirst, matchNext, cursorField, cursorValue } = task;
+    const isInitialized = cursorValue > -1;
+
     const q: PipelineStage.Match = {
       $match: {}
     }
     q.$match[cursorField] = { $gt: cursorValue };
 
-    const getNextQ = _.merge({}, match, q);
-    const query: any = getNextQ.$match;
     const models = this.conn().models;
     const collectionNameToModelMap = _.fromPairs(
       _.map(_.toPairs(models), ([, m]) => {
@@ -105,8 +128,20 @@ export class TaskCursors {
     }
     this.log.debug(`advancing task '${task.taskName}': db.${task.collectionName}.${task.cursorField} = ${task.cursorValue}`)
 
-    delete query['_id']; // TODO fix this kludge
+    if (!isInitialized) {
+      const getFirstQ = _.merge({}, matchFirst, q);
+      const query: any = getFirstQ.$match;
+      delete query['_id']; // TODO fix this kludge
+      // first item actually represents the last processed item, so it won't be reprocessed
+      const firstItem = await modelForCollection.findOne(query, null, { strictQuery: 'throw' });
+      task.cursorValue = firstItem[task.cursorField];
+      await task.save();
 
+    }
+
+    const getNextQ = _.merge({}, matchNext, q);
+    const query: any = getNextQ.$match;
+    delete query['_id']; // TODO fix this kludge
     const nextItem = await modelForCollection.findOne(query, null, { strictQuery: 'throw' });
 
     if (!nextItem) {

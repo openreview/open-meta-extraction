@@ -4,6 +4,8 @@ import * as fc from 'fast-check';
 import { MongoQueries } from './query-api';
 import { WorkflowStatuses } from './schemas';
 import { Note, Notes } from '~/components/openreview-gateway';
+import { Schema, Types, Model } from 'mongoose';
+import { MongoDB } from './mongodb';
 
 export async function populateDBHostNoteStatus(mdb: MongoQueries, n: number) {
   await asyncEachOfSeries(
@@ -155,4 +157,24 @@ export function createFakeNotes(config: ConfigProvider, count: number, startingN
   };
   const notes = createFakeNoteList(config, count, fieldFrequencies, startingNumber);
   return asNoteBatch(count, notes);
+}
+
+// Fake collection for testing
+export interface MyColl {
+  _id: Types.ObjectId;
+  number: number;
+  isValid: boolean;
+}
+
+export async function initMyColl(mongoDB: MongoDB): Promise<Model<MyColl>> {
+  const schema = new Schema<MyColl>({
+    number: { type: Number, required: true, unique: true },
+    isValid: { type: Boolean, required: true },
+  }, {
+    collection: 'my_coll',
+  });
+
+  const model = mongoDB.mongoose.model<MyColl>('MyColl', schema);
+  await model.createCollection();
+  return model
 }

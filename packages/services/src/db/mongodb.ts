@@ -1,4 +1,11 @@
-// import mongoose, { Mongoose } from 'mongoose';
+/**
+ * Basic MongoDB connection logic
+ * Configuration options for testing
+ *   - Creating uniq per-test databases
+ *   - Mocking timestamps
+ */
+
+
 import * as mg from 'mongoose';
 import { randomBytes } from 'crypto';
 
@@ -16,7 +23,6 @@ import {
   isProdEnv
 } from '@watr/commonlib';
 import { Logger } from 'winston';
-
 export function mongoConnectionString(config: ConfigProvider, dbNameMod?: string): string {
   const ConnectionURL = config.get('mongodb:connectionUrl');
   const MongoDBName = config.get('mongodb:dbName');
@@ -51,7 +57,6 @@ export class MockCurrentTimeOpt implements CurrentTimeOpt {
 export const DefaultCurrentTimeOpt: CurrentTimeOpt = {
   currentTime: () => new Date()
 };
-
 
 import { addHours, addDays } from 'date-fns';
 

@@ -4,7 +4,7 @@ import { asyncEachOfSeries, putStrLn, setLogEnvLevel } from '@watr/commonlib';
 import { fetchServiceExecScopeWithDeps } from './fetch-service';
 import { FieldFrequencies, createFakeNoteList } from '~/db/mock-data';
 import { fakeNoteIds, listNoteStatusIds, openreviewAPIForNotes, spiderableRoutes } from './testing-utils';
-import { extractionServiceMonitor, scopedExtractionService } from './extraction-service';
+import { extractionServiceMonitor, scopedExtractionService, scopedExtractionServiceWithDeps } from './extraction-service';
 import { MongoQueries } from '~/db/query-api';
 import { shadowDBExecScopeWithDeps, shadowDBConfig } from './shadow-db';
 import { Router, withHttpTestServer, scopedBrowserPool } from '@watr/spider';
@@ -14,7 +14,7 @@ describe('Extraction Service', () => {
 
   setLogEnvLevel('debug');
 
-  it.only('should run end-to-end', async () => {
+  it('should run end-to-end', async () => {
     const shadowConfig = shadowDBConfig();
     const config = shadowConfig.config;
     const noteCount = 10;
@@ -51,7 +51,7 @@ describe('Extraction Service', () => {
     for await (const { gracefulExit } of withHttpTestServer({ config, routerSetup })) {
       for await (const { browserPool } of scopedBrowserPool()({ gracefulExit })) {
         for await (const { fetchService, shadowDB, mongoQueries, mongoDB } of fetchServiceExecScopeWithDeps()(shadowConfig)) {
-          for await (const { taskScheduler } of taskSchedulerExecScope()({ mongoDB, mongoQueries })) {
+          for await (const { taskScheduler } of taskSchedulerExecScope()({ mongoDB })) {
             const dbModels = mongoDB.dbModels
             // Init the shadow db
             await fetchService.runFetchLoop(100);
@@ -60,7 +60,6 @@ describe('Extraction Service', () => {
 
             for await (const { extractionService } of scopedExtractionService()({ shadowDB, taskScheduler, browserPool, postResultsToOpenReview })) {
               await extractionService.initTasks();
-              putStrLn('Task init..')
 
               // // Start from beginning
               // await taskScheduler.createUrlCursor('extract-fields/all');
@@ -95,7 +94,6 @@ describe('Extraction Service', () => {
   });
 
   it('should monitor newly extracted fields', async () => {
-
     const config = shadowDBConfig();
     for await (const { shadowDB, mongoDB } of shadowDBExecScopeWithDeps()(config)) {
 
