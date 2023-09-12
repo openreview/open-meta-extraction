@@ -146,15 +146,16 @@ export function registerCLICommands(yargv: arglib.YArgsT) {
       ...config,
       postResultsToOpenReview // TODO merge this with 'writeChangesToOpenReview'
     })) {
-      await extractionService.runExtractionLoop(limit, true);
+      await extractionService.runExtractNewlyImported(limit, true);
     }
 
     if (pauseBeforeExit) {
       const oneSecond = 1000;
       const oneMinute = 60 * oneSecond;
-      const oneHour = 60 * oneMinute;
-      putStrLn('Delaying for 1 hour before restart');
-      await delay(oneHour)
+      // const oneHour = 60 * oneMinute;
+      const fiveMinutes = 5 * oneMinute;
+      putStrLn('Delaying for 5 minutes before restart');
+      await delay(fiveMinutes)
     }
   });
 

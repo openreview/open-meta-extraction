@@ -3,18 +3,14 @@
 
 ** Next Actions
 
-- [ ] Multi-task support
-  - [ ] Task Cursor changes
-    - [ ] states
-      - next,
-      - current (ids for multiprocessing support),
-      - complete (),
-      - begin/end-token(either finished or awaiting next item)
-    - [ ] Monitor outstanding tasks, execution time, parallelization
-
   - [ ] Task Types
+    - [ ] Process most recently fetched notes
     - [ ] Fill in missing responseUrl/httpStatus fields in UrlStatus
     - [ ] Extract/fill in missing fields from HTML
+
+  - [ ] Multi-task support
+    - [ ] Task Cursor changes
+      - [ ] Monitor outstanding tasks, execution time, parallelization
 
 ** Tasks
 
@@ -51,6 +47,10 @@
 - [ ] response/responseHost might be combined
 - [ ] eliminate workflow status
 - [ ] [build system] compare tsup/tsc vs rush build/watch speeds
+    - [ ] factor out rate limiting logic
+    - [ ] factor out limit # to process logic (asyncIter.zipWithIndex)
+    - [ ] factor out registerTask using @annotations?
+    - [ ] factor out pauseBeforeExit logic (for PM2 restarts)
 
 
 ** Done

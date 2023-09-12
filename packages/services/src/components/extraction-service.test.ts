@@ -46,31 +46,14 @@ describe('Extraction Service', () => {
 
             for await (const { extractionService } of scopedExtractionService()({ shadowDB, taskScheduler, browserPool, postResultsToOpenReview })) {
 
-              // // Start from beginning
-              // await taskScheduler.createUrlCursor('extract-fields/all');
-              // await checkCursor(mongoQueries, 'extract-fields/all', 'note#1');
-
-              await extractionService.runExtractionLoop(2, false);
-
-              // // Next note should be note#3
-              // await checkCursor(mongoQueries, 'extract-fields/all', 'note#3');
-
-
-              // // Reset to beginning
-              // await taskScheduler.deleteUrlCursor('extract-fields/all');
-              // await taskScheduler.createUrlCursor('extract-fields/all');
-              // await checkCursor(mongoQueries, 'extract-fields/all', 'note#1');
+              await extractionService.runExtractFromBeginning(2, false);
 
 
               // Fake a successful extraction
               await shadowDB.updateFieldStatus('note#2', 'abstract', "Ipsem...");
               await mongoQueries.updateUrlStatus('note#2', { hasAbstract: true })
 
-              // await taskScheduler.createUrlCursor('extract-fields/newest');
-              // await checkCursorUndefined(mongoQueries, 'extract-fields/newest');
-
-              await extractionService.runExtractionLoop(2, false);
-              // await checkCursor(mongoQueries, 'extract-fields/newest', 'note#5');
+              await extractionService.runExtractNewlyImported(2, false);
             }
           }
         }

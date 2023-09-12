@@ -2,23 +2,21 @@ import _ from 'lodash';
 
 import { CurrentTimeOpt, DefaultCurrentTimeOpt } from './mongodb';
 import { getServiceLogger, isUrl } from '@watr/commonlib';
-import { Schema, Types, Model, Connection, PipelineStage, FilterQuery } from 'mongoose';
+import { Schema, Types, Model, Connection, FilterQuery } from 'mongoose';
 
-
-const log = getServiceLogger('MongoSchema');
 
 export type DBModels = {
   noteStatus: Model<NoteStatus>;
   urlStatus: Model<UrlStatus>;
-  // taskCursor: Model<TaskCursor>;
-  // taskCursorX: Model<TaskCursorX>;
   task: Model<Task>;
   fieldStatus: Model<FieldStatus>;
 }
 
 export function defineDBModels(
   mongoose: Connection,
-  currTimeOpt?: CurrentTimeOpt): DBModels {
+  currTimeOpt?: CurrentTimeOpt
+): DBModels {
+  const log = getServiceLogger('MongoSchema');
   const timeOpt = currTimeOpt || DefaultCurrentTimeOpt;
   const NoteStatus = () => {
     const schema = new Schema<NoteStatus>({
@@ -79,36 +77,6 @@ export function defineDBModels(
     return mongoose.model<Task>('Task', schema);
   }
 
-  // const TaskCursorX = () => {
-  //   const schema = new Schema<TaskCursorX>({
-  //     noteId: { type: String, required: true },
-  //     noteNumber: { type: Number, required: true },
-  //     taskName: { type: String, required: true },
-  //     lockStatus: { type: String, required: true },
-  //     // taskName: { type: String }, 'extract-grobid/new|all|amend', 'extract-html/new|all|amend'
-  //     // lockStatus: { type: String }, 'next', 'locked:#id-of-holder', 'complete', 'last', 'begin'
-  //   }, {
-  //     collection: 'task_cursor_x',
-  //     timestamps: timeOpt,
-  //   });
-  //   schema.index({ taskName: 1, lockStatus: 1 });
-
-  //   return mongoose.model<TaskCursorX>('TaskCursorX', schema);
-  // }
-
-  // const TaskCursor = () => {
-  //   const schema = new Schema<TaskCursor>({
-  //     noteId: { type: String, required: true },
-  //     noteNumber: { type: Number, required: true },
-  //     role: { type: String, required: true, unique: true },
-  //   }, {
-  //     collection: 'task_cursor',
-  //     timestamps: timeOpt,
-  //   });
-
-  //   return mongoose.model<TaskCursor>('TaskCursor', schema);
-  // }
-
   const FieldStatus = () => {
     const schema = new Schema<FieldStatus>({
       noteId: { type: String },
@@ -133,8 +101,6 @@ export function defineDBModels(
     noteStatus: NoteStatus(),
     urlStatus: UrlStatus(),
     fieldStatus: FieldStatus(),
-    // taskCursor: TaskCursor(),
-    // taskCursorX: TaskCursorX(),
     task: Task(),
   }
 }
@@ -213,16 +179,6 @@ function NonNullable(v: unknown): boolean {
   return v !== null;
 }
 
-
-// export interface TaskCursor {
-//   _id: Types.ObjectId;
-//   noteId: string;
-//   noteNumber: number;
-//   role: string;
-//   createdAt: Date;
-//   updatedAt: Date;
-// }
-
 type TaskRunStatus = 'uninitialized' | 'running';
 
 export interface Task {
@@ -235,16 +191,6 @@ export interface Task {
   cursorField: string;
   cursorValue: number;
 }
-
-// export interface TaskCursorX {
-//   _id: Types.ObjectId;
-//   noteId: string;
-//   noteNumber: number;
-//   taskName: string;
-//   lockStatus: string;
-//   createdAt: Date;
-//   updatedAt: Date;
-// }
 
 export interface FieldStatus {
   noteId: string;

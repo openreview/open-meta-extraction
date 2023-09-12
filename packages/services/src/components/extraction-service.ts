@@ -55,25 +55,45 @@ export class ExtractionService {
     this.browserPool = browserPool;
   }
 
-  async runDummy() {
-  }
-
-  async registerTasks() {
-    const executor: ExtractionService = this;
-    await this.taskScheduler.registerTask({
-      executor,
-      method: this.runDummy,
-      model: this.shadowDB.mongoQueries.dbModels.urlStatus,
-      cursorField: 'noteNumber'
-    });
-  }
-
-  // Main Extraction Loop
-  async runExtractionLoop(limit: number, rateLimited: boolean) {
+  async runExtractNewlyImported(limit: number, rateLimited: boolean) {
     const executor: ExtractionService = this;
     const task = await this.taskScheduler.registerTask({
       executor,
-      method: this.runExtractionLoop,
+      method: this.runExtractNewlyImported,
+      model: this.shadowDB.mongoQueries.dbModels.urlStatus,
+      cursorField: 'noteNumber',
+      matchLastQ: { $or: [{ hasAbstract: true, hasPdfLink: true }] }
+    });
+    const runForever = limit === 0;
+    this.log.info(`Starting extraction loop, runForever=${runForever} postResultsToOpenReview: ${this.postResultsToOpenReview}`);
+    const maxRateMS = rateLimited ? 4000 : undefined;
+    const generator = this.taskScheduler.getTaskStream(task, maxRateMS);
+
+    let currCount = 0;
+    for await (const noteNumber of generator) {
+      const urlStatus = await this.shadowDB.mongoQueries.dbModels.urlStatus.findOne({ noteNumber });
+      if (!urlStatus) {
+        this.log.error(`No UrlStatus found for noteNumber ${noteNumber}`);
+        return;
+      }
+      await this.extractUrlStatus(urlStatus);
+
+      if (runForever) {
+        continue;
+      }
+
+      currCount++;
+      if (currCount >= limit) {
+        return;
+      }
+    }
+  }
+
+  async runExtractFromBeginning(limit: number, rateLimited: boolean) {
+    const executor: ExtractionService = this;
+    const task = await this.taskScheduler.registerTask({
+      executor,
+      method: this.runExtractFromBeginning,
       model: this.shadowDB.mongoQueries.dbModels.urlStatus,
       cursorField: 'noteNumber'
     });
