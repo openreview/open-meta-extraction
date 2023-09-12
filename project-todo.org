@@ -53,4 +53,13 @@
     - [ ] factor out pauseBeforeExit logic (for PM2 restarts)
 
 
-** Done
+** Error
+                                          Extracting URL = https://www.usenix.org/conference/nsdi22/presentation/kong
+16:29:03:033 debug [ExtractionService] [] Extracting URL = https://www.usenix.org/conference/nsdi15/technical-sessions/presentation/zhang
+83|RunExtractionService  | mongo closing db meta-extraction-prod...
+83|RunExtractionService  | Error:
+83|RunExtractionService  |       null
+83|RunExtractionService  |
+83|RunExtractionService  |           Error was: CastError: Cast to Number failed for value "NaN" (type number) at path "httpStatus"
+83|RunExtractionService  |
+83|RunExtractionService  | ProcessContainerFork.js run-extraction-service

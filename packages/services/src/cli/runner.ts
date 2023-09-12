@@ -1,4 +1,4 @@
-import { arglib, putStrLn } from '@watr/commonlib';
+import { arglib, prettyPrint, putStrLn } from '@watr/commonlib';
 
 import { spiderCLI } from '@watr/spider';
 import * as workflowCmds from './commands';
@@ -18,11 +18,19 @@ export async function runCli() {
       ${msg}
       `;
 
+      if (err instanceof Error) {
+        const stack = err.stack;
+        const cause = err.cause;
+        const { name, message} = err;
+        prettyPrint({ name, message, cause, stack });
+      }
+
       if (err !== undefined) {
         errorMessage += `
           Error was: ${err.toString()}
         `;
       }
+
       putStrLn(errorMessage);
       arglib.YArgs.showHelp();
       process.exit(1);
