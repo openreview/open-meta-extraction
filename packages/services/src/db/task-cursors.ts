@@ -32,11 +32,11 @@ export type TaskCursorNeeds = {
   mongoDB: MongoDB;
 }
 type DefineTaskArgs<M> = {
-  taskName: string,
-  model: Model<M>,
-  cursorField: string,
-  matchLastQ?: FilterQuery<any>,
-  matchNextQ?: FilterQuery<any>
+  taskName: string;
+  model: Model<M>;
+  cursorField: string;
+  matchLastQ?: FilterQuery<any>;
+  matchNextQ?: FilterQuery<any>;
 };
 
 export const taskCursorExecScope = () => withScopedExec<TaskCursors, 'taskCursors', TaskCursorNeeds>(
@@ -74,7 +74,7 @@ export class TaskCursors {
     matchNextQ
   }: DefineTaskArgs<M>): Promise<Task> {
     const collectionName = model.collection.name;
-    const matchLast = matchLastQ ? matchLastQ : _.set({}, [cursorField], -1 );
+    const matchLast = matchLastQ ? matchLastQ : _.set({}, [cursorField], -1);
     const matchNext = matchNextQ ? matchNextQ : _.set({}, [cursorField], { $exists: true });
 
     const created = await this.dbModels.task.create({
@@ -146,18 +146,19 @@ export class TaskCursors {
     task.runStatus = 'running';
 
     const model = this.#getModelForCollection<object>(task.collectionName);
-    const getFirstQ = _.merge({}, task.matchLast);
-    const query: any = getFirstQ;
+    const lastProcessedQ: FilterQuery<any> = _.merge({}, task.matchLast);
+    const sortClause: FilterQuery<any> = _.set({}, [task.toObject().cursorField], -1);
+    // TODO document the sorting proceedure for lastQ vs nextQ
     // first item actually represents the last processed item, so it won't be reprocessed
-    const firstItem = await model.findOne(query, null, { strictQuery: 'throw' });
-    if (!firstItem) {
+    const lastProcessedItem = await model.findOne(lastProcessedQ, null, { strictQuery: 'throw', sort: sortClause });
+    if (!lastProcessedItem) {
       this.log.debug(`Initializing task ${task.taskName}: no initial item found`)
       return task.save();
     }
-    const fi = prettyFormat({ firstItem })
+    const fi = prettyFormat({ lastProcessedItem })
     this.log.debug(`Initializing first Item = ${fi}`)
 
-    const cursorValue = firstItem.get(task.cursorField);
+    const cursorValue = lastProcessedItem.get(task.cursorField);
     task.cursorValue = cursorValue;
     return task.save();
   }

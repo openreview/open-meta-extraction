@@ -64,7 +64,7 @@ type RegisterTaskArgs<
   model: Model<Coll>,
   cursorField: string,
   matchLastQ?: FilterQuery<any>,
-  matchNextQ?: FilterQuery<any>
+  matchNextQ?: FilterQuery<any>,
 };
 
 type GetTaskArgs<
@@ -100,7 +100,7 @@ export class TaskScheduler {
     model,
     cursorField,
     matchLastQ,
-    matchNextQ
+    matchNextQ,
   }: RegisterTaskArgs<T, C, I, M, Coll>): Promise<Task> {
     const name = executor.constructor.name;
     const taskName = `${name}#${method.name}`;
@@ -115,7 +115,7 @@ export class TaskScheduler {
       model,
       cursorField,
       matchLastQ,
-      matchNextQ
+      matchNextQ,
     });
     return task;
   }
