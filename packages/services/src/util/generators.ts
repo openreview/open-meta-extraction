@@ -1,5 +1,4 @@
-// Import the random function from the crypto library to generate random numbers
-import { putStrLn } from '@watr/commonlib';
+import { asyncDoUntil } from '@watr/commonlib';
 import { randomBytes } from 'crypto';
 
 // This function generates an array of 10 random 3-letter strings
@@ -61,4 +60,17 @@ export async function* generateFromBatch<T>(
     index++;
   }
   return limit;
+}
+
+export async function asyncGenToArray<T>(asyncGen: AsyncGenerator<T, void, void>): Promise<T[]> {
+  const ret: T[] = [];
+  await asyncDoUntil(
+    async () => {
+      const n = await asyncGen.next()
+      if (!n.done) ret.push(n.value)
+      return !!n.done;
+    },
+    async (isDone) => isDone
+  );
+  return ret;
 }

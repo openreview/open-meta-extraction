@@ -3,11 +3,10 @@ import _ from 'lodash';
 import { getServiceLogger, withScopedExec, shaEncodeAsHex, composeScopes, isTestingEnv } from '@watr/commonlib';
 
 import { Logger } from 'winston';
-import { TaskCursor, NoteStatus, WorkflowStatus } from '~/db/schemas';
+import { NoteStatus, WorkflowStatus } from '~/db/schemas';
 
 import {
   MongoQueries,
-  UrlStatusDocument,
   mongoQueriesExecScopeWithDeps
 } from '~/db/query-api';
 

@@ -9,7 +9,7 @@
 import * as mg from 'mongoose';
 import { randomBytes } from 'crypto';
 
-import { DBModels, createDBModels } from '~/db/schemas';
+import { DBModels, defineDBModels } from '~/db/schemas';
 import {
   getServiceLogger,
   isTestingEnv,
@@ -105,7 +105,7 @@ export class MongoDB {
   async createCollections() {
     await this.dbModels.noteStatus.createCollection();
     await this.dbModels.urlStatus.createCollection();
-    await this.dbModels.taskCursor.createCollection();
+    await this.dbModels.task.createCollection();
     await this.dbModels.fieldStatus.createCollection();
   }
   async unsafeResetD() {
@@ -128,13 +128,13 @@ export const scopedMongoose = () => withScopedExec<MongoDB, 'mongoDB', MongoDBNe
     if (isValidProdDB) {
       log.info(`MongoDB Production Environ`);
       const mongooseConn = await connectToMongoDB(config);
-      const dbModels = createDBModels(mongooseConn);
+      const dbModels = defineDBModels(mongooseConn);
       return { mongoDB: new MongoDB(mongooseConn, config, dbModels, log) };
     }
     if (isValidDevDB) {
       log.info(`MongoDB Dev Environ`);
       const mongooseConn = await connectToMongoDB(config);
-      const dbModels = createDBModels(mongooseConn);
+      const dbModels = defineDBModels(mongooseConn);
       return { mongoDB: new MongoDB(mongooseConn, config, dbModels, log) };
     }
 
@@ -150,7 +150,7 @@ export const scopedMongoose = () => withScopedExec<MongoDB, 'mongoDB', MongoDBNe
       log.debug(`mongo db ${dbName} connected...`);
 
       const timeOpt = isTestingEnv()? mockCurrentTimeOpt() : undefined;
-      const dbModels = createDBModels(mongooseConn, timeOpt);
+      const dbModels = defineDBModels(mongooseConn, timeOpt);
       const mongoDB = new MongoDB(mongooseConn, config, dbModels, log);
       if (useUniqTestDB) {
         await mongoDB.createCollections();

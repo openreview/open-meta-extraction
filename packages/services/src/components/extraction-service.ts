@@ -32,8 +32,6 @@ type ExtractionServiceNeeds = {
   postResultsToOpenReview: boolean
 };
 
-const ExtractionTaskName = 'spider/extract-fields';
-
 export class ExtractionService {
   log: Logger;
   shadowDB: ShadowDB;
@@ -59,33 +57,30 @@ export class ExtractionService {
 
   async runDummy() {
   }
+
   async registerTasks() {
-    const svc: ExtractionService = this;
-
-    this.taskScheduler.registerTask(
-      svc,
-      svc.runDummy,
-      this.shadowDB.mongoQueries.dbModels.urlStatus,
-      'noteNumber',
-      -1
-    );
-  }
-
-  async initTasks() {
-    const task = await this.taskScheduler.initTask(
-      ExtractionTaskName,
-      this.shadowDB.mongoQueries.dbModels.urlStatus,
-      'noteNumber',
-      -1
-    );
+    const executor: ExtractionService = this;
+    await this.taskScheduler.registerTask({
+      executor,
+      method: this.runDummy,
+      model: this.shadowDB.mongoQueries.dbModels.urlStatus,
+      cursorField: 'noteNumber'
+    });
   }
 
   // Main Extraction Loop
   async runExtractionLoop(limit: number, rateLimited: boolean) {
+    const executor: ExtractionService = this;
+    const task = await this.taskScheduler.registerTask({
+      executor,
+      method: this.runExtractionLoop,
+      model: this.shadowDB.mongoQueries.dbModels.urlStatus,
+      cursorField: 'noteNumber'
+    });
     const runForever = limit === 0;
     this.log.info(`Starting extraction loop, runForever=${runForever} postResultsToOpenReview: ${this.postResultsToOpenReview}`);
-    const maxRateMS = rateLimited ? 4000 : 0;
-    const generator = this.taskScheduler.taskStreamRateLimited(ExtractionTaskName, maxRateMS);
+    const maxRateMS = rateLimited ? 4000 : undefined;
+    const generator = this.taskScheduler.getTaskStream(task, maxRateMS);
 
     let currCount = 0;
     for await (const noteNumber of generator) {

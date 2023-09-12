@@ -1,7 +1,7 @@
 import _ from 'lodash';
 
 import { subDays } from 'date-fns';
-import { createDBModels } from './schemas';
+import { defineDBModels } from './schemas';
 
 interface BoolIDCounts {
   _id: boolean;
@@ -232,7 +232,7 @@ function formatHttpStatusByDomain(byDomain: StrIDCounts[]): string[] {
 
 //   const count = { $count: 'total' };
 
-//   const dbModels = createDBModels();
+//   const dbModels = defineDBModels();
 
 //   const noteStatusRes = await dbModels.noteStatus.aggregate([{
 //     $facet: {

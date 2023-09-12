@@ -1,11 +1,10 @@
 import _ from 'lodash';
 
-import { asyncEachOfSeries, putStrLn, setLogEnvLevel } from '@watr/commonlib';
+import { asyncEachOfSeries, setLogEnvLevel } from '@watr/commonlib';
 import { fetchServiceExecScopeWithDeps } from './fetch-service';
 import { FieldFrequencies, createFakeNoteList } from '~/db/mock-data';
 import { fakeNoteIds, listNoteStatusIds, openreviewAPIForNotes, spiderableRoutes } from './testing-utils';
-import { extractionServiceMonitor, scopedExtractionService, scopedExtractionServiceWithDeps } from './extraction-service';
-import { MongoQueries } from '~/db/query-api';
+import { extractionServiceMonitor, scopedExtractionService } from './extraction-service';
 import { shadowDBExecScopeWithDeps, shadowDBConfig } from './shadow-db';
 import { Router, withHttpTestServer, scopedBrowserPool } from '@watr/spider';
 import { taskSchedulerExecScope } from './task-scheduler';
@@ -32,21 +31,8 @@ describe('Extraction Service', () => {
       openreviewAPIForNotes({ notes, batchSize })(r, port)
       spiderableRoutes()(r);
     };
+
     const postResultsToOpenReview = true;
-
-    // async function checkCursor(mdb: MongoQueries, role: CursorRole, noteId: string) {
-    //   const c1 = await mdb.getCursor(role);
-    //   expect(c1).toBeDefined()
-    //   if (!c1) {
-    //     throw new Error('checkCursor: undefined');
-    //   }
-    //   expect(c1.noteId).toBe(noteId)
-    // }
-
-    // async function checkCursorUndefined(mdb: MongoQueries, role: CursorRole) {
-    //   const c1 = await mdb.getCursor(role);
-    //   expect(c1).toBeUndefined()
-    // }
 
     for await (const { gracefulExit } of withHttpTestServer({ config, routerSetup })) {
       for await (const { browserPool } of scopedBrowserPool()({ gracefulExit })) {
@@ -59,7 +45,6 @@ describe('Extraction Service', () => {
             expect(noteStatusIds).toMatchObject(fakeNoteIds(startingId, startingId + noteCount - 1));
 
             for await (const { extractionService } of scopedExtractionService()({ shadowDB, taskScheduler, browserPool, postResultsToOpenReview })) {
-              await extractionService.initTasks();
 
               // // Start from beginning
               // await taskScheduler.createUrlCursor('extract-fields/all');

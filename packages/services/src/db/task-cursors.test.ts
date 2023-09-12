@@ -15,9 +15,9 @@ describe('Task Cursors', () => {
 
   const mkTaskName = (i: number) => `my-task/${i}`;
 
-  async function initColl(mongoDB: MongoDB) {
+  async function initColl(mongoDB: MongoDB, initialRecordCount: number = 10) {
     const myColl = await initMyColl(mongoDB)
-    const records = _.map(_.range(10), (i) => ({ number: i, isValid: i % 2 === 0 }))
+    const records = _.map(_.range(initialRecordCount), (i) => ({ number: i, isValid: i % 2 === 0 }))
     await myColl.insertMany(records);
     return myColl;
   }
@@ -36,14 +36,13 @@ describe('Task Cursors', () => {
     for await (const { mongoDB, taskCursors } of taskCursorScope()) {
 
       const myColl = await initColl(mongoDB);
-      const matchNextQ = { $match: { number: { $mod: [2, 0] } } };
-      const matchFirstQ = { $match: { number: { $mod: [2, 0] } } };
+      const matchNextQ = { number: { $mod: [2, 0] } };
+      const matchLastQ = { number: -1 };
       await taskCursors.defineTask({
         taskName: task1,
         model: myColl,
         cursorField: 'number',
-        initCursorValue: -1,
-        matchFirstQ,
+        matchLastQ,
         matchNextQ
       });
 
@@ -60,14 +59,13 @@ describe('Task Cursors', () => {
     const task2 = mkTaskName(2);
     for await (const { mongoDB, taskCursors } of taskCursorScope()) {
       const myColl = await initColl(mongoDB);
-      const matchNextQ = { $match: { number: { $mod: [2, 0] } } };
-      const matchFirstQ = { $match: { number: { $mod: [2, 0] } } };
+      const matchNextQ = { number: { $mod: [2, 0] } };
+      const matchLastQ = { number: { $mod: [2, 0] } };
       await taskCursors.defineTask({
         taskName: task1,
         model: myColl,
         cursorField: 'number',
-        initCursorValue: -1,
-        matchFirstQ,
+        matchLastQ,
         matchNextQ
       });
 
@@ -80,8 +78,7 @@ describe('Task Cursors', () => {
         taskName: task2,
         model: myColl,
         cursorField: 'bad_field',
-        initCursorValue: -1,
-        matchFirstQ,
+        matchLastQ,
         matchNextQ
       });
       expect(
@@ -98,14 +95,14 @@ describe('Task Cursors', () => {
     const task3 = mkTaskName(3);
     for await (const { mongoDB, taskCursors } of taskCursorScope()) {
       const myColl = await initColl(mongoDB);
-      const matchFirstQ = { $match: { number: { $mod: [2, 0] } } };
-      const matchNext1 = { $match: { number: { $mod: [2, 0] } } };
-      const matchNext2 = { $match: { number: { $mod: [3, 0] } } };
+      const matchLastQ = { number: -1 };
+      const matchNext1 = { number: { $mod: [2, 0] } };
+      const matchNext2 = { number: { $mod: [3, 0] } };
       const matchNext3 = undefined;
 
-      await taskCursors.defineTask({taskName: task1, model: myColl, cursorField: 'number', initCursorValue: -1, matchFirstQ, matchNextQ: matchNext1});
-      await taskCursors.defineTask({taskName: task2, model: myColl, cursorField: 'number', initCursorValue: -1, matchFirstQ, matchNextQ: matchNext2});
-      await taskCursors.defineTask({taskName: task3, model: myColl, cursorField: 'number', initCursorValue: -1, matchFirstQ, matchNextQ: matchNext3});
+      await taskCursors.defineTask({ taskName: task1, model: myColl, cursorField: 'number', matchLastQ, matchNextQ: matchNext1 });
+      await taskCursors.defineTask({ taskName: task2, model: myColl, cursorField: 'number', matchLastQ, matchNextQ: matchNext2 });
+      await taskCursors.defineTask({ taskName: task3, model: myColl, cursorField: 'number', matchLastQ, matchNextQ: matchNext3 });
 
       const cursorValues1 = await advanceCursor(taskCursors, task1, 3);
       const cursorValues2 = await advanceCursor(taskCursors, task2, 3);
@@ -114,6 +111,31 @@ describe('Task Cursors', () => {
       expect(cursorValues1).toMatchObject([0, 2, 4])
       expect(cursorValues2).toMatchObject([0, 3, 6])
       expect(cursorValues3).toMatchObject([0, 1, 2])
+    }
+  });
+
+  it('should initialize task starting points with query', async () => {
+    const taskName = mkTaskName(1);
+    for await (const { mongoDB, taskCursors } of taskCursorScope()) {
+      const model = await initColl(mongoDB, 10);
+
+      for (const n of _.range(10)) {
+        const matchLastQ = { number: n - 1 };
+        const matchNextQ = undefined;
+        await taskCursors.defineTask({
+          taskName,
+          model,
+          cursorField: 'number',
+          matchLastQ,
+          matchNextQ
+        });
+
+        const cursorValues = await advanceCursor(taskCursors, taskName, 10);
+        const numNegOnes = cursorValues.filter(v => v === -1).length;
+        expect(numNegOnes).toEqual(n)
+        await taskCursors.deleteTask(taskName);
+
+      }
     }
   });
 

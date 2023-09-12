@@ -11,32 +11,32 @@
 
 import _ from 'lodash';
 import { Logger } from 'winston';
-import { Model } from 'mongoose';
+import { FilterQuery, Model } from 'mongoose';
 import { MongoDB, mongooseExecScopeWithDeps } from './mongodb';
 
 
 import {
   composeScopes,
-  getServiceLogger, prettyFormat, withScopedExec,
+  getServiceLogger,
+  prettyFormat,
+  withScopedExec,
 } from '@watr/commonlib';
-
-import { PipelineStage } from 'mongoose';
 
 import {
   DBModels,
   Task
 } from './schemas';
+import { TaskDocument } from './query-api';
 
 export type TaskCursorNeeds = {
   mongoDB: MongoDB;
 }
 type DefineTaskArgs<M> = {
-    taskName: string,
-    model: Model<M>,
-    cursorField: string,
-    initCursorValue: number,
-    matchFirstQ?: PipelineStage.Match,
-    matchNextQ?: PipelineStage.Match
+  taskName: string,
+  model: Model<M>,
+  cursorField: string,
+  matchLastQ?: FilterQuery<any>,
+  matchNextQ?: FilterQuery<any>
 };
 
 export const taskCursorExecScope = () => withScopedExec<TaskCursors, 'taskCursors', TaskCursorNeeds>(
@@ -70,23 +70,40 @@ export class TaskCursors {
     taskName,
     model,
     cursorField,
-    initCursorValue,
-    matchFirstQ,
+    matchLastQ,
     matchNextQ
   }: DefineTaskArgs<M>): Promise<Task> {
     const collectionName = model.collection.name;
-    const matchFirst = matchFirstQ ? matchFirstQ : { $match: { _id: true } };
-    const matchNext = matchNextQ ? matchNextQ : { $match: { _id: true } };
+    const matchLast = matchLastQ ? matchLastQ : _.set({}, [cursorField], -1 );
+    const matchNext = matchNextQ ? matchNextQ : _.set({}, [cursorField], { $exists: true });
 
     const created = await this.dbModels.task.create({
       taskName,
       collectionName,
-      matchFirst,
+      matchLast,
       matchNext,
       cursorField,
-      cursorValue: initCursorValue
+      cursorValue: -1,
+      runStatus: 'uninitialized'
     });
+
     return created.toObject();
+  }
+
+  async deleteTask(taskName: string) {
+    const toDelete = await this.dbModels.task.findOne({ taskName });
+    if (!toDelete) {
+      this.log.warn(`Trying to delete non-existent task ${taskName}`);
+      return;
+    }
+    await toDelete.deleteOne();
+  }
+
+  async findTask(taskName: string,): Promise<TaskDocument | undefined> {
+    const task = await this.dbModels.task.findOne({ taskName });
+    if (!task) return;
+
+    return task;
   }
 
   async getTasks(): Promise<Task[]> {
@@ -97,63 +114,86 @@ export class TaskCursors {
   async getTask(
     taskName: string,
   ): Promise<Task | undefined> {
-    const task = await this.dbModels.task.findOne({ taskName });
+    const task = await this.findTask(taskName);
     if (!task) return;
 
     return task.toObject();
   }
 
-  async advanceCursor(taskName: string): Promise<Task | undefined> {
-    const task = await this.dbModels.task.findOne({ taskName }, {}, { strictQuery: true });
-    if (!task) {
-      throw new Error(`advanceCursor(): no task named ${taskName} found`);
-    }
-    const { matchFirst, matchNext, cursorField, cursorValue } = task;
-    const isInitialized = cursorValue > -1;
-
-    const q: PipelineStage.Match = {
-      $match: {}
-    }
-    q.$match[cursorField] = { $gt: cursorValue };
-
+  #collectionToModelDict(): Record<string, Model<any>> {
     const models = this.conn().models;
-    const collectionNameToModelMap = _.fromPairs(
+    const dict: Record<string, Model<any>> = _.fromPairs(
       _.map(_.toPairs(models), ([, m]) => {
         return [m.collection.name, m];
       })
     );
-    const modelForCollection = collectionNameToModelMap[task.collectionName]
-    if (!modelForCollection) {
-      throw new Error(`advanceCursor(): no collection named ${task.collectionName} found; `);
+    return dict;
+  }
+
+  #getModelForCollection<T>(collectionName: string): Model<T> {
+    const dict = this.#collectionToModelDict();
+    const model = dict[collectionName]
+    if (!model) {
+      throw new Error(`advanceCursor(): no collection named ${collectionName} found; `);
     }
-    this.log.debug(`advancing task '${task.taskName}': db.${task.collectionName}.${task.cursorField} = ${task.cursorValue}`)
+    return model;
+  }
 
-    if (!isInitialized) {
-      const getFirstQ = _.merge({}, matchFirst, q);
-      const query: any = getFirstQ.$match;
-      delete query['_id']; // TODO fix this kludge
-      // first item actually represents the last processed item, so it won't be reprocessed
-      const firstItem = await modelForCollection.findOne(query, null, { strictQuery: 'throw' });
-      task.cursorValue = firstItem[task.cursorField];
-      await task.save();
-
+  async #maybeInitTask(task: TaskDocument): Promise<TaskDocument> {
+    if (task.runStatus !== 'uninitialized') {
+      return task;
     }
+    task.runStatus = 'running';
 
-    const getNextQ = _.merge({}, matchNext, q);
-    const query: any = getNextQ.$match;
-    delete query['_id']; // TODO fix this kludge
-    const nextItem = await modelForCollection.findOne(query, null, { strictQuery: 'throw' });
+    const model = this.#getModelForCollection<object>(task.collectionName);
+    const getFirstQ = _.merge({}, task.matchLast);
+    const query: any = getFirstQ;
+    // first item actually represents the last processed item, so it won't be reprocessed
+    const firstItem = await model.findOne(query, null, { strictQuery: 'throw' });
+    if (!firstItem) {
+      this.log.debug(`Initializing task ${task.taskName}: no initial item found`)
+      return task.save();
+    }
+    const fi = prettyFormat({ firstItem })
+    this.log.debug(`Initializing first Item = ${fi}`)
+
+    const cursorValue = firstItem.get(task.cursorField);
+    task.cursorValue = cursorValue;
+    return task.save();
+  }
+
+  async advanceCursor(taskName: string): Promise<Task | undefined> {
+    const maybeTask = await this.findTask(taskName);
+    if (!maybeTask) {
+      throw new Error(`advanceCursor(): no task named ${taskName} found`);
+    }
+    const task = await this.#maybeInitTask(maybeTask);
+
+    const dbModel = this.#getModelForCollection<Task>(task.collectionName);
+
+
+    let getNextQuery: FilterQuery<any> = {
+      $and: [
+        task.matchNext,
+        _.set({}, [task.cursorField, '$gt'], task.cursorValue),
+      ]
+    };
+
+    this.log.debug(`advanceCursor(${task.taskName}): db.${task.collectionName}.${task.cursorField} = ${task.cursorValue}`)
+
+    const nextItem = await dbModel.findOne(getNextQuery, null, { strictQuery: 'throw' });
 
     if (!nextItem) {
       return;
     }
 
-    if (nextItem[task.cursorField] === undefined) {
+    const nextCursorValue = nextItem.get(task.cursorField);
+    if (nextCursorValue === undefined) {
       const fmt = prettyFormat(nextItem)
       throw new Error(`advanceCursor(): field ${task.cursorField} not in item ${fmt}; `);
     }
 
-    task.cursorValue = nextItem[task.cursorField];
+    task.cursorValue = nextCursorValue;
     await task.save();
     return task.toObject();
   }

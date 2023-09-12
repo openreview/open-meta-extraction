@@ -15,7 +15,7 @@ import {
 import { Logger } from 'winston';
 
 import {
-  TaskCursor,
+  Task,
   FieldStatus,
   UrlStatus,
   UrlStatusUpdateFields,
@@ -29,7 +29,7 @@ import { MongoDB, mongooseExecScopeWithDeps } from './mongodb';
 export type CursorID = Types.ObjectId;
 export type UrlStatusDocument = Document<unknown, any, UrlStatus> & UrlStatus;
 export type NoteStatusDocument = Document<unknown, any, NoteStatus> & NoteStatus;
-export type TaskCursorDocument = Document<unknown, any, TaskCursor> & TaskCursor;
+export type TaskDocument = Document<unknown, any, Task> & Task;
 
 type upsertNoteStatusArgs = {
   noteId: string,
@@ -80,8 +80,8 @@ export class MongoQueries {
   async createDatabase() {
     await this.dbModels.noteStatus.createCollection();
     await this.dbModels.urlStatus.createCollection();
-    await this.dbModels.taskCursor.createCollection();
-    await this.dbModels.taskCursorX.createCollection();
+    // await this.dbModels.taskCursor.createCollection();
+    // await this.dbModels.taskCursorX.createCollection();
     await this.dbModels.fieldStatus.createCollection();
   }
 
