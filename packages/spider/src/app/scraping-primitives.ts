@@ -15,7 +15,7 @@ import {
   compose,
   through,
   tap,
-  ControlInstruction,
+  Explanation,
   filter,
   SpiderEnv
 } from '~/core/taskflow-defs';
@@ -104,7 +104,7 @@ export const fetchUrl: (pageOpts?: PageInstanceOptions) => Transform<URL, GotoUr
     return pipe(
       scrapingTask,
       TE.mapLeft((message) => {
-        const ci: ControlInstruction = ['halt', message];
+        const ci: Explanation = [message];
         return ci;
       })
     );
@@ -137,8 +137,7 @@ export const httpResponseToUrlFetchData: Transform<GotoUrlResponse, UrlFetchData
 export const getHttpResponseBody: Transform<HTTPResponse, string> =
   through((httpResponse) => {
     return pipe(
-      () => httpResponse.buffer().then(body => E.right(body.toString())),
-      TE.mapLeft((msg) => ['continue', msg])
+      () => httpResponse.buffer().then(body => E.right(body.toString()))
     );
   });
 

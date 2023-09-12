@@ -1,10 +1,11 @@
 ** List project plan for current task
 
-
 ** Next Actions
 
-  - [ ] Task Types
-    - [ ] Process most recently fetched notes
+  - [ ] Get rid of 'halt'|'continue'
+
+  - [-] Task Types
+    - [X] Process most recently fetched notes
     - [ ] Fill in missing responseUrl/httpStatus fields in UrlStatus
     - [ ] Extract/fill in missing fields from HTML
 
@@ -23,30 +24,27 @@
     - [ ] Fix errors where UrlStatus doesn't match FieldStatus (counts are different)
     - [ ] Reprocessing/fill-in-the-gaps logic
 
-- [ ] Get rid of 'halt'|'continue'
 
-- [ ] Bug: corpus artifacts are not always cleaned up (only on extraction success)
-- [ ] Feature: Send notify message when there are critical errors, or on certain events
-- [ ] Improvement: Reap dead chrome instances, cleanup /tmp files
-- [ ] Bug: when fetch service finishes, it loops around and causes key error on save note
-- [ ] Feature: Add cli switch to save artifacts after spidering/extraction (for use when writing new rules)
-- [ ] Feature: Save full abs/pdflink in shadow
-- [ ] Improvement: make notification happen at particular clock times, rather than every X hours
-- [ ] Create human-driven Q/A system for checking abstracts/links
-- [ ] Scheduled db backup, report on last backup time
-  - don't necessarily need to snapshot everything
+  - [ ] Bug: corpus artifacts are not always cleaned up (only on extraction success)
+  - [ ] Feature: Send notify message when there are critical errors, or on certain events
+  - [ ] Improvement: Reap dead chrome instances, cleanup /tmp files
+  - [ ] Feature: Add cli switch to save artifacts after spidering/extraction (for use when writing new rules)
+  - [ ] Feature: Save full abs/pdflink in shadow
+  - [ ] Improvement: make notification happen at particular clock times, rather than every X hours
+  - [ ] Create human-driven Q/A system for checking abstracts/links
+  - [ ] Scheduled db backup, report on last backup time
 
-- [ ] Report # of known authors, titles
-- [ ] <Monitor> Add more stats to monitor
-  - [ ] Progress for extraction/re-processing
-  - [ ] Pause/run/last exec time of extraction/fetching
-  - [ ] monitor disk usage
+  - [ ] Report # of known authors, titles
+  - [ ] <Monitor> Add more stats to monitor
+    - [ ] Progress for extraction/re-processing
+    - [ ] Pause/run/last exec time of extraction/fetching
+    - [ ] monitor disk usage
 
-- [ ] Bug: Error incorrectly logged when rewriting URLs (e.g., doi.org/arxiv..)
+  - [ ] Bug: Error incorrectly logged when rewriting URLs (e.g., doi.org/arxiv..)
     - error [ExtractionService] [] Fetch chain head !== specified request URL
-- [ ] response/responseHost might be combined
-- [ ] eliminate workflow status
-- [ ] [build system] compare tsup/tsc vs rush build/watch speeds
+  - [ ] response/responseHost might be combined
+  - [ ] eliminate workflow status
+  - [ ] [build system] compare tsup/tsc vs rush build/watch speeds
     - [ ] factor out rate limiting logic
     - [ ] factor out limit # to process logic (asyncIter.zipWithIndex)
     - [ ] factor out registerTask using @annotations?
@@ -54,12 +52,13 @@
 
 
 ** Error
-                                          Extracting URL = https://www.usenix.org/conference/nsdi22/presentation/kong
-16:29:03:033 debug [ExtractionService] [] Extracting URL = https://www.usenix.org/conference/nsdi15/technical-sessions/presentation/zhang
-83|RunExtractionService  | mongo closing db meta-extraction-prod...
-83|RunExtractionService  | Error:
-83|RunExtractionService  |       null
-83|RunExtractionService  |
-83|RunExtractionService  |           Error was: CastError: Cast to Number failed for value "NaN" (type number) at path "httpStatus"
-83|RunExtractionService  |
-83|RunExtractionService  | ProcessContainerFork.js run-extraction-service
+There is an as-yet unfixed error which stops with the following message
+    83|RunExtractionService  | Error:
+    83|RunExtractionService  |       null
+    83|RunExtractionService  |
+    83|RunExtractionService  |           Error was: CastError: Cast to Number failed for value "NaN" (type number) at path "httpStatus"
+    83|RunExtractionService  |
+
+It seemed to be coming from these URLs, but I cannot reproduce it.
+Extracting URL = https://www.usenix.org/conference/nsdi22/presentation/kong
+Extracting URL = https://www.usenix.org/conference/nsdi15/technical-sessions/presentation/zhang

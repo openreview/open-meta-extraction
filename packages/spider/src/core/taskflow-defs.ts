@@ -48,9 +48,8 @@ export const {
   eachOrElse,
   takeWhileSuccess,
   collectFanout,
-  valueEnvPair,
+  succeedWith,
   initArg,
-  controlEnvPair,
 } = fp;
 
 export const spiderTaskflow = fp;
@@ -68,4 +67,4 @@ export type ExtractionRule = (ra: ExtractionTask<unknown>) => ExtractionTask<unk
 export const compose = ft.compose;
 export const ClientFunc = fp.ClientFunc;
 
-export type ControlInstruction = ft.ControlInstruction
+export type Explanation = ft.Explanation

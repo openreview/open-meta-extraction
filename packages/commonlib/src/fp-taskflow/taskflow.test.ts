@@ -22,7 +22,7 @@ function initFirstEnv<A>(a: A): ExtractionTask<A> {
     messages: []
   };
 
-  return TE.right(valueEnvPair(a, env0));
+  return TE.right(succeedWith(a, env0));
 }
 
 interface SecondEnvT extends ft.BaseEnv {
@@ -35,7 +35,7 @@ const fp2 = ft.createTaskFlow<SecondEnvT>();
 
 type ExtractionTask<A> = ft.ExtractionTask<A, FirstEnvT>;
 type Transform<A, B> = ft.Transform<A, B, FirstEnvT>;
-type PerhapsW<A> = ft.PerhapsWithEnv<A, FirstEnvT>;
+type PerhapsW<A> = ft.TaskResult<A, FirstEnvT>;
 // type FilterTransform<A> = ft.FilterTransform<A, FirstEnvT>;
 
 const {
@@ -44,8 +44,7 @@ const {
   tapEitherEnv,
   filter,
   Transform,
-  through,
-  valueEnvPair,
+  succeedWith,
   mapEnv,
   forEachDo,
   eachOrElse,
@@ -62,7 +61,7 @@ const traceFunc: <A, B>(name: string, func: Transform<A, B>) => Transform<A, B> 
   tapLeft((_a, env) => env.messages.push(`${name}:out:left`)),
 );
 
-const traceArg: <A, B>(func: Transform<string, string>) => Transform<string, string> = (func) => {
+const traceArg: (func: Transform<string, string>) => Transform<string, string> = (func) => {
   let aIn: string;
   return compose(
     tap((a) => aIn = a),

@@ -15,7 +15,7 @@ import {
   tap,
   Transform,
   tapLeft,
-  valueEnvPair
+  succeedWith
 } from '~/core/taskflow-defs';
 
 import {
@@ -88,7 +88,7 @@ export function registerCommands(yargv: arglib.YArgsT) {
       })
     );
 
-    const arg = TE.right(valueEnvPair(url, env));
+    const arg = TE.right(succeedWith(url, env));
     const runnable = pipe(arg, pipeline)
 
     try {

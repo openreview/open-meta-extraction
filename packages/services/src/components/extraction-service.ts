@@ -15,7 +15,7 @@ import {
 
 import { BrowserPool, createSpiderEnv } from '@watr/spider';
 
-import { CanonicalFieldRecords, ExtractionEnv, ExtractionResult, getEnvCanonicalFields, SpiderAndExtractionTransform } from '@watr/field-extractors';
+import { CanonicalFieldRecords, ExtractionEnv, TaskResult, getEnvCanonicalFields, SpiderAndExtractionTransform } from '@watr/field-extractors';
 
 import { Logger } from 'winston';
 import { ShadowDB } from './shadow-db';
@@ -135,7 +135,7 @@ export class ExtractionService {
     }
   }
 
-  async extractUrl(url: URL): Promise<ExtractionResult<any>> {
+  async extractUrl(url: URL): Promise<TaskResult<any>> {
     const spiderEnv = await createSpiderEnv(this.log, this.browserPool, this.corpusRoot, url);
 
     const fieldExtractionResults = await SpiderAndExtractionTransform(TE.right([url, spiderEnv]))()
@@ -161,7 +161,7 @@ export class ExtractionService {
     return !!update;
   }
 
-  async recordExtractionResults(noteId: string, result: ExtractionResult<any>) {
+  async recordExtractionResults(noteId: string, result: TaskResult<any>) {
     const extractionEnv = E.isLeft(result) ? result.left[1] : result.right[1];
     const { status, responseUrl } = extractionEnv.urlFetchData;
     const httpStatus = parseIntOrElse(status, 0);

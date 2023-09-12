@@ -43,17 +43,12 @@ export const {
   collectFanout,
 } = fp;
 
-export type ControlInstruction = ft.ControlInstruction;
+export type Explanation = ft.Explanation;
 
 type EnvT = ExtractionEnv;
 
-
-type ExtractionSuccess<A> = ft.TaskSuccess<A, EnvT>
-type ExtractionFailure = ft.TaskFailure<EnvT>
-export type ExtractionResult<A> = ft.TaskResult<A, EnvT>
-
 export type ExtractionTask<A> = ft.ExtractionTask<A, EnvT>;
-export type PerhapsW<A> = ft.PerhapsWithEnv<A, EnvT>;
+export type TaskResult<A> = ft.TaskResult<A, EnvT>;
 export type ClientFunc<A, B> = ft.ClientFunc<A, B, EnvT>;
 export type ClientResult<A> = ft.ClientResult<A>;
 export type Transform<A, B> = ft.Transform<A, B, EnvT>;

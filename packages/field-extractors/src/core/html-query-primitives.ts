@@ -232,7 +232,7 @@ export const loadBrowserPage: (pageOptions?: PageInstanceOptions) => Transform<C
       return pagePromise;
     }
 
-    return ClientFunc.halt(`cache has no record for key ${cacheKey}`);
+    return ClientFunc.failure(`cache has no record for key ${cacheKey}`);
   });
 
 export const selectOne: (queryString: string) => Transform<BrowserPage, Elem> =

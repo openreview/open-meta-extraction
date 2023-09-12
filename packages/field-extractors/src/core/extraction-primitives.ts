@@ -12,7 +12,6 @@ import {
   expandDir,
   readCorpusTextFile,
   writeCorpusTextFile,
-  diffByChars,
   runTidyCmdBuffered,
   runFileCmd,
   toUrl,
@@ -23,7 +22,7 @@ import {
 import {
   Transform,
   ExtractionEnv,
-  ControlInstruction,
+  Explanation,
   NormalForm,
   forEachDo,
   FilterTransform,
@@ -187,7 +186,7 @@ const loadXML: Transform<string, any> = through((artifactPath, env) => {
     );
   }
 
-  return ClientFunc.halt(`loadXML Fail for ${artifactPath}`);
+  return ClientFunc.failure(`loadXML Fail for ${artifactPath}`);
 }, 'loadXML');
 
 const runHtmlTidy: Transform<string, string> = through((artifactPath, env) => {
@@ -218,7 +217,7 @@ const runHtmlTidy: Transform<string, string> = through((artifactPath, env) => {
       return cacheKey;
     }),
     TE.mapLeft((message) => {
-      const ci: ControlInstruction = ['halt', message];
+      const ci: Explanation = [message];
       return ci;
     })
   );
