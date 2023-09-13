@@ -3,7 +3,7 @@ import * as m from './mock-scopes';
 import { composeScopes, compose2Scopes, Yielded } from './scoped-exec';
 
 describe('Scoped Execution', () => {
-  it('compose composeNScopes properly', async () => {
+  it('should compose composeNScopes properly', async () => {
     const reqString = 'dude...';
     const reqBool = true;
     const reqNumber = 42;
@@ -13,9 +13,9 @@ describe('Scoped Execution', () => {
       m.alphaExec(),
       m.betaExec(),
       m.gammaExec(),
-      // m.gammaExec(),
-      // m.betaExec(),
-      // m.alphaExec(),
+      m.gammaExec(),
+      m.betaExec(),
+      m.alphaExec(),
     );
 
     const logBuffer1: string[] = [];

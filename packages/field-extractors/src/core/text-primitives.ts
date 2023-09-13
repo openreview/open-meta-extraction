@@ -12,7 +12,7 @@ export const loadTextFile: Transform<CacheFileKey, string> =
   through((cacheKey: CacheFileKey, { fileContentCache }) =>
     (cacheKey in fileContentCache
       ? fileContentCache[cacheKey]
-      : ClientFunc.failure(`cache has no record for key ${cacheKey}`)
+      : ClientFunc.failWith(`cache has no record for key ${cacheKey}`)
     ), 'loadTextFile');
 
 export const splitLines: Transform<string, string[]> =

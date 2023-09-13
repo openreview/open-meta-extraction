@@ -16,15 +16,11 @@ import { prettyFormat } from '~/util/pretty-print';
 import { setLogLabel, getServiceLogger } from '~/util/basic-logging';
 
 export interface TaskFlow<Env extends BaseEnv> {
-  // Success [value, env] pair
   succeedWith<A>(a: A, w: Env): TaskSuccess<A, Env>;
 
-  // Fail [explanation, env] pair
   failWith(ci: Explanation, w: Env): TaskFailure<Env>;
 
-  // initArg<A>(a: A, w: Env): TE.TaskEither<TaskFailure<Env>, WithEnv<A, Env>>;
-  initArg<A>(a: A, w: Env): TaskResult<A, Env>;
-
+  initArg<A>(a: A, w: Env): TE.TaskEither<TaskFailure<Env>, TaskSuccess<A, Env>>;
 
   // Namespace support for logging:
   // Bracket the given function by  pushing/popping the given name onto a stack in Env
@@ -76,14 +72,13 @@ export interface TaskFlow<Env extends BaseEnv> {
 
 
   ExtractionTask: {
-    lift: <A>(a: Eventual<A>, env: Env) => ExtractionTask<A, Env>;
-    // liftW: <A>(wa: Eventual<WithEnv<A, Env>>) => ExtractionTask<A, Env>;
-    liftFail: <A>(ci: Eventual<Explanation>, env: Env) => ExtractionTask<A, Env>;
+    succeedWith: <A>(a: Eventual<A>, env: Env) => ExtractionTask<A, Env>;
+    failWith: <A>(ci: Eventual<Explanation>, env: Env) => ExtractionTask<A, Env>;
   };
 
   ClientFunc: {
-    success: <A>(a: A) => Perhaps<A>;
-    failure: <A>(msg: string) => Perhaps<A>;
+    succeedWith: <A>(a: A) => Perhaps<A>;
+    failWith: <A>(msg: string) => Perhaps<A>;
   }
 }
 
@@ -135,22 +130,20 @@ export function initBaseEnv(logOrName: Logger | string): BaseEnv {
  */
 export type WithEnv<A, Env extends BaseEnv> = [a: A, env: Env];
 
-function succeedWith<A, Env extends BaseEnv>(a: A, w: Env): TaskSuccess<A, Env> {
+function succeedWith<A, Env extends BaseEnv>(a: A, w: Env): WithEnv<A, Env> {
   return [a, w];
 }
 
-
+function initArg<A, Env extends BaseEnv>(a: A, env: Env): TE.TaskEither<TaskFailure<Env>, WithEnv<A, Env>> {
+  return TE.right(succeedWith(a, env));
+}
 
 export type TaskFailure<Env extends BaseEnv> = WithEnv<Explanation, Env>;
 export type TaskSuccess<A, Env extends BaseEnv> = WithEnv<A, Env>;
-export type TaskResult<A, Env extends BaseEnv> = TE.TaskEither<TaskFailure<Env>, TaskSuccess<A, Env>>;
+export type TaskResult<A, Env extends BaseEnv> = E.Either<TaskFailure<Env>, TaskSuccess<A, Env>>;
 
 function failWith<Env extends BaseEnv>(ci: Explanation, w: Env): TaskFailure<Env> {
   return [ci, w];
-}
-
-function initArg<A, Env extends BaseEnv>(a: A, env: Env): TaskResult<A, Env> {
-  return TE.right<TaskFailure<Env>, TaskSuccess<A, Env>>(succeedWith(a, env));
 }
 
 /**
@@ -160,7 +153,6 @@ function initArg<A, Env extends BaseEnv>(a: A, env: Env): TaskResult<A, Env> {
 export type Eventual<A> = A | Promise<A>;
 
 export type Perhaps<A> = E.Either<Explanation, A>;
-// export type PerhapsWithEnv<A, Env extends BaseEnv> = E.Either<TaskFailure<Env>, WithEnv<A, Env>>;
 
 export type LogHook<A, B, Env extends BaseEnv> = (a: A, eb: Perhaps<B>, env: Env) => void;
 
@@ -178,8 +170,8 @@ export type ControlFunc_<Env extends BaseEnv> =
   (ci: Explanation, env: Env) => unknown;
 
 const ClientFunc = {
-  success: <A>(a: A): Perhaps<A> => E.right(a),
-  failure: <A>(msg: string): Perhaps<A> => E.left([msg]),
+  succeedWith: <A>(a: A): Perhaps<A> => E.right(a),
+  failWith: <A>(msg: string): Perhaps<A> => E.left([msg]),
 };
 
 
@@ -188,25 +180,22 @@ const ClientFunc = {
 
 export type EventualResult<A, Env extends BaseEnv> = Promise<TaskResult<A, Env>>;
 const EventualResult = {
-  lift: <A, Env extends BaseEnv>(a: Eventual<A>, env: Env): Promise<TaskSuccess<A, Env>> =>
+  succeedWith: <A, Env extends BaseEnv>(a: Eventual<A>, env: Env): EventualResult<A, Env> =>
     Promise.resolve<A>(a).then(a0 => E.right(succeedWith(a0, env))),
 
-  // liftW: <A, Env extends BaseEnv>(wa: Eventual<WithEnv<A, Env>>): EventualResult<A, Env> => Promise.resolve<WithEnv<A, Env>>(wa).then(wa0 => E.right(wa0)),
-
-  liftFail: <A, Env extends BaseEnv>(ci: Eventual<Explanation>, env: Env): EventualResult<A, Env> =>
+  failWith: <A, Env extends BaseEnv>(ci: Eventual<Explanation>, env: Env): EventualResult<A, Env> =>
     Promise.resolve<Explanation>(ci).then(ci0 => E.left(succeedWith(ci0, env))),
 };
 
 // Basic Task type, which when run will produce either success as Right([A,  Env]), or failure as Left([Control, Env])
-export type ExtractionTask<A, Env extends BaseEnv> = TE.TaskEither<TaskFailure<Env>, TaskSuccess<A, Env>>;
+export type ExtractionTask<A, Env extends BaseEnv> = TE.TaskEither<TaskFailure<Env>, WithEnv<A, Env>>;
 
 const ExtractionTask = {
-  lift: <A, Env extends BaseEnv>(a: Eventual<A>, env: Env): ExtractionTask<A, Env> =>
-    () => Promise.resolve<A>(a).then(a0 => E.right(succeedWith(a0, env))),
+  succeedWith: <A, Env extends BaseEnv>(a: Eventual<A>, env: Env): ExtractionTask<A, Env> =>
+    () => EventualResult.succeedWith(a, env),
 
-  // liftW: <A, Env extends BaseEnv>(wa: Eventual<WithEnv<A, Env>>): ExtractionTask<A, Env> => () => Promise.resolve<WithEnv<A, Env>>(wa).then(wa0 => E.right(wa0)),
-
-  liftFail: <A, Env extends BaseEnv>(ci: Eventual<Explanation>, env: Env): ExtractionTask<A, Env> => () => Promise.resolve<Explanation>(ci).then(ci0 => E.left(succeedWith(ci0, env))),
+  failWith: <A, Env extends BaseEnv>(ci: Eventual<Explanation>, env: Env): ExtractionTask<A, Env> =>
+    () => EventualResult.failWith(ci, env),
 };
 
 export interface Transform<A, B, Env extends BaseEnv> {
@@ -228,7 +217,7 @@ const Transform = {
       er,
       TE.fold(
         ([controlInstruction, env]) => {
-          return ExtractionTask.liftFail(controlInstruction, env);
+          return ExtractionTask.failWith(controlInstruction, env);
         },
         ([prev, env]) => {
           return () => Promise.resolve(fab(prev, env))
@@ -240,7 +229,7 @@ const Transform = {
                 if (postHook) {
                   postHook(prev, result, env);
                 }
-                return EventualResult.liftFail<B, Env>(ci, env);
+                return EventualResult.failWith<B, Env>(ci, env);
               }
               if (isERight(result)) {
                 const b = result.right;
@@ -248,7 +237,7 @@ const Transform = {
                 if (postHook) {
                   postHook(prev, result, env);
                 }
-                return EventualResult.lift<B, Env>(b, env);
+                return EventualResult.succeedWith<B, Env>(b, env);
               }
               if (_.isFunction(result)) {
                 return result()
@@ -257,19 +246,19 @@ const Transform = {
                       postHook(prev, res, env);
                     }
                     if (E.isLeft(res)) {
-                      return EventualResult.liftFail<B, Env>(res.left, env);
+                      return EventualResult.failWith<B, Env>(res.left, env);
                     }
-                    return EventualResult.lift<B, Env>(res.right, env);
+                    return EventualResult.succeedWith<B, Env>(res.right, env);
                   });
               }
 
               if (postHook) {
                 postHook(prev, E.right(result), env);
               }
-              return EventualResult.lift(result, env);
+              return EventualResult.succeedWith(result, env);
             })
             .catch((error: any) => {
-              return EventualResult.liftFail<B, Env>([error], env);
+              return EventualResult.failWith<B, Env>([error], env);
             });
         }
       ));

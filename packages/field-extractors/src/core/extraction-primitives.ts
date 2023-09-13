@@ -168,7 +168,7 @@ const loadXML: Transform<string, any> = through((artifactPath, env) => {
   const cacheKey = `${artifactPath}.${normType}`;
 
   if (cacheKey in fileContentCache) {
-    return ClientFunc.success(cacheKey);
+    return ClientFunc.succeedWith(cacheKey);
   }
 
   // TODO this use of 'cache', vs '.' is unnecessary and confusing
@@ -186,7 +186,7 @@ const loadXML: Transform<string, any> = through((artifactPath, env) => {
     );
   }
 
-  return ClientFunc.failure(`loadXML Fail for ${artifactPath}`);
+  return ClientFunc.failWith(`loadXML Fail for ${artifactPath}`);
 }, 'loadXML');
 
 const runHtmlTidy: Transform<string, string> = through((artifactPath, env) => {
@@ -196,13 +196,13 @@ const runHtmlTidy: Transform<string, string> = through((artifactPath, env) => {
   const cacheKey = `${artifactPath}.${normType}`;
   if (cacheKey in fileContentCache) {
     log.debug(`HTMLTidy: Cache key:${cacheKey} hit`);
-    return ClientFunc.success(cacheKey);
+    return ClientFunc.succeedWith(cacheKey);
   }
   const maybeCachedContent = readCorpusTextFile(entryPath(), 'cache', cacheKey);
   if (maybeCachedContent) {
     fileContentCache[cacheKey] = maybeCachedContent;
     log.debug(`HTMLTidy: Cache key:${cacheKey} loaded file`);
-    return ClientFunc.success(cacheKey);
+    return ClientFunc.succeedWith(cacheKey);
   }
   const fullPath = path.resolve(entryPath(), artifactPath);
 

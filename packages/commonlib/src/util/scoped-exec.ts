@@ -238,14 +238,72 @@ export function composeScopes<
       ComposedContextFuncs<
         ComposedContextFuncs<typeof fa, typeof fb>, typeof fc>, typeof fd>, typeof fe>;
 
+export function composeScopes<
+  ANeeds extends Readonly<object>,
+  BNeeds extends Readonly<object>,
+  CNeeds extends Readonly<object>,
+  DNeeds extends Readonly<object>,
+  ENeeds extends Readonly<object>,
+  FNeeds extends Readonly<object>,
+  AScope extends object,
+  BScope extends object,
+  CScope extends object,
+  DScope extends object,
+  EScope extends object,
+  FScope extends object,
+>(
+  fa: (n: ANeeds) => Generate<AScope>,
+  fb: (n: BNeeds) => Generate<BScope>,
+  fc: (n: CNeeds) => Generate<CScope>,
+  fd: (n: DNeeds) => Generate<DScope>,
+  fe: (n: ENeeds) => Generate<EScope>,
+  ff: (n: FNeeds) => Generate<FScope>,
+):
+  ComposedContextFuncs<
+    ComposedContextFuncs<
+      ComposedContextFuncs<
+        ComposedContextFuncs<
+          ComposedContextFuncs<typeof fa, typeof fb>, typeof fc>, typeof fd>, typeof fe>, typeof ff>;
+
+export function composeScopes<
+  ANeeds extends Readonly<object>,
+  BNeeds extends Readonly<object>,
+  CNeeds extends Readonly<object>,
+  DNeeds extends Readonly<object>,
+  ENeeds extends Readonly<object>,
+  FNeeds extends Readonly<object>,
+  GNeeds extends Readonly<object>,
+  AScope extends object,
+  BScope extends object,
+  CScope extends object,
+  DScope extends object,
+  EScope extends object,
+  FScope extends object,
+  GScope extends object,
+>(
+  fa: (n: ANeeds) => Generate<AScope>,
+  fb: (n: BNeeds) => Generate<BScope>,
+  fc: (n: CNeeds) => Generate<CScope>,
+  fd: (n: DNeeds) => Generate<DScope>,
+  fe: (n: ENeeds) => Generate<EScope>,
+  ff: (n: FNeeds) => Generate<FScope>,
+  fg: (n: GNeeds) => Generate<GScope>,
+):
+  ComposedContextFuncs<
+    ComposedContextFuncs<
+      ComposedContextFuncs<
+        ComposedContextFuncs<
+          ComposedContextFuncs<
+            ComposedContextFuncs<typeof fa, typeof fb>, typeof fc>, typeof fd>, typeof fe>, typeof ff>, typeof fg>;
+
 export function composeScopes(
   f1: ContextFunc,
   f2: ContextFunc,
   f3?: ContextFunc,
   f4?: ContextFunc,
   f5?: ContextFunc,
-  // f6?: ContextFunc,
-  // f7?: ContextFunc,
+  f6?: ContextFunc,
+  f7?: ContextFunc,
   // f8?: ContextFunc,
   // f9?: ContextFunc,
 ): ComposedContextFuncs<typeof f1, any> {
@@ -260,13 +318,14 @@ export function composeScopes(
   if (f5 === undefined) return comp4;
 
   const comp5: ComposedContextFuncs<typeof comp4, typeof f5> = compose2Scopes(comp4, f5);
-  return comp5;
-  // if (f6 === undefined) return comp5;
+  if (f6 === undefined) return comp5;
 
-  // const comp6: ComposedContextFuncs<typeof comp5, typeof f6> = compose2Scopes(comp5, f6);
-  // if (f7 === undefined) return comp6;
+  const comp6: ComposedContextFuncs<typeof comp5, typeof f6> = compose2Scopes(comp5, f6);
+  if (f7 === undefined) return comp6;
 
-  // const comp7: ComposedContextFuncs<typeof comp6, typeof f7> = compose2Scopes(comp6, f7);
+  const comp7: ComposedContextFuncs<typeof comp6, typeof f7> = compose2Scopes(comp6, f7);
+  return comp7;
+
   // if (f8 === undefined) return comp7;
 
   // const comp8: ComposedContextFuncs<typeof comp7, typeof f8> = compose2Scopes(comp7, f8);

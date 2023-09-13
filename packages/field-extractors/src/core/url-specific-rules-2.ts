@@ -57,19 +57,19 @@ const readSpringerDocumentMetadata: Transform<BrowserPage, ParsedJson> = compose
   getElemText,
   through((jsonText, env) => {
     if (!_.isString(jsonText) || jsonText.length === 0) {
-      return ClientFunc.failure('springer-link.metadata not found');
+      return ClientFunc.failWith('springer-link.metadata not found');
     }
     const i1 = jsonText.indexOf('{');
     const i2 = jsonText.lastIndexOf('}');
     if (i1 < 0 || i2 < 0) {
-      return ClientFunc.failure('springer-link.metadata doesnt look like json');
+      return ClientFunc.failWith('springer-link.metadata doesnt look like json');
     }
     const strippedJson = jsonText.slice(i1, i2 + 1);
     try {
       return { json: JSON.parse(strippedJson) };
     } catch (error) {
       env.log.warn('readSpringerDocumentMetadata: Could not parse JSON text');
-      return ClientFunc.failure('springer-link.metadata not parsable');
+      return ClientFunc.failWith('springer-link.metadata not parsable');
     }
   }, 'readSpringerMetadata'));
 
@@ -163,7 +163,7 @@ const readGlobalDocumentMetadata: Transform<CacheFileKey, GlobalDocumentMetadata
   grepFilter(/global\.document\.metadata/i),
   through((lines) => {
     if (lines.length === 0) {
-      return ClientFunc.failure('global.document.metadata not found');
+      return ClientFunc.failWith('global.document.metadata not found');
     }
     const line = lines[0];
     const jsonStart = line.indexOf('{');
