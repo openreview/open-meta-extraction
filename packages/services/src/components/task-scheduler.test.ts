@@ -1,6 +1,6 @@
 import _ from 'lodash';
 import { setLogEnvLevel } from '@watr/commonlib';
-import { TaskScheduler, taskSchedulerScopeWithDeps } from './task-scheduler';
+import { TaskScheduler, taskSchedulerScopeWithDeps, ClassXX } from './task-scheduler';
 import { mongoConfig, } from '~/db/mongodb';
 import { initMyColl } from '~/db/mock-data';
 import { asyncGenToArray } from '~/util/generators';
@@ -90,4 +90,5 @@ describe('Task Scheduling', () => {
       expect(taskRunner.taskLog).toMatchObject([0, 2, 4, 6])
     }
   });
+
 });

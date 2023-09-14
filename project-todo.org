@@ -2,8 +2,6 @@
 
 ** Next Actions
 
-  - [ ] Get rid of 'halt'|'continue'
-
   - [-] Task Types
     - [X] Process most recently fetched notes
     - [ ] Fill in missing responseUrl/httpStatus fields in UrlStatus

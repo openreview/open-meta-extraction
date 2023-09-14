@@ -9,9 +9,14 @@ import { Task } from '~/db/schemas';
 
 
 // TODO move or use ts-toolbelt
-export type Class<T extends object = {}, Arguments extends unknown[] = any[]> = {
+export type Class<T extends object = object, Arguments extends unknown[] = any[]> = {
   prototype: T;
   new(...arguments_: Arguments): T;
+};
+
+export type ClassXX<T extends object = object, Arguments extends unknown[] = any[]> = {
+  new(...arguments_: Arguments): T;
+  taskScheduler: TaskScheduler;
 };
 
 export type Instance<C extends Class> =

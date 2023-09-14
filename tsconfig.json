@@ -17,6 +17,7 @@
     "skipLibCheck": true,
     "esModuleInterop": true,
     "resolveJsonModule": false,
+    "experimentalDecorators": true,
     "types": [
       "node",
       "jest"

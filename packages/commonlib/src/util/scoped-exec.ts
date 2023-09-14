@@ -26,16 +26,22 @@ import { Logger } from 'winston';
  **/
 
 type Eventual<T> = T | Promise<T>;
+
 // The record type of the resource provided by this scope, e.g., { connectionPool: ConnectionPool }
 type Product<NameT extends string, UsageT> = Record<NameT, UsageT>;
+
 // The type of AsyncGenerator used
 export type Generate<T> = AsyncGenerator<T, void, any>;
+
 // The thing that is generated
 export type Yielded<G> = G extends Generate<infer T> ? T : never;
+
 // Function which defines an execution scope (context)
 export type ContextFunc = (needs: any) => Generate<any>;
+
 // The input (needs) to a context function
 export type ContextNeeds<T> = T extends ((arg: infer A) => Generate<unknown>) ? A : never;
+
 // Everything provided in execution scope, which is Needs+Product
 export type InScope<F extends ContextFunc> = Yielded<ReturnType<F>>;
 
@@ -171,6 +177,7 @@ export function compose2Scopes<
   return composition;
 }
 
+
 export function composeScopes<
   ANeeds extends Readonly<object>,
   BNeeds extends Readonly<object>,
@@ -180,6 +187,8 @@ export function composeScopes<
   ab: (an: ANeeds) => Generate<AScope>,
   bc: (bn: BNeeds) => Generate<BScope>,
 ): ComposedContextFuncs<typeof ab, typeof bc>;
+
+
 
 export function composeScopes<
   ANeeds extends Readonly<object>,
@@ -325,14 +334,6 @@ export function composeScopes(
 
   const comp7: ComposedContextFuncs<typeof comp6, typeof f7> = compose2Scopes(comp6, f7);
   return comp7;
-
-  // if (f8 === undefined) return comp7;
-
-  // const comp8: ComposedContextFuncs<typeof comp7, typeof f8> = compose2Scopes(comp7, f8);
-  // if (f9 === undefined) return comp8;
-
-  // const comp9: ComposedContextFuncs<typeof comp8, typeof f9> = compose2Scopes(comp8, f9);
-  // return comp9;
 }
 
 // Produces unique ids for execution scopes to help with logging
@@ -346,3 +347,4 @@ function resourceId(name: string): string {
   resourceIdSet.set(name, nextId);
   return `${name}${nextId()}`;
 }
+
