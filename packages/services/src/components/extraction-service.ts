@@ -147,6 +147,10 @@ export class ExtractionService {
         await browserPool.release(browserInstance);
         browserPool.report();
       });
+    const extractionEnv = E.isLeft(fieldExtractionResults) ? fieldExtractionResults.left[1] : fieldExtractionResults.right[1];
+    const { urlFetchData } = extractionEnv;
+    const isError = E.isLeft(fieldExtractionResults);
+    prettyPrint({ isError, urlFetchData })
 
     return fieldExtractionResults;
 

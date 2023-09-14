@@ -1,7 +1,9 @@
 
 export function parseIntOrElse(s: string, fallback: number): number {
   try {
-    return Number.parseInt(s);
+    const n = Number.parseInt(s);
+    if (n === Number.NaN) return fallback;
+    return n;
   }
   catch {
     return fallback;
